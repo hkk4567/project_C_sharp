@@ -1,0 +1,188 @@
+@page "/owner/create-poi"
+@page "/owner/edit-poi/{Id:int}"
+@using System.Net.Http.Headers
+@using Microsoft.AspNetCore.Authorization
+@using SmartTourGuide.Shared.DTOs
+@inject HttpClient Http
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@attribute [Authorize(Roles = "BoothOwner")]
+
+<AuthorizeView Roles="BoothOwner" Context="authContext"> @* Đổi tên để tránh trùng 'context' *@
+    <Authorized>
+        <MudText Typo="Typo.h4" Class="mb-4">@(Id.HasValue ? "Cập Nhật Địa Điểm" : "Tạo Địa Điểm Mới")</MudText>
+
+        <MudCard>
+            <MudForm @ref="form" @bind-IsValid="@success">
+                <MudCardContent>
+                    <MudTextField @bind-Value="poiName" Label="Tên địa điểm" Required="true"
+                        RequiredError="Vui lòng nhập tên!" />
+
+                    <MudTextField @bind-Value="address" Label="Địa chỉ cụ thể"
+                        Placeholder="Ví dụ: 123 Đường ABC, Quận 1..." Class="mt-2" />
+
+                    <MudTextField @bind-Value="description" Label="Mô tả chi tiết" Lines="3" />
+
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="6">
+                            <MudNumericField @bind-Value="latitude" Label="Vĩ độ (Latitude)" Format="F6" />
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudNumericField @bind-Value="longitude" Label="Kinh độ (Longitude)" Format="F6" />
+                        </MudItem>
+                    </MudGrid>
+
+                    @if (Id.HasValue)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mt-3">
+                            Lưu ý: Nếu bạn sửa thông tin, địa điểm sẽ cần Admin duyệt lại (Trạng thái chuyển về Pending).
+                        </MudAlert>
+                    }
+
+                    <MudFileUpload T="IReadOnlyList<IBrowserFile>" FilesChanged="UploadFiles" Class="mt-4">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                StartIcon="@Icons.Material.Filled.CloudUpload">
+                                @(Id.HasValue ? "Thêm ảnh/audio mới (Giữ nguyên cũ)" : "Chọn ảnh/audio")
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+
+                    @if (files.Any())
+                    {
+                        <MudList T="string" Dense="true" Class="mt-2">
+                            @foreach (var file in files)
+                            {
+                                <MudListItem Icon="@Icons.Material.Filled.AttachFile">
+                                    @file.Name (@(file.Size / 1024) KB)
+                                </MudListItem>
+                            }
+                        </MudList>
+                    }
+
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitPoi"
+                        Disabled="processing || !success">
+                        @if (processing)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        <text>@(Id.HasValue ? "Cập nhật" : "Tạo mới")</text>
+                    </MudButton>
+                    @if (Id.HasValue)
+                    {
+                        <MudButton Variant="Variant.Text" Color="Color.Default"
+                            OnClick='() => Nav.NavigateTo("/owner/my-pois")' Class="ml-2">Hủy</MudButton>
+                    }
+                </MudCardActions>
+            </MudForm>
+        </MudCard>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private MudForm? form;
+    private bool success;
+    private string poiName = string.Empty;
+    private string address = string.Empty;
+    private string description = string.Empty;
+    private double latitude = 10.762622;
+    private double longitude = 106.660172;
+    private bool processing = false;
+    private List<IBrowserFile> files = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Nếu là chế độ Sửa -> Load dữ liệu cũ
+        if (Id.HasValue)
+        {
+            try
+            {
+                // Cần thêm API GetDetail trong Controller trả về 1 PoiDto
+                // GET api/pois/5
+                var poi = await Http.GetFromJsonAsync<PoiDto>($"api/pois/{Id}");
+                if (poi != null)
+                {
+                    poiName = poi.Name;
+                    address = poi.Address;
+                    description = poi.Description; // description có thể null ở server cần xử lý
+                    latitude = poi.Latitude;
+                    longitude = poi.Longitude;
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Không tải được dữ liệu: {ex.Message}", Severity.Error);
+                Nav.NavigateTo("/owner/my-pois");
+            }
+        }
+    }
+
+    private void UploadFiles(IReadOnlyList<IBrowserFile> selectedFiles)
+    {
+        if (selectedFiles != null)
+        {
+            files = selectedFiles.ToList();
+        }
+    }
+
+    private async Task SubmitPoi()
+    {
+        if (form == null) return;
+        await form.Validate();
+        if (!form.IsValid) return;
+        processing = true;
+
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            content.Add(new StringContent(poiName), "Name");
+            content.Add(new StringContent(address ?? ""), "Address");
+            content.Add(new StringContent(description ?? ""), "Description");
+            content.Add(new StringContent(latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)), "Latitude");
+            content.Add(new StringContent(longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)), "Longitude");
+
+            var userId = await LocalStorage.GetItemAsync<int>("userId");
+            content.Add(new StringContent(userId.ToString()), "OwnerId");
+
+            foreach (var file in files)
+            {
+                var fileStream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                var mediaHeader = new StreamContent(fileStream);
+                mediaHeader.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+                content.Add(mediaHeader, "files", file.Name);
+            }
+
+            HttpResponseMessage response;
+            if (Id.HasValue)
+            {
+                // Gọi API UPDATE (PUT)
+                response = await Http.PutAsync($"api/pois/{Id}", content);
+            }
+            else
+            {
+                // Gọi API CREATE (POST)
+                response = await Http.PostAsync("api/pois", content);
+            }
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add(Id.HasValue ? "Cập nhật thành công!" : "Tạo mới thành công!", Severity.Success);
+                Nav.NavigateTo("/owner/my-pois");
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Lỗi: {err}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+        finally { processing = false; }
+    }
+}

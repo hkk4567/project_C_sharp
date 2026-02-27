@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="SmartTourGuide.API/SmartTourGuide.API.csproj" />
+  <Project Path="SmartTourGuide.Shared/SmartTourGuide.Shared.csproj" />
+  <Project Path="SmartTourGuide.Web/SmartTourGuide.Web.csproj" />
+</Solution>

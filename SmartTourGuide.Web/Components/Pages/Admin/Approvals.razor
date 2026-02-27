@@ -1,0 +1,133 @@
+@page "/admin/approvals"
+@using SmartTourGuide.Shared.DTOs
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = "Admin")]
+
+<MudText Typo="Typo.h4" Class="mb-4">Quản Lý Địa Điểm</MudText>
+
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+
+    <!-- TAB 1: DANH SÁCH CHỜ DUYỆT -->
+    <MudTabPanel Text="Đang chờ duyệt (Pending)" Icon="@Icons.Material.Filled.PendingActions">
+        <!-- Chú ý: PropertyColumn phải có Type cụ thể là PoiDto -->
+        <MudDataGrid T="PoiDto" Items="@pendingPois" Bordered="true" Striped="true">
+            <Columns>
+                <PropertyColumn Property="x => x.Name" title="Tên địa điểm" />
+                <PropertyColumn Property="x => x.Address" title="Địa chỉ" />
+                <TemplateColumn Title="Hành động">
+                    <CellTemplate>
+                        <MudButton Color="Color.Success" Variant="Variant.Filled" Size="Size.Small"
+                            OnClick="@(() => ApproveItem(context.Item!.Id))">Duyệt</MudButton>
+
+                        <MudIconButton Icon="@Icons.Material.Filled.Settings" Color="Color.Primary"
+                            OnClick="@(() => OpenGeofenceDialog(context.Item!))" title="Cấu hình Geofence" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <MudText>Không có bài đăng nào chờ duyệt.</MudText>
+            </NoRecordsContent>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <!-- TAB 2: DANH SÁCH ĐANG HOẠT ĐỘNG -->
+    <MudTabPanel Text="Đang hoạt động (Active)" Icon="@Icons.Material.Filled.CheckCircle">
+        <MudDataGrid T="PoiDto" Items="@activePois" Bordered="true" Striped="true">
+            <Columns>
+                <PropertyColumn Property="x => x.Name" Title="Tên địa điểm" />
+                <PropertyColumn Property="x => x.TriggerRadius" Title="Bán kính (m)" />
+                <PropertyColumn Property="x => x.Priority" Title="Ưu tiên" Sortable="true" />
+                <TemplateColumn Title="Cấu hình">
+                    <CellTemplate>
+                        <MudButton StartIcon="@Icons.Material.Filled.Settings" Color="Color.Info"
+                            Variant="Variant.Outlined" Size="Size.Small"
+                            OnClick="@(() => OpenGeofenceDialog(context.Item))">Chỉnh Geofence</MudButton>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <MudText>Chưa có địa điểm nào hoạt động.</MudText>
+            </NoRecordsContent>
+        </MudDataGrid>
+    </MudTabPanel>
+
+</MudTabs>
+
+@code {
+    private List<PoiDto> pendingPois = new();
+    private List<PoiDto> activePois = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        // Đảm bảo API trả về List rỗng thay vì null để Grid không lỗi
+        try
+        {
+            var pList = await Http.GetFromJsonAsync<List<PoiDto>>("api/pois/pending");
+            pendingPois = pList ?? new(); // Nếu null thì new list
+        }
+        catch { }
+
+        try
+        {
+            // Giả sử API GetPois lấy bài Active
+            var aList = await Http.GetFromJsonAsync<List<PoiDto>>("api/pois");
+            activePois = aList ?? new();
+        }
+        catch { }
+    }
+
+    private async Task OpenGeofenceDialog(PoiDto poi)
+    {
+        var model = new UpdateGeofenceDto
+        {
+            TriggerRadiusInMeters = poi.TriggerRadius > 0 ? poi.TriggerRadius : 50,
+            CooldownInSeconds = 300,
+            Priority = 1
+        };
+
+        var parameters = new DialogParameters<GeofenceDialog>
+{
+{ x => x.PoiName, poi.Name },
+{ x => x.Model, model }
+};
+
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        var dialog = await DialogService.ShowAsync<GeofenceDialog>("Cấu hình Geofence", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is UpdateGeofenceDto updateData)
+        {
+            // Gọi API
+            var response = await Http.PutAsJsonAsync($"api/pois/{poi.Id}/geofence", updateData);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"Đã cập nhật Geofence cho {poi.Name}", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add("Cập nhật thất bại", Severity.Error);
+            }
+        }
+    }
+
+    private async Task ApproveItem(int id)
+    {
+        var response = await Http.PutAsync($"api/pois/{id}/approve", null);
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add($"Đã duyệt!", Severity.Success);
+            await LoadData();
+        }
+    }
+}

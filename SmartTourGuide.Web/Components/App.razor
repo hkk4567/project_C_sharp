@@ -1,0 +1,69 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
+
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="SmartTourGuide.Web.styles.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+
+    <HeadOutlet @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+</head>
+
+<body>
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+
+    <script src="_framework/blazor.web.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script>
+        window.blazorTts = {
+        speak: function (text) {
+        window.speechSynthesis.cancel(); // Dừng mọi thứ đang đọc
+
+        const speakAction = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const msg = new SpeechSynthesisUtterance(text);
+
+        // 1. Tìm giọng theo độ ưu tiên (Ưu tiên các giọng Online nghe cực hay)
+        const viVoice = voices.find(v => v.name.includes('Hoai My')) || // Microsoft Edge Online
+        voices.find(v => v.name.includes('Google tiếng Việt')) || // Chrome Online
+        voices.find(v => v.lang === 'vi-VN') || // Bất kỳ giọng Việt nào
+        voices.find(v => v.lang.startsWith('vi')); // Giọng có mã vi
+
+        if (viVoice) {
+        msg.voice = viVoice;
+        msg.lang = 'vi-VN';
+        console.log("Đang sử dụng giọng: " + viVoice.name);
+        } else {
+        msg.lang = 'vi-VN';
+        console.warn("Không tìm thấy giọng Việt cụ thể, dùng mặc định của hệ thống.");
+        }
+
+        msg.rate = 0.9;  // Tốc độ vừa phải
+        msg.pitch = 1.0;
+        window.speechSynthesis.speak(msg);
+        };
+
+        // Khắc phục lỗi danh sách giọng trống trên Chrome/Edge
+        if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.onvoiceschanged = speakAction;
+        } else {
+        speakAction();
+        }
+        },
+        stop: function () {
+        window.speechSynthesis.cancel();
+        }
+        };
+    </script>
+</body>
+
+</html>

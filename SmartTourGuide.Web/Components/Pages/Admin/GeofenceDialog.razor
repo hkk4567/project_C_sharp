@@ -1,0 +1,42 @@
+@using SmartTourGuide.Shared.DTOs
+@using MudBlazor
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mb-4">
+            Cấu hình vùng kích hoạt tự động cho địa điểm: <b>@PoiName</b>
+        </MudText>
+
+        <!-- 1. Thanh trượt Bán Kính -->
+        <MudText>Bán kính kích hoạt (Tròn): <b>@Model.TriggerRadiusInMeters m</b></MudText>
+        <MudSlider @bind-Value="Model.TriggerRadiusInMeters" Min="10" Max="200" Step="5" Color="Color.Primary" />
+
+        <!-- 2. Thanh trượt Cooldown -->
+        <MudText Class="mt-3">Thời gian hồi chiêu (Cooldown): <b>@Model.CooldownInSeconds giây</b></MudText>
+        <MudSlider @bind-Value="Model.CooldownInSeconds" Min="30" Max="600" Step="30" Color="Color.Secondary" />
+        <MudText Typo="Typo.caption">Khách phải rời đi và quay lại sau khoảng thời gian này mới nghe thuyết minh lại.
+        </MudText>
+
+        <!-- 3. Mức ưu tiên -->
+        <MudNumericField @bind-Value="Model.Priority" Label="Mức ưu tiên" Min="1" Max="10" Class="mt-4"
+            HelperText="Số lớn hơn sẽ được ưu tiên phát nếu 2 vùng chồng lấn." />
+
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Lưu Cấu Hình</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    IMudDialogInstance MudDialogRef { get; set; } = default!;
+
+    [Parameter] public required string PoiName { get; set; }
+    [Parameter] public UpdateGeofenceDto Model { get; set; } = new();
+
+    // Sửa lại tên biến ở đây
+    void Submit() => MudDialogRef.Close(DialogResult.Ok(Model));
+    void Cancel() => MudDialogRef.Cancel();
+}

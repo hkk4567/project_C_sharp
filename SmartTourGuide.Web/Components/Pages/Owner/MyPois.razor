@@ -1,0 +1,165 @@
+@page "/owner/my-pois"
+@using SmartTourGuide.Shared.DTOs
+@inject HttpClient Http
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@attribute [Authorize(Roles = "BoothOwner")]
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h4">Địa Điểm Của Tôi</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+        OnClick="@(() => Nav.NavigateTo("/owner/create-poi"))">
+        Tạo mới
+    </MudButton>
+</MudStack>
+
+<MudTable Items="@pois" Hover="true" Loading="@_loading" Striped="true" Elevation="3">
+    <HeaderContent>
+        <MudTh>Media (Ảnh/Audio)</MudTh> @* Sửa tiêu đề cột *@
+        <MudTh>Tên địa điểm</MudTh>
+        <MudTh>Trạng thái</MudTh>
+        <MudTh>Vị trí</MudTh>
+        <MudTh Style="text-align:right">Hành động</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Media">
+            <!-- 1. Hiển thị Ảnh đại diện -->
+            @if (context.ImageUrls != null && context.ImageUrls.Count > 0)
+            {
+                <MudTooltip Text="Bấm để xem chi tiết ảnh & audio">
+                    @* Thêm sự kiện OnClick vào ảnh *@
+                    <MudImage Src="@($"{ApiUrl}{context.ImageUrls[0]}")" Width="80" Height="60" ObjectFit="ObjectFit.Cover"
+                        Class="rounded cursor-pointer" @onclick="@(() => OpenMediaDialog(context))" />
+                </MudTooltip>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.ImageNotSupported" Size="Size.Large" Color="Color.Default" />
+            }
+
+            <!-- 2. Hiển thị Icon Audio nhỏ bên dưới để biết trạng thái -->
+            <div class="mt-1">
+                @if (context.AudioUrls != null && context.AudioUrls.Count > 0)
+                {
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Mic">File riêng
+                    </MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Color="Color.Default" Size="Size.Small"
+                        Icon="@Icons.Material.Filled.RecordVoiceOver">Đọc TTS</MudChip>
+                }
+            </div>
+        </MudTd>
+
+        <MudTd DataLabel="Tên">
+            <MudText Typo="Typo.subtitle1" Style="font-weight:bold">@context.Name</MudText>
+            <MudText Typo="Typo.caption">ID: @context.Id</MudText>
+        </MudTd>
+
+        <MudTd DataLabel="Trạng thái">
+            @if (context.Status == "Active")
+            {
+                <MudChip T="string" Color="Color.Success" Size="Size.Small">Đã duyệt</MudChip>
+            }
+            else if (context.Status == "Pending")
+            {
+
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small">Đang chờ</MudChip>
+            }
+            else
+            {
+
+                <MudChip T="string" Color="Color.Error" Size="Size.Small">Từ chối</MudChip>
+            }
+        </MudTd>
+
+        <MudTd DataLabel="Vị trí">
+            <MudText Typo="Typo.body2">Lat: @context.Latitude</MudText>
+            <MudText Typo="Typo.body2">Long: @context.Longitude</MudText>
+        </MudTd>
+
+        <MudTd DataLabel="Hành động" Style="text-align:right">
+            <MudStack Row="true" Justify="Justify.FlexEnd">
+
+                <!-- MỚI: Thêm nút xem Media riêng -->
+                <MudIconButton Icon="@Icons.Material.Filled.PermMedia" Color="Color.Tertiary" title="Xem Ảnh & Audio"
+                    OnClick="@(() => OpenMediaDialog(context))" />
+
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Sửa thông tin"
+                    OnClick="@(() => Nav.NavigateTo($"/owner/edit-poi/{context.Id}"))" />
+
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" title="Xóa"
+                    OnClick="@(async (MouseEventArgs e) => await DeletePoi(context))" />
+            </MudStack>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>Bạn chưa có địa điểm nào.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    private List<PoiDto> pois = new();
+    private bool _loading = true;
+    private string ApiUrl = "http://localhost:5277";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            var userId = await LocalStorage.GetItemAsync<int>("userId");
+            if (userId > 0)
+            {
+                // Cần đảm bảo PoiDto từ API đã trả về AudioUrls và ImageUrls
+                var result = await Http.GetFromJsonAsync<List<PoiDto>>($"api/pois/owner/{userId}");
+                pois = result ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Lỗi: " + ex.Message, Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+    // --- HÀM MỞ DIALOG MEDIA ---
+    private async Task OpenMediaDialog(PoiDto poi)
+    {
+        var parameters = new DialogParameters<MediaDetailDialog>
+{
+{ x => x.Poi, poi },
+{ x => x.ApiUrl, ApiUrl },
+{ x => x.OnEditClicked, EventCallback.Factory.Create(this, () => Nav.NavigateTo($"/owner/edit-poi/{poi.Id}")) }
+};
+
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+        await DialogService.ShowAsync<MediaDetailDialog>(poi.Name, parameters, options);
+    }
+
+    private async Task DeletePoi(PoiDto poi)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+        "Xác nhận xóa", $"Xóa địa điểm '{poi.Name}'?", yesText: "Xóa", cancelText: "Hủy");
+
+        if (result == true)
+        {
+            var response = await Http.DeleteAsync($"api/pois/{poi.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Đã xóa!", Severity.Success);
+                pois.Remove(poi);
+            }
+            else Snackbar.Add("Xóa thất bại.", Severity.Error);
+        }
+    }
+}
