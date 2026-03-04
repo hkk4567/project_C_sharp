@@ -273,4 +273,41 @@ public class PoisController : ControllerBase
 
         return Ok(new { message = "Đã cập nhật cấu hình Geofence!" });
     }
+
+    // 3.2. API cho Admin: Xem chi tiết POI (Bao gồm Audio/Ảnh đầy đủ để duyệt)
+    [HttpGet("admin/{id}")]
+    public async Task<ActionResult<PoiDto>> GetPoiForAdmin(int id)
+    {
+        var p = await _context.Pois
+            .Include(p => p.GeofenceSetting)
+            .Include(p => p.MediaAssets) // Quan trọng: Admin cần xem ảnh/nghe audio để duyệt
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (p == null) return NotFound();
+
+        return Ok(new PoiDto
+        {
+            Id = p.Id,
+            Name = p.Name,
+            Description = p.Description ?? "",
+            Address = p.Address ?? "",
+            Status = p.Status.ToString(),
+            Latitude = p.Latitude,
+            Longitude = p.Longitude,
+            OwnerId = p.OwnerId,
+
+            // Map thông tin cấu hình Geofence
+            TriggerRadius = p.GeofenceSetting?.TriggerRadiusInMeters ?? 50,
+            Priority = p.GeofenceSetting?.Priority ?? 1,
+
+            // Tách riêng Audio và Ảnh để hiển thị lên giao diện Admin
+            AudioUrls = p.MediaAssets
+                .Where(m => m.Type == MediaType.AudioFile)
+                .Select(m => m.UrlOrContent).ToList(),
+
+            ImageUrls = p.MediaAssets
+                .Where(m => m.Type == MediaType.Image)
+                .Select(m => m.UrlOrContent).ToList()
+        });
+    }
 }

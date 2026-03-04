@@ -1,0 +1,146 @@
+@page "/admin/tours/{Id:int}"
+@using SmartTourGuide.Shared.DTOs
+@using SmartTourGuide.Web.Components.Shared
+@using MudBlazor
+@layout AdminLayout
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 mb-8">
+
+    <!-- Header & Nút Quay lại -->
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Inherit"
+                       OnClick="@(() => Nav.NavigateTo("/admin/tours"))" />
+        <MudText Typo="Typo.h4">Chi tiết Tour #@Id</MudText>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (tour != null)
+    {
+        <MudGrid>
+            <!-- CỘT TRÁI: THÔNG TIN CƠ BẢN -->
+            <MudItem xs="12" md="5">
+                <MudCard Elevation="3" Class="pa-4 h-100">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h5" Color="Color.Primary" GutterBottom="true">@tour.Name</MudText>
+
+                        <!-- Ảnh Bìa -->
+                        @if (!string.IsNullOrEmpty(tour.ThumbnailUrl))
+                        {
+                            <MudImage Src="@($"{ApiUrl}{tour.ThumbnailUrl}")" 
+                                    ObjectFit="ObjectFit.Cover" 
+                                    Height="200"    
+                                    Class="rounded-lg mb-4 mud-width-full" 
+                                    Elevation="2" />
+                        }
+                        else
+                        {
+                            <div class="d-flex align-center justify-center rounded-lg mb-4"
+                                 style="height:200px; background-color: #f0f0f0;">
+                                <MudIcon Icon="@Icons.Material.Filled.ImageNotSupported" Size="Size.Large"
+                                         Color="Color.Secondary" />
+                            </div>
+                        }
+
+                        <MudText Typo="Typo.subtitle1"><b>Mô tả:</b></MudText>
+                        <MudText Typo="Typo.body2" Class="mb-4" Style="white-space: pre-wrap;">
+                            @(string.IsNullOrEmpty(tour.Description) ? "Không có mô tả." : tour.Description)
+                        </MudText>
+
+                        <MudChip T="string" Color="Color.Info" Icon="@Icons.Material.Filled.Place">Tổng: @tour.TotalPois
+                            điểm đến</MudChip>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <!-- CỘT PHẢI: LỘ TRÌNH (TIMELINE) -->
+                <MudItem xs="12" md="7">
+                    <MudCard Elevation="3" Class="pa-4 h-100">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6" Color="Color.Secondary">Lộ trình tham quan</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+
+                            @if (tour.Pois != null && tour.Pois.Count > 0)
+                            {
+                                <MudTimeline TimelineOrientation="TimelineOrientation.Vertical"
+                                             TimelinePosition="TimelinePosition.Start">
+                                    @foreach (var poi in tour.Pois)
+                                    {
+                                        <MudTimelineItem Color="Color.Success" Variant="Variant.Filled">
+                                            <ItemContent>
+                                                <MudPaper Elevation="0" Class="pa-3" Style="background-color: #f9f9f9;">
+                                                    <MudText Typo="Typo.subtitle1" Color="Color.Success">
+                                                        <b>Điểm @poi.OrderIndex: @poi.PoiName</b>
+                                                    </MudText>
+                                                    <MudText Typo="Typo.caption">@poi.Address</MudText>
+
+                                                    <div class="mt-2">
+                                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                                                                   OnClick="@(() => Nav.NavigateTo($"/admin/poi/{poi.PoiId}"))">
+                                                            Xem chi tiết địa điểm
+                                                        </MudButton>
+                                                    </div>
+                                                </MudPaper>
+                                            </ItemContent>
+                                            <ItemOpposite>
+                                                <MudText Typo="Typo.h6" Color="Color.Secondary">@poi.OrderIndex</MudText>
+                                            </ItemOpposite>
+                                        </MudTimelineItem>
+                                    }
+                                    <!-- Điểm kết thúc -->
+                                    <MudTimelineItem Color="Color.Error" Variant="Variant.Outlined">
+                                        <ItemContent>
+                                            <MudText>Kết thúc hành trình</MudText>
+                                        </ItemContent>
+                                    </MudTimelineItem>
+                                </MudTimeline>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Warning">Tour này chưa có địa điểm nào được gán.</MudAlert>
+                            }
+
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        }
+    else
+        {
+            <MudAlert Severity="Severity.Error">Không tìm thấy Tour này. Có thể đã bị xóa.</MudAlert>
+        }
+    </MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private TourDto? tour;
+    private bool _loading = true;
+    private string ApiUrl = "http://localhost:5277";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Gọi API chi tiết Tour (Đã viết ở bước trước trong ToursController)
+            tour = await Http.GetFromJsonAsync<TourDto>($"api/tours/{Id}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Lỗi tải dữ liệu: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

@@ -1,0 +1,119 @@
+@page "/admin/tours"
+@using SmartTourGuide.Shared.DTOs
+@using SmartTourGuide.Web.Components.Shared
+@using MudBlazor
+@layout AdminLayout
+@inject HttpClient Http
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@attribute [Authorize(Roles = "Admin")]
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h4">Quản Lý Tuyến Du Lịch (Tours)</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Map"
+               OnClick="OpenCreateTourDialog">Tạo Tour Mới</MudButton>
+</MudStack>
+
+<MudDataGrid Items="@tours" Filterable="true" Bordered="true" Striped="true">
+    <Columns>
+        <PropertyColumn Property="x => x.Id" Title="ID" Sortable="true" />
+
+        <TemplateColumn Title="Ảnh Bìa">
+            <CellTemplate>
+                @if (!string.IsNullOrEmpty(context.Item.ThumbnailUrl))
+                {
+                    <MudImage Src="@($"{ApiUrl}{context.Item.ThumbnailUrl}")" Width="80" Height="50"
+                              ObjectFit="ObjectFit.Cover" Class="rounded" />
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.ImageNotSupported" />
+                }
+            </CellTemplate>
+        </TemplateColumn>
+
+        <PropertyColumn Property="x => x.Name" Title="Tên Tour" />
+        <PropertyColumn Property="x => x.Description" Title="Mô tả" />
+        <PropertyColumn Property="x => x.TotalPois" Title="Số điểm tham quan" />
+
+        <TemplateColumn Title="Chi tiết">
+            <CellTemplate>
+                <MudButton StartIcon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small"
+                           Variant="Variant.Outlined" OnClick="@(() => Nav.NavigateTo($"/admin/tours/{context.Item.Id}"))">
+                    Xem Lộ Trình
+                </MudButton>
+            </CellTemplate>
+        </TemplateColumn>
+
+        <TemplateColumn Title="Hành động">
+            <CellTemplate>
+                <!-- Nút Xóa Tour -->
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                               OnClick="@(() => DeleteTour(context.Item))" title="Xóa Tour" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <NoRecordsContent>
+        <MudText>Chưa có Tour nào trong hệ thống.</MudText>
+    </NoRecordsContent>
+</MudDataGrid>
+
+@code {
+    private List<TourDto> tours = new();
+
+    private string ApiUrl = "http://localhost:5277";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            tours = await Http.GetFromJsonAsync<List<TourDto>>("api/tours") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Lỗi tải Tour: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task OpenCreateTourDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+        var dialog = await DialogService.ShowAsync<CreateTourDialog>("Tạo Tour Du Lịch Mới", options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled)
+        {
+            Snackbar.Add("Tạo Tour thành công!", Severity.Success);
+            await LoadData(); // Reload lại danh sách
+        }
+    }
+
+    private async Task DeleteTour(TourDto tour)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Xác nhận xóa",
+            $"Bạn có chắc muốn xóa tour '{tour.Name}' không?",
+            yesText: "Xóa", cancelText: "Hủy");
+
+        if (result == true)
+        {
+            var response = await Http.DeleteAsync($"api/tours/{tour.Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Đã xóa tour.", Severity.Success);
+                tours.Remove(tour);
+            }
+            else
+            {
+                Snackbar.Add("Xóa thất bại.", Severity.Error);
+            }
+        }
+    }
+}

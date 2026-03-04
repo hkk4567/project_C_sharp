@@ -18,6 +18,8 @@ namespace SmartTourGuide.Shared.DTOs
         // Mặc định trạng thái là 'Pending' nếu không được gán
         public string Status { get; set; } = "Pending";
 
+        public int OwnerId { get; set; }
+
         // Slide 2: Cấu hình Geofence (Bán kính tính bằng mét)
         public double TriggerRadius { get; set; }
 

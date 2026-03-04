@@ -15,6 +15,8 @@ namespace SmartTourGuide.API.Data
         public DbSet<GeofenceSetting> GeofenceSettings { get; set; }
         public DbSet<MediaAsset> MediaAssets { get; set; }
         public DbSet<UserLocationLog> UserLocationLogs { get; set; }
+        public DbSet<Tour> Tours { get; set; }
+        public DbSet<TourDetail> TourDetails { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -65,6 +67,24 @@ namespace SmartTourGuide.API.Data
                       .HasForeignKey(e => e.UserId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
+
+            // --- CẤU HÌNH TOUR DETAIL (QUAN HỆ N-N) ---
+
+            // 1. Tour xóa -> Chi tiết xóa theo (Cascade)
+            modelBuilder.Entity<TourDetail>()
+                .HasOne(td => td.Tour)
+                .WithMany(t => t.TourDetails)
+                .HasForeignKey(td => td.TourId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // 2. Poi xóa -> Không cho xóa nếu đang nằm trong Tour (Restrict) 
+            // Hoặc xóa luôn chi tiết tour (Cascade) -> Tùy nghiệp vụ. 
+            // Ở đây mình chọn Restrict để an toàn dữ liệu.
+            modelBuilder.Entity<TourDetail>()
+                .HasOne(td => td.Poi)
+                .WithMany() // Poi entity không cần chứa list TourDetail ngược lại
+                .HasForeignKey(td => td.PoiId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

@@ -1,0 +1,60 @@
+@page "/admin/dashboard"
+@using SmartTourGuide.Web.Components.Shared
+@layout AdminLayout
+@attribute [Authorize(Roles = "Admin")]
+
+<MudGrid>
+    <!-- Thống kê nhanh -->
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
+            <MudIcon Icon="@Icons.Material.Filled.Place" Color="Color.Primary" Class="mx-4"
+                     Style="width:54px; height:54px;"></MudIcon>
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Tổng Địa Điểm</MudText>
+                <MudText Typo="Typo.h5">125</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
+            <MudIcon Icon="@Icons.Material.Filled.PendingActions" Color="Color.Warning" Class="mx-4"
+                     Style="width:54px; height:54px;"></MudIcon>
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Chờ Duyệt</MudText>
+                <MudText Typo="Typo.h5">3</MudText> <!-- Có thể gọi API đếm số lượng -->
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
+            <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Success" Class="mx-4"
+                     Style="width:54px; height:54px;"></MudIcon>
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Người dùng</MudText>
+                <MudText Typo="Typo.h5">50</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <!-- Biểu đồ hoặc danh sách gì đó -->
+    <MudItem xs="12" md="8">
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Hoạt động gần đây</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText>Admin vừa duyệt địa điểm "Hồ Gươm"</MudText>
+                <MudDivider Class="my-2" />
+                <MudText>User NguyenVanA vừa đăng nhập</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+    // Gọi API lấy số liệu thống kê ở đây nếu cần
+}

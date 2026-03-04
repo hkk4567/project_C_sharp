@@ -1,0 +1,121 @@
+@using SmartTourGuide.Shared.DTOs
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <!-- 1. Thông tin cơ bản -->
+            <MudTextField @bind-Value="tourName" Label="Tên Tour" Required="true" />
+            <MudTextField @bind-Value="description" Label="Mô tả ngắn" Lines="2" Class="mb-3"/>
+
+            <!-- 2. (MỚI) Chọn ảnh bìa -->
+            <MudFileUpload T="IBrowserFile" FilesChanged="UploadFile" Class="mb-3">
+                <ActivatorContent>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Image">
+                        @(file == null ? "Chọn ảnh bìa (Tùy chọn)" : $"Đã chọn: {file.Name}")
+                    </MudButton>
+                </ActivatorContent>
+            </MudFileUpload>
+            @if(file == null && selectedPois.Count > 0)
+            {
+                <MudText Typo="Typo.caption" Color="Color.Info">
+                    *Nếu không chọn ảnh, hệ thống sẽ lấy ảnh của địa điểm đầu tiên: <b>@selectedPois.First().Name</b>
+                </MudText>
+            }
+
+            <MudDivider Class="my-3"/>
+
+            <!-- 3. Chọn địa điểm (Table) -->
+            <MudText Typo="Typo.subtitle1" Color="Color.Primary"><b>Chọn các địa điểm:</b></MudText>
+            
+            <MudTable T="PoiDto" Items="@allPois" MultiSelection="true" @bind-SelectedItems="selectedPois" 
+                      Hover="true" Dense="true" Bordered="true" FixedHeader="true" Height="250px">
+                <HeaderContent>
+                    <MudTh>Tên địa điểm</MudTh>
+                    <MudTh>Địa chỉ</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Tên">@context.Name</MudTd>
+                    <MudTd DataLabel="Địa chỉ">@context.Address</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!success)">Tạo Tour</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialogRef { get; set; } = default!;
+
+    private MudForm? form;
+    private bool success;
+    private string tourName = "";
+    private string description = "";
+    private IBrowserFile? file; // Biến lưu file ảnh bìa
+
+    private List<PoiDto> allPois = new();
+    private HashSet<PoiDto> selectedPois = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try {
+            // Lấy POI đã duyệt (Active)
+            var result = await Http.GetFromJsonAsync<List<PoiDto>>("api/pois");
+            allPois = result ?? new();
+        } catch {}
+    }
+
+    private void UploadFile(IBrowserFile selectedFile)
+    {
+        file = selectedFile;
+    }
+
+    private async Task Submit()
+    {
+        if (selectedPois.Count == 0)
+        {
+            Snackbar.Add("Chọn ít nhất 1 địa điểm!", Severity.Warning);
+            return;
+        }
+
+        // --- CHUYỂN DỮ LIỆU SANG FORM DATA ĐỂ GỬI ẢNH ---
+        using var content = new MultipartFormDataContent();
+        
+        content.Add(new StringContent(tourName), "Name");
+        content.Add(new StringContent(description), "Description");
+
+        // Gửi danh sách ID (Phải lặp để add từng cái)
+        foreach(var p in selectedPois)
+        {
+            content.Add(new StringContent(p.Id.ToString()), "PoiIds");
+        }
+
+        // Gửi file ảnh (nếu có)
+        if (file != null)
+        {
+            var fileStream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024); // Max 5MB
+            var streamContent = new StreamContent(fileStream);
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            content.Add(streamContent, "thumbnailFile", file.Name);
+        }
+
+        // Gọi API (Lúc này API bên kia đã đổi sang [FromForm] nên sẽ nhận được)
+        var response = await Http.PostAsync("api/tours", content);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            MudDialogRef.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add("Lỗi Tạo Tour (Check lại Backend log)", Severity.Error);
+        }
+    }
+
+    void Cancel() => MudDialogRef.Cancel();
+}

@@ -24,6 +24,8 @@ namespace SmartTourGuide.API.Data.Entities
         // Phân quyền: 0 = Tourist, 1 = BoothOwner, 2 = Admin
         public UserRole Role { get; set; }
 
+        public bool IsLocked { get; set; } = false;
+
         // Quan hệ: Một chủ gian hàng có thể có nhiều địa điểm
         public virtual ICollection<Poi> OwnedPois { get; set; } = new List<Poi>();
     }

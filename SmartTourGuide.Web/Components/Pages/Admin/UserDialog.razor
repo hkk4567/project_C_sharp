@@ -1,0 +1,55 @@
+@using SmartTourGuide.Shared.DTOs
+@using SmartTourGuide.Shared.Enums
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <!-- Username chỉ cho nhập khi tạo mới -->
+            <MudTextField @bind-Value="Model.Username" Label="Tên đăng nhập" Required="true" ReadOnly="@IsEditInfo"
+                          Variant="@(IsEditInfo? Variant.Filled: Variant.Text)" />
+
+            <!-- Password chỉ hiện khi tạo mới -->
+            @if (!IsEditInfo)
+            {
+                <MudTextField @bind-Value="Model.Password" Label="Mật khẩu" InputType="InputType.Password"
+                              Required="true" />
+            }
+
+            <MudTextField @bind-Value="Model.FullName" Label="Họ tên" Required="true" />
+            <MudTextField @bind-Value="Model.Email" Label="Email" />
+
+            <MudSelect T="UserRole" Label="Vai trò" @bind-Value="Model.Role" AnchorOrigin="Origin.BottomCenter">
+                <MudSelectItem Value="UserRole.Tourist">Khách du lịch</MudSelectItem>
+                <MudSelectItem Value="UserRole.BoothOwner">Chủ gian hàng</MudSelectItem>
+                <MudSelectItem Value="UserRole.Admin">Admin</MudSelectItem>
+            </MudSelect>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!success)">Lưu
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialogRef { get; set; } = default!;
+
+    [Parameter]
+    public CreateUpdateUserDto Model { get; set; } = new CreateUpdateUserDto()
+    {
+        Username = "",
+        Password = "",
+        FullName = "",
+        Email
+= ""
+    };
+    [Parameter] public bool IsEditInfo { get; set; } = false; // True = Sửa, False = Tạo mới
+
+    MudForm? form;
+    bool success;
+
+    void Submit() => MudDialogRef.Close(DialogResult.Ok(Model));
+    void Cancel() => MudDialogRef.Cancel();
+}

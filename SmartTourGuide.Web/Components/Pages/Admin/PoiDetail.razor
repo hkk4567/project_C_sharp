@@ -1,0 +1,202 @@
+@page "/admin/poi/{Id:int}"
+@using SmartTourGuide.Shared.DTOs
+@using SmartTourGuide.Web.Components.Shared
+@layout AdminLayout
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@attribute [Authorize(Roles = "Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 mb-8">
+
+    <!-- 1. Header & Nút Quay lại -->
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Inherit"
+                       OnClick="@(() => Nav.NavigateTo("/admin/approvals"))" />
+        <MudText Typo="Typo.h4">Chi tiết địa điểm #@Id</MudText>
+        <MudSpacer />
+        <!-- Hiển thị trạng thái hiện tại -->
+        @if (poi != null)
+        {
+            <MudChip T="string" Color="@GetStatusColor(poi.Status)" Size="Size.Large">@poi.Status</MudChip>
+        }
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        <MudText Class="mt-2">Đang tải dữ liệu...</MudText>
+    }
+    else if (poi != null)
+    {
+        <MudGrid>
+            <!-- CỘT TRÁI: THÔNG TIN CƠ BẢN -->
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="3" Class="pa-4 h-100">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6" Color="Color.Primary">Thông tin chung</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudTextField Value="@poi.Name" Label="Tên địa điểm" ReadOnly="true" Variant="Variant.Outlined"
+                                      Class="mb-3" />
+                        <MudTextField Value="@poi.Address" Label="Địa chỉ" ReadOnly="true" Variant="Variant.Outlined"
+                                      Class="mb-3" />
+
+                        <MudText Typo="Typo.subtitle2" Class="mt-2">Mô tả chi tiết:</MudText>
+                        <MudPaper Class="pa-3 mt-1" Style="background-color: #f5f5f5; min-height: 100px;">
+                            <MudText Typo="Typo.body1" Style="white-space: pre-wrap;">@poi.Description</MudText>
+                        </MudPaper>
+
+                        <MudGrid Class="mt-3">
+                            <MudItem xs="6">
+                                <MudTextField Value="@poi.Latitude" Label="Vĩ độ (Lat)" ReadOnly="true" />
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudTextField Value="@poi.Longitude" Label="Kinh độ (Long)" ReadOnly="true" />
+                            </MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <!-- CỘT PHẢI: MEDIA (AUDIO & ẢNH) -->
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="3" Class="pa-4 h-100">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6" Color="Color.Secondary">Media & Audio</MudText>
+                        </CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+
+                        <!-- 1. SLIDE ẢNH -->
+                        <MudText Class="mb-2"><b>Hình ảnh (@poi.ImageUrls?.Count):</b></MudText>
+                        @if (poi.ImageUrls != null && poi.ImageUrls.Count > 0)
+                        {
+                            <MudCarousel Class="mud-width-full rounded-lg" Style="height:250px;" ShowArrows="true"
+                                         ShowBullets="true" AutoCycle="false" TData="object">
+                                @foreach (var img in poi.ImageUrls)
+                                {
+                                    <MudCarouselItem Transition="Transition.Slide">
+                                        <div class="d-flex justify-center align-center" style="height:100%; bg-color:black;">
+                                            <MudImage Src="@($"{ApiUrl}{img}")" ObjectFit="ObjectFit.Contain"
+                                                      Style="max-height:100%; max-width:100%;" />
+                                        </div>
+                                    </MudCarouselItem>
+                                }
+                            </MudCarousel>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Warning">Không có hình ảnh.</MudAlert>
+                        }
+
+                        <MudDivider Class="my-4" />
+
+                        <!-- 2. TRÌNH PHÁT AUDIO -->
+                        <MudText Class="mb-2"><b>Âm thanh thuyết minh:</b></MudText>
+                        @if (poi.AudioUrls != null && poi.AudioUrls.Count > 0)
+                        {
+                            @foreach (var audio in poi.AudioUrls)
+                            {
+                                <div class="pa-2 mb-2 border rounded d-flex align-center bg-gray-100">
+                                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Color="Color.Primary" Class="mr-2" />
+                                    <audio controls style="width: 100%;">
+                                        <source src="@($"{ApiUrl}{audio}")" type="audio/mpeg">
+                                        Trình duyệt không hỗ trợ.
+                                    </audio>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <!-- NÚT NGHE TTS NẾU KHÔNG CÓ AUDIO -->
+                            <MudAlert Severity="Severity.Info" Class="mb-2">Sử dụng giọng đọc máy (TTS).</MudAlert>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.VolumeUp"
+                                       OnClick="ReadDescription">
+                                Nghe thử giọng đọc mô tả
+                            </MudButton>
+                        }
+
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+
+        <!-- THANH HÀNH ĐỘNG (FIXED BOTTOM HOẶC DƯỚI CÙNG) -->
+        <MudPaper Elevation="10" Class="pa-4 mt-6 d-flex justify-end gap-4 sticky-bottom"
+                  Style="border-top: 2px solid var(--mud-palette-primary);">
+            <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                       OnClick="@(() => Nav.NavigateTo("/admin/approvals"))">Quay lại</MudButton>
+
+            @if (poi.Status == "Pending")
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Close">Từ Chối
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Check"
+                           OnClick="ApprovePoi">Duyệt Ngay</MudButton>
+            }
+        </MudPaper>
+    }
+    else
+    {
+        <MudText Typo="Typo.h5" Color="Color.Error">Không tìm thấy địa điểm này.</MudText>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private PoiDto? poi;
+    private bool _loading = true;
+    private string ApiUrl = "http://localhost:5277"; // Thay đúng PORT API của bạn
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            poi = await Http.GetFromJsonAsync<PoiDto>($"api/pois/admin/{Id}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Lỗi tải dữ liệu: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private Color GetStatusColor(string status) => status switch
+    {
+        "Active" => Color.Success,
+        "Pending" => Color.Warning,
+        "Rejected" => Color.Error,
+        _ => Color.Default
+    };
+
+    private async Task ApprovePoi()
+    {
+        var response = await Http.PutAsync($"api/pois/{Id}/approve", null);
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Đã duyệt địa điểm thành công!", Severity.Success);
+            Nav.NavigateTo("/admin/approvals");
+        }
+        else
+        {
+            Snackbar.Add("Có lỗi xảy ra.", Severity.Error);
+        }
+    }
+
+    private async Task ReadDescription()
+    {
+        if (poi != null && !string.IsNullOrEmpty(poi.Description))
+        {
+            await JS.InvokeVoidAsync("window.blazorTts.speak", poi.Description);
+        }
+    }
+}

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartTourGuide.API.Data;
 
@@ -11,9 +12,11 @@ using SmartTourGuide.API.Data;
 namespace SmartTourGuide.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260303100335_AddIsLockedToUser")]
+    partial class AddIsLockedToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -122,63 +125,6 @@ namespace SmartTourGuide.API.Migrations
                     b.ToTable("Pois");
                 });
 
-            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.Tour", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("EstimatedDurationMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("varchar(200)");
-
-                    b.Property<string>("ThumbnailUrl")
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Tours");
-                });
-
-            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.TourDetail", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Note")
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("OrderIndex")
-                        .HasColumnType("int");
-
-                    b.Property<int>("PoiId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TourId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PoiId");
-
-                    b.HasIndex("TourId");
-
-                    b.ToTable("TourDetails");
-                });
-
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -281,25 +227,6 @@ namespace SmartTourGuide.API.Migrations
                     b.Navigation("Owner");
                 });
 
-            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.TourDetail", b =>
-                {
-                    b.HasOne("SmartTourGuide.API.Data.Entities.Poi", "Poi")
-                        .WithMany()
-                        .HasForeignKey("PoiId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SmartTourGuide.API.Data.Entities.Tour", "Tour")
-                        .WithMany("TourDetails")
-                        .HasForeignKey("TourId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Poi");
-
-                    b.Navigation("Tour");
-                });
-
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.UserLocationLog", b =>
                 {
                     b.HasOne("SmartTourGuide.API.Data.Entities.User", null)
@@ -315,11 +242,6 @@ namespace SmartTourGuide.API.Migrations
                         .IsRequired();
 
                     b.Navigation("MediaAssets");
-                });
-
-            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.Tour", b =>
-                {
-                    b.Navigation("TourDetails");
                 });
 
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.User", b =>

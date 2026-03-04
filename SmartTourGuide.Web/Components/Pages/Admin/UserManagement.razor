@@ -1,0 +1,214 @@
+@page "/admin/users"
+@using SmartTourGuide.Shared.DTOs
+@using SmartTourGuide.Shared.Enums
+@using SmartTourGuide.Web.Components.Shared
+@layout AdminLayout
+@inject HttpClient Http
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@attribute [Authorize(Roles = "Admin")]
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h4">Quản Lý Người Dùng</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
+               OnClick="OpenCreateDialog">Thêm User Mới</MudButton>
+</MudStack>
+
+<MudDataGrid Items="@users" Filterable="true" Bordered="true" Striped="true" QuickFilter="@_quickFilter">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Danh sách tài khoản</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="_searchString" Placeholder="Tìm kiếm..." Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+
+    <Columns>
+        <PropertyColumn Property="x => x.Id" Title="ID" Sortable="true" />
+        <PropertyColumn Property="x => x.Username" Title="Username" />
+        <PropertyColumn Property="x => x.FullName" Title="Họ tên" />
+
+        <!-- Cột Role hiển thị đẹp hơn -->
+        <TemplateColumn Title="Vai trò">
+            <CellTemplate>
+                <MudChip T="string" Color="@GetRoleColor(context.Item.Role)" Size="Size.Small">
+                    @context.Item.Role
+                </MudChip>
+            </CellTemplate>
+        </TemplateColumn>
+
+        <!-- Cột Trạng thái (Khóa/Mở) -->
+        <TemplateColumn Title="Trạng thái">
+            <CellTemplate>
+                @if (context.Item.IsLocked)
+                {
+                    <MudChip T="string" Color="Color.Error" Icon="@Icons.Material.Filled.Lock">Đang khóa</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">Hoạt động</MudChip>
+                }
+            </CellTemplate>
+        </TemplateColumn>
+
+        <!-- Cột Hành động -->
+        <TemplateColumn Title="Hành động">
+            <CellTemplate>
+                <!-- Nút Sửa -->
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                               OnClick="@(() => OpenEditDialog(context.Item))" title="Sửa thông tin" />
+
+                <!-- Nút Khóa/Mở Khóa -->
+                <MudIconButton
+                Icon="@(context.Item.IsLocked ? Icons.Material.Filled.LockOpen : Icons.Material.Filled.Lock)"
+                Color="@(context.Item.IsLocked ? Color.Success : Color.Error)"
+                OnClick="@(() => ToggleLockUser(context.Item))" Disabled="@(context.Item.Id == currentUserId)"
+                title="@(context.Item.Id == currentUserId ? "Không thể khóa chính mình" : (context.Item.IsLocked ? "Mở khóa" : "Khóa tài khoản"))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+
+    <PagerContent>
+        <MudDataGridPager T="UserDto" />
+    </PagerContent>
+</MudDataGrid>
+
+@code {
+    private List<UserDto> users = new();
+    private string _searchString = string.Empty;
+    private int currentUserId;
+    protected override async Task OnInitializedAsync()
+    {
+        // MỚI: Lấy ID từ LocalStorage
+        try
+        {
+            currentUserId = await LocalStorage.GetItemAsync<int>("userId");
+        }
+        catch { }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            users = await Http.GetFromJsonAsync<List<UserDto>>("api/users") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Lỗi tải dữ liệu: " + ex.Message, Severity.Error);
+        }
+    }
+
+    // 1. Mở Dialog Tạo Mới
+    private async Task OpenCreateDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UserDialog>("Tạo User Mới", options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is CreateUpdateUserDto dto)
+        {
+            var response = await Http.PostAsJsonAsync("api/users", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Tạo thành công!", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                var err = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Tạo thất bại: {err}", Severity.Error);
+            }
+        }
+    }
+
+    // 2. Mở Dialog Sửa
+    private async Task OpenEditDialog(UserDto user)
+    {
+        // Map dữ liệu cũ sang DTO để sửa
+        var updateDto = new CreateUpdateUserDto
+        {
+            Username = user.Username,
+            FullName = user.FullName,
+            Email = user.Email,
+            Role = user.Role,
+            Password = string.Empty
+        };
+
+        var parameters = new DialogParameters<UserDialog>
+        {
+            { x => x.Model, updateDto },
+            { x => x.IsEditInfo, true } // Báo đây là chế độ sửa (để ẩn password)
+        };
+
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<UserDialog>($"Sửa User: {user.Username}", parameters, options);
+        var result = await dialog.Result;
+
+        if (result != null && !result.Canceled && result.Data is CreateUpdateUserDto dto)
+        {
+            var response = await Http.PutAsJsonAsync($"api/users/{user.Id}", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Cập nhật thành công!", Severity.Success);
+                await LoadData();
+            }
+            else
+            {
+                Snackbar.Add("Lỗi cập nhật.", Severity.Error);
+            }
+        }
+    }
+
+    // 3. Khóa / Mở khóa
+    private async Task ToggleLockUser(UserDto user)
+    {
+        if (user.Id == currentUserId)
+        {
+            Snackbar.Add("Bạn không thể tự khóa tài khoản của chính mình!", Severity.Warning);
+            return;
+        }
+
+        string action = user.IsLocked ? "MỞ KHÓA" : "KHÓA";
+        bool? confirm = await DialogService.ShowMessageBox(
+            "Xác nhận",
+            $"Bạn có chắc muốn {action} tài khoản '{user.Username}' không?",
+            yesText: action, cancelText: "Hủy");
+
+        if (confirm == true)
+        {
+            var response = await Http.PutAsync($"api/users/{user.Id}/lock", null);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"Đã {action.ToLower()} thành công.", Severity.Success);
+                await LoadData(); // Reload lại để cập nhật icon
+            }
+            else
+            {
+                Snackbar.Add("Thao tác thất bại.", Severity.Error);
+            }
+        }
+    }
+
+    // Hàm tô màu Chip
+    private Color GetRoleColor(UserRole role) => role switch
+    {
+        UserRole.Admin => Color.Error,
+        UserRole.BoothOwner => Color.Warning,
+        _ => Color.Info
+    };
+
+    // Hàm Search nhanh
+    private Func<UserDto, bool> _quickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+        if (x.Username.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (x.FullName.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    };
+}

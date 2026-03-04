@@ -1,9 +1,13 @@
 @page "/admin/approvals"
 @using SmartTourGuide.Shared.DTOs
+@using SmartTourGuide.Web.Components.Shared
 @using MudBlazor
 @inject HttpClient Http
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject NavigationManager Nav
+@layout AdminLayout
+
 @attribute [Authorize(Roles = "Admin")]
 
 <MudText Typo="Typo.h4" Class="mb-4">Quản Lý Địa Điểm</MudText>
@@ -17,13 +21,19 @@
             <Columns>
                 <PropertyColumn Property="x => x.Name" title="Tên địa điểm" />
                 <PropertyColumn Property="x => x.Address" title="Địa chỉ" />
+                <TemplateColumn Title="Chi tiết">
+                    <CellTemplate>
+                        <MudButton StartIcon="@Icons.Material.Filled.Visibility" Color="Color.Info"
+                                   Variant="Variant.Outlined" Size="Size.Small"
+                                   OnClick="@(() => Nav.NavigateTo($"/admin/poi/{context.Item.Id}"))">
+                            Xem Ngay
+                        </MudButton>
+                    </CellTemplate>
+                </TemplateColumn>
                 <TemplateColumn Title="Hành động">
                     <CellTemplate>
-                        <MudButton Color="Color.Success" Variant="Variant.Filled" Size="Size.Small"
-                            OnClick="@(() => ApproveItem(context.Item!.Id))">Duyệt</MudButton>
-
                         <MudIconButton Icon="@Icons.Material.Filled.Settings" Color="Color.Primary"
-                            OnClick="@(() => OpenGeofenceDialog(context.Item!))" title="Cấu hình Geofence" />
+                                       OnClick="@(() => OpenGeofenceDialog(context.Item!))" title="Cấu hình Geofence" />
                     </CellTemplate>
                 </TemplateColumn>
             </Columns>
@@ -40,11 +50,18 @@
                 <PropertyColumn Property="x => x.Name" Title="Tên địa điểm" />
                 <PropertyColumn Property="x => x.TriggerRadius" Title="Bán kính (m)" />
                 <PropertyColumn Property="x => x.Priority" Title="Ưu tiên" Sortable="true" />
+                <TemplateColumn Title="Chi tiết">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info"
+                                       OnClick="@(() => Nav.NavigateTo($"/admin/poi/{context.Item.Id}"))" />
+                    </CellTemplate>
+                </TemplateColumn>
+
                 <TemplateColumn Title="Cấu hình">
                     <CellTemplate>
                         <MudButton StartIcon="@Icons.Material.Filled.Settings" Color="Color.Info"
-                            Variant="Variant.Outlined" Size="Size.Small"
-                            OnClick="@(() => OpenGeofenceDialog(context.Item))">Chỉnh Geofence</MudButton>
+                                   Variant="Variant.Outlined" Size="Size.Small"
+                                   OnClick="@(() => OpenGeofenceDialog(context.Item))">Chỉnh Geofence</MudButton>
                     </CellTemplate>
                 </TemplateColumn>
             </Columns>
