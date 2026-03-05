@@ -1,0 +1,168 @@
+@using SmartTourGuide.Shared.DTOs
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudSelect T="string" Label="Chọn ngôn ngữ" @bind-Value="selectedLang" SelectedValuesChanged="OnLangChanged">
+            <MudSelectItem Value="@("en-US")">English</MudSelectItem>
+            <MudSelectItem Value="@("ja-JP")">Japanese</MudSelectItem>
+            <!-- Thêm các ngôn ngữ khác -->
+        </MudSelect>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+        }
+        else
+        {
+            <MudForm @ref="form" Class="mt-4">
+                <MudTextField @bind-Value="model.Name" Label="Tên (Dịch)" Required="true" />
+                <MudTextField @bind-Value="model.Description" Label="Mô tả (Dịch)" Lines="3" />
+                <MudTextField @bind-Value="model.Address" Label="Địa chỉ (Dịch)" />
+
+                <MudDivider Class="my-3" />
+
+                <!-- DANH SÁCH AUDIO ĐÃ CÓ -->
+                <MudText Typo="Typo.subtitle2">Audio hiện có (@selectedLang):</MudText>
+                @if (model.Audios != null && model.Audios.Count > 0)
+                {
+                    <MudList T="string" Dense="true">
+                        @foreach (var audio in model.Audios)
+                        {
+                            <MudListItem>
+                                <div class="d-flex justify-space-between align-center">
+                                    <audio controls style="height: 30px;">
+                                        <source src="@($"http://localhost:5277{audio.Url}")" type="audio/mpeg">
+                                    </audio>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                   OnClick="@(() => DeleteAudio(audio))" />
+                                </div>
+                            </MudListItem>
+                        }
+                    </MudList>
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption">Chưa có audio nào.</MudText>
+                }
+
+                <!-- UPLOAD THÊM AUDIO MỚI -->
+                <MudText Class="mt-3">Thêm Audio mới:</MudText>
+                <MudFileUpload T="IReadOnlyList<IBrowserFile>" FilesChanged="UploadFiles">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.CloudUpload">
+                            Chọn file (Có thể chọn nhiều)
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+                @if (newFiles.Count > 0)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Success">Đã chọn @newFiles.Count file mới để upload.</MudText>
+                }
+
+            </MudForm>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Đóng</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">Lưu Tất Cả</MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialogRef { get; set; } = default!;
+    [Parameter] public int PoiId { get; set; }
+
+    private string selectedLang = "en-US";
+    private PoiTranslationDto model = new()
+    {
+        LanguageCode = "en-US",
+        Name = "",
+        Description = "",
+        Address = "",
+    };
+    private List<IBrowserFile> newFiles = new();
+    private bool _loading = false;
+    private MudForm? form;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTranslation(selectedLang);
+    }
+
+    private async Task OnLangChanged() => await LoadTranslation(selectedLang);
+
+    private async Task LoadTranslation(string lang)
+    {
+        _loading = true;
+        newFiles.Clear(); // Reset file mới
+        try
+        {
+            model = await Http.GetFromJsonAsync<PoiTranslationDto>($"api/translations/{PoiId}/{lang}") ?? new()
+            {
+                LanguageCode = "en-US",
+                Name = "",
+                Description = "",
+                Address = "",
+            }; ;
+            model.PoiId = PoiId;
+            model.LanguageCode = lang;
+        }
+        catch { Snackbar.Add("Lỗi tải.", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private void UploadFiles(IReadOnlyList<IBrowserFile> files)
+    {
+        newFiles = files.ToList();
+    }
+
+    private async Task DeleteAudio(MediaAssetDto audio)
+    {
+        // Gọi API AssetsController để xóa file (API này bạn đã viết từ trước rồi)
+        var result = await Http.DeleteAsync($"api/assets/{audio.Id}");
+        if (result.IsSuccessStatusCode)
+        {
+            model.Audios.Remove(audio); // Xóa khỏi danh sách hiển thị
+            Snackbar.Add("Đã xóa audio.", Severity.Success);
+        }
+    }
+
+    private async Task Save()
+    {
+        await form!.Validate();
+        if (!form.IsValid) return;
+
+        using var content = new MultipartFormDataContent();
+        content.Add(new StringContent(model.PoiId.ToString()), "PoiId");
+        content.Add(new StringContent(model.LanguageCode), "LanguageCode");
+        content.Add(new StringContent(model.Name), "Name");
+        content.Add(new StringContent(model.Description ?? ""), "Description");
+        content.Add(new StringContent(model.Address ?? ""), "Address");
+
+        // Gửi nhiều file audio
+        foreach (var file in newFiles)
+        {
+            var fileStream = file.OpenReadStream(10 * 1024 * 1024);
+            var streamContent = new StreamContent(fileStream);
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            content.Add(streamContent, "audioFiles", file.Name);
+        }
+
+        var res = await Http.PostAsync("api/translations", content);
+        if (res.IsSuccessStatusCode)
+        {
+            Snackbar.Add($"Đã lưu bản dịch!", Severity.Success);
+            await LoadTranslation(selectedLang); // Reload để thấy file vừa up
+        }
+        else
+        {
+            Snackbar.Add("Lỗi lưu.", Severity.Error);
+        }
+    }
+
+    void Cancel() => MudDialogRef.Cancel();
+}

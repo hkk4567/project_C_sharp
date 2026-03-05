@@ -36,6 +36,16 @@
                                        OnClick="@(() => OpenGeofenceDialog(context.Item!))" title="Cấu hình Geofence" />
                     </CellTemplate>
                 </TemplateColumn>
+
+                <TemplateColumn Title="Dịch thuật">
+                    <CellTemplate>
+                        <MudButton StartIcon="@Icons.Material.Filled.Translate" Variant="Variant.Outlined"
+                                   Color="Color.Tertiary" Size="Size.Small"
+                                   OnClick="@(() => OpenTranslationDialog(context.Item.Id))">
+                            Quản lý Dịch
+                        </MudButton>
+                    </CellTemplate>
+                </TemplateColumn>
             </Columns>
             <NoRecordsContent>
                 <MudText>Không có bài đăng nào chờ duyệt.</MudText>
@@ -62,6 +72,16 @@
                         <MudButton StartIcon="@Icons.Material.Filled.Settings" Color="Color.Info"
                                    Variant="Variant.Outlined" Size="Size.Small"
                                    OnClick="@(() => OpenGeofenceDialog(context.Item))">Chỉnh Geofence</MudButton>
+                    </CellTemplate>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Dịch thuật">
+                    <CellTemplate>
+                        <MudButton StartIcon="@Icons.Material.Filled.Translate" Variant="Variant.Outlined"
+                                   Color="Color.Tertiary" Size="Size.Small"
+                                   OnClick="@(() => OpenTranslationDialog(context.Item.Id))">
+                            Quản lý Dịch
+                        </MudButton>
                     </CellTemplate>
                 </TemplateColumn>
             </Columns>
@@ -146,5 +166,13 @@
             Snackbar.Add($"Đã duyệt!", Severity.Success);
             await LoadData();
         }
+    }
+
+    private async Task OpenTranslationDialog(int poiId)
+    {
+        var parameters = new DialogParameters<TranslationDialog> { { x => x.PoiId, poiId } };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        await DialogService.ShowAsync<TranslationDialog>("Dịch Đa Ngôn Ngữ", parameters, options);
     }
 }
