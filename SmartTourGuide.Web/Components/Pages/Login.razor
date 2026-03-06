@@ -1,4 +1,6 @@
-@page "/login"
+@page "/"
+@layout Layout.LoginLayout
+@* <--- Thêm chữ Layout. vào đây để trỏ chính xác *@
 @inject NavigationManager Nav
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject AuthenticationStateProvider AuthStateProvider
@@ -9,59 +11,73 @@
 @using SmartTourGuide.Shared.Enums
 @using System.Net.Http.Json
 
-<!-- Phần HTML giữ nguyên như cũ -->
-<MudGrid Justify="Justify.Center" Class="mt-10">
-    <MudItem xs="12" sm="6" md="4">
-        <MudCard>
-            <MudCardContent>
-                <MudText Typo="Typo.h5" Align="Align.Center" Class="mb-4">Đăng Nhập Hệ Thống</MudText>
-                <!-- Loading khi đang kiểm tra đăng nhập tự động -->
-                @if (_checkingAutoLogin)
-                {
-                    <MudAlert Severity="Severity.Info">Đang kiểm tra trạng thái đăng nhập...</MudAlert>
-                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-2" />
-                }
-                else
-                {
-                    <MudTextField @bind-Value="username" Label="Tên đăng nhập" Variant="Variant.Outlined"
-                        Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person" />
+<PageTitle>Đăng Nhập</PageTitle>
 
-                    <MudTextField @bind-Value="password" Label="Mật khẩu" Variant="Variant.Outlined"
-                        InputType="InputType.Password" Class="mt-4" Adornment="Adornment.Start"
-                        AdornmentIcon="@Icons.Material.Filled.Lock" OnKeyDown="EnterKeyCheck" />
-                }
-            </MudCardContent>
+<MudCard Elevation="8" Class="pa-8" Style="width: 420px; border-radius: 16px;">
+    
+    <MudText Typo="Typo.h4" Align="Align.Center" Style="font-weight: 800; color: #333;" Class="mb-8">
+        Login
+    </MudText>
 
-            @if (!_checkingAutoLogin)
+    @if (_checkingAutoLogin)
+    {
+        <div class="d-flex flex-column align-center justify-center py-8">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" Class="mb-4" />
+            <MudText Style="color: gray;">Đang kiểm tra phiên đăng nhập...</MudText>
+        </div>
+    }
+    else
+    {
+        <MudText Typo="Typo.body2" Class="mb-1" Style="color: black;"><b>Username</b></MudText>
+        <MudTextField @bind-Value="username" 
+                    Placeholder="Type your username" 
+                    Variant="Variant.Text" 
+                    Adornment="Adornment.Start" 
+                    AdornmentIcon="@Icons.Material.Filled.Person" 
+                    IconSize="Size.Small" 
+                    Class="mb-4" />
+
+        <MudText Typo="Typo.body2" Class="mb-1" Style="color: black;"> <b>Password</b></MudText>
+        <MudTextField @bind-Value="password" 
+                    Placeholder="Type your password" 
+                    InputType="InputType.Password" 
+                    Variant="Variant.Text" 
+                    Adornment="Adornment.Start" 
+                    AdornmentIcon="@Icons.Material.Filled.Lock" 
+                    IconSize="Size.Small" 
+                    OnKeyDown="EnterKeyCheck" />
+
+        <div class="d-flex justify-end mt-2 mb-8">
+        </div>
+
+        <MudButton Variant="Variant.Filled" 
+                   FullWidth="true" 
+                   OnClick="HandleLogin" 
+                   Disabled="@_processing"
+                   Class="py-3 mb-8"
+                   Style="border-radius: 30px; background: linear-gradient(to right, #29ffc6, #a13bf7); color: white; font-weight: bold; border: none;">
+            @if (_processing)
             {
-                <MudCardActions>
-                    <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
-                        OnClick="HandleLogin" Disabled="@_processing">
-                        @if (_processing)
-                        {
-                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                            <MudText Class="ms-2">Đang xử lý...</MudText>
-                        }
-                        else
-                        {
-                            <MudText>Đăng nhập</MudText>
-                        }
-                    </MudButton>
-                </MudCardActions>
+                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" Style="color: white;" />
+                <MudText Class="ms-2" Style="color: white; font-weight: bold;">Đang xử lý...</MudText>
             }
-        </MudCard>
-    </MudItem>
-</MudGrid>
+            else
+            {
+                <MudText Style="color: white; font-weight: bold;">LOGIN</MudText>
+            }
+        </MudButton>
+    }
+
+</MudCard>
 
 @code {
     private string username = string.Empty;
     private string password = string.Empty;
     private bool _processing = false;
-    private bool _checkingAutoLogin = true; // Cờ hiệu để hiển thị loading lúc mới vào
+    private bool _checkingAutoLogin = true;
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Kiểm tra xem trong LocalStorage có thông tin user cũ không
         try
         {
             var storedRole = await LocalStorage.GetItemAsync<string>("userRole");
@@ -69,51 +85,30 @@
 
             if (!string.IsNullOrEmpty(storedRole) && !string.IsNullOrEmpty(storedUsername))
             {
-                // 2. Nếu có, phục hồi trạng thái đăng nhập ngay lập tức
                 var authProvider = (CustomAuthStateProvider)AuthStateProvider;
                 authProvider.NotifyUserLogin(storedUsername, storedRole);
 
-                // 3. Kiểm tra xem có ReturnUrl không (Url mà user định vào trước khi bị đá ra)
-                var uri = Nav.ToAbsoluteUri(Nav.Uri);
-                string returnUrl = "";
-
-                if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).TryGetValue("ReturnUrl", out var url))
-                {
-                    returnUrl = url.ToString() ?? "";
-                }
-
-                // 4. Nếu có ReturnUrl thì ưu tiên chuyển về đó
-                if (!string.IsNullOrEmpty(returnUrl))
-                {
-                    Nav.NavigateTo(returnUrl);
-                }
-                else
-                {
-                    // Nếu không, chuyển về trang mặc định theo role
-                    NavigateBasedOnRole(storedRole);
-                }
-
-                return; // Kết thúc hàm, không cho hiện form login nữa
+                // Sau khi auto-login, phải đá sang trang Dashboard ngay
+                NavigateBasedOnRole(storedRole);
+                return; 
             }
         }
-        catch
-        {
-            // Lỗi đọc localstorage hoặc chưa từng đăng nhập -> Kệ nó, hiện form login
-        }
+        catch { /* Bỏ qua lỗi storage */ }
 
-        // Tắt loading để hiện form nhập liệu
         _checkingAutoLogin = false;
     }
 
-    // Tách hàm điều hướng ra để dùng chung
     private void NavigateBasedOnRole(string roleStr)
     {
+        // QUAN TRỌNG: Không được điều hướng về "/" vì sẽ bị lặp trang Login
         if (roleStr == "Admin")
             Nav.NavigateTo("/admin/dashboard");
         else if (roleStr == "BoothOwner")
-            Nav.NavigateTo("/owner/create-poi");
+            Nav.NavigateTo("/owner/dashboard");
         else
-            Nav.NavigateTo("/");
+            // Nếu là khách (Tourist), bạn nên dẫn họ đến một trang danh sách địa điểm 
+            // hoặc trang dashboard dành cho khách. Tạm thời mình để admin dashboard để bạn test.
+            Nav.NavigateTo("/admin/dashboard"); 
     }
 
     private async Task EnterKeyCheck(KeyboardEventArgs e)
@@ -130,7 +125,6 @@
         }
 
         _processing = true;
-
         try
         {
             var loginDto = new LoginDto { Username = username, Password = password };
@@ -139,7 +133,7 @@
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
-                if (result != null && result.User != null)
+                if (result?.User != null)
                 {
                     string roleStr = ((UserRole)result.User.Role).ToString();
 
@@ -152,43 +146,28 @@
                     authProvider.NotifyUserLogin(result.User.Username, roleStr);
 
                     Snackbar.Add("Đăng nhập thành công!", Severity.Success);
-
+                    
+                    // Delay nhỏ để kịp lưu Storage trước khi nhảy trang
                     await Task.Delay(100);
-
-                    // Gọi hàm điều hướng
                     NavigateBasedOnRole(roleStr);
                 }
             }
             else
             {
                 var errorMsg = await response.Content.ReadAsStringAsync();
-                Snackbar.Add($"Đăng nhập thất bại: {errorMsg}", Severity.Error);
+                Snackbar.Add($"Thất bại: {errorMsg}", Severity.Error);
             }
         }
         catch (Exception ex)
         {
+            Snackbar.Add("Lỗi kết nối Server.", Severity.Error);
             Console.WriteLine(ex.Message);
-            Snackbar.Add("Không thể kết nối đến Server.", Severity.Error);
         }
-        finally
-        {
-            _processing = false;
-        }
+        finally { _processing = false; }
     }
 
-    public class LoginResponse
-    {
-        public string Message { get; set; } = string.Empty;
-        public UserInfo? User { get; set; }
-    }
-
-    public class UserInfo
-    {
-        public int Id { get; set; }
-        public string Username { get; set; } = string.Empty;
-        public string FullName { get; set; } = string.Empty;
-        public int Role { get; set; }
-    }
-
+    // Các class DTO giữ nguyên phía dưới...
+    public class LoginResponse { public string Message { get; set; } = ""; public UserInfo? User { get; set; } }
+    public class UserInfo { public int Id { get; set; } public string Username { get; set; } = ""; public int Role { get; set; } }
     public enum UserRole { Tourist = 0, BoothOwner = 1, Admin = 2 }
 }

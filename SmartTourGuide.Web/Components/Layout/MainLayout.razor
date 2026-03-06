@@ -10,56 +10,121 @@
 <MudPopoverProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1">
-        <MudText Typo="Typo.h5">
-            <MudNavLink Href="/" Icon="@Icons.Material.Filled.Home">Smart Tour Guide System
-            </MudNavLink>
+
+    <!-- APP BAR -->
+    <MudAppBar Elevation="2" Color="Color.Primary"> 
+
+        @if (!IsLoginPage) // CHỈ HIỆN NÚT TOGGLE KHI KHÔNG PHẢI TRANG LOGIN
+    {
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" 
+                       Edge="Edge.Start"
+                       Color="Color.Inherit"
+                       OnClick="@ToggleDrawer" />
+    }
+        <MudText Typo="Typo.h6" Class="ml-3">
+            QUẢN LÝ GIAN HÀNG VÀ ĐỊA ĐIỂM DU LỊCH
         </MudText>
-        <MudSpacer />
+
+
+    <MudSpacer />
+
         <AuthorizeView>
             <Authorized>
-                <MudText Class="mr-4">Xin chào, @(context.User.Identity?.Name ?? "Khách")</MudText>
-                <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="Logout">Đăng xuất</MudButton>
+                <MudText Class="mr-4">
+                    Xin chào, @(context.User.Identity?.Name ?? "Khách")
+                </MudText>
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.Logout"
+                           OnClick="Logout">
+                    Đăng xuất
+                </MudButton>
             </Authorized>
-            <NotAuthorized>
-                <MudButton Variant="Variant.Filled" Color="Color.Success" Href="/login">Đăng nhập</MudButton>
-            </NotAuthorized>
         </AuthorizeView>
+
     </MudAppBar>
 
-    <MudDrawer Open="true" ClipMode="DrawerClipMode.Always" Elevation="2">
+
+    <!-- SIDEBAR -->
+    <MudDrawer @bind-Open="_drawerOpen"
+               Elevation="2"
+               ClipMode="DrawerClipMode.Always">
+
         <MudNavMenu>
-            <!-- Menu cho Admin -->
+            <!-- ADMIN -->
             <AuthorizeView Roles="Admin">
-                <MudNavLink Href="/admin/approvals" Icon="@Icons.Material.Filled.CheckCircle">Duyệt bài đăng
+                <MudNavLink Href="/admin/approvals"
+                            Icon="@Icons.Material.Filled.CheckCircle">
+                    Duyệt bài đăng
                 </MudNavLink>
-                <MudNavLink Href="/admin/tracking" Icon="@Icons.Material.Filled.Map">Bản đồ theo dõi</MudNavLink>
+
+                <MudNavLink Href="/admin/tracking"
+                            Icon="@Icons.Material.Filled.Map">
+                    Bản đồ theo dõi
+                </MudNavLink>
             </AuthorizeView>
 
-            <!-- Menu cho Chủ gian hàng (BoothOwner) -->
+
+            <MudDivider Class="my-2"/>
+            <!-- OWNER -->
+            <MudText Typo="Typo.subtitle2" Class="px-4 pt-2 pb-1">
+                Chủ gian hàng
+            </MudText>
             <AuthorizeView Roles="BoothOwner">
-                <MudNavLink Href="/owner/create-poi" Icon="@Icons.Material.Filled.AddLocation">Tạo địa điểm</MudNavLink>
-                <MudNavLink Href="/owner/my-pois" Icon="@Icons.Material.Filled.List">Địa điểm của tôi</MudNavLink>
+                
+                <MudNavLink Href="/owner/dashboard"
+                            Icon="@Icons.Material.Filled.Dashboard">
+                    Tổng quan
+                </MudNavLink>
+                <MudNavLink Href="/owner/create-poi"
+                            Icon="@Icons.Material.Filled.AddLocation">
+                    Tạo địa điểm
+                </MudNavLink>
+
+                <MudNavLink Href="/owner/my-pois"
+                            Icon="@Icons.Material.Filled.List">
+                    Địa điểm của tôi
+                </MudNavLink>
             </AuthorizeView>
+
         </MudNavMenu>
+
     </MudDrawer>
 
+
+    <!-- MAIN CONTENT -->
     <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+
+        <MudContainer MaxWidth="MaxWidth.Large"
+                      Class="mt-6">
+
             @Body
+
         </MudContainer>
+
     </MudMainContent>
+
 </MudLayout>
 
+
 @code {
+
+    private bool _drawerOpen = true;
+
+    private bool IsLoginPage =>
+        Nav.Uri.EndsWith("/") || Nav.Uri.Contains("/login");
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
     private async Task Logout()
     {
-        // Đảm bảo bạn đã await lệnh clear
         await LocalStorage.ClearAsync();
-
-        // Thêm await vào trước lệnh Notify
         await ((CustomAuthStateProvider)AuthStateProvider).NotifyUserLogout();
-
-        Nav.NavigateTo("/login", forceLoad: true);
+        Nav.NavigateTo("/", true);
     }
+
 }
