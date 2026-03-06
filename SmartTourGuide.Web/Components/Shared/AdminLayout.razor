@@ -58,6 +58,6 @@
     {
         await LocalStorage.ClearAsync();
         await ((CustomAuthStateProvider)AuthStateProvider).NotifyUserLogout();
-        Nav.NavigateTo("/login", forceLoad: true);
+        Nav.NavigateTo("/", forceLoad: true);
     }
 }

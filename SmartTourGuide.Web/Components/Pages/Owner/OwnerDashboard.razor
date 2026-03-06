@@ -1,0 +1,60 @@
+@page "/owner/dashboard"
+@attribute [Authorize(Roles = "BoothOwner")]
+
+<MudText Typo="Typo.h5" Class="mb-4" Style="font-weight: bold;">Tổng quan gian hàng</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
+            <MudIcon Icon="@Icons.Material.Filled.Store" Color="Color.Primary" Class="mx-4"
+                     Style="width:54px; height:54px;"></MudIcon>
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Địa điểm của tôi</MudText>
+                <MudText Typo="Typo.h5">5</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
+            <MudIcon Icon="@Icons.Material.Filled.StarRate" Color="Color.Warning" Class="mx-4"
+                     Style="width:54px; height:54px;"></MudIcon>
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Lượt đánh giá</MudText>
+                <MudText Typo="Typo.h5">42</MudText> 
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
+            <MudIcon Icon="@Icons.Material.Filled.Visibility" Color="Color.Success" Class="mx-4"
+                     Style="width:54px; height:54px;"></MudIcon>
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Tổng lượt xem</MudText>
+                <MudText Typo="Typo.h5">1,250</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="8">
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h6">Hoạt động gần đây</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudText>Admin vừa duyệt địa điểm "Quán phở gia truyền"</MudText>
+                <MudDivider Class="my-2" />
+                <MudText>Khách hàng Trần Văn B vừa đánh giá 5 sao cho địa điểm của bạn</MudText>
+                <MudDivider Class="my-2" />
+                <MudText>Địa điểm "Cà phê Chill" đạt 100 lượt xem trong tuần này</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@code {
+    // Tạm thời để trống, sau này bạn gọi API lấy dữ liệu thật của Owner vào đây
+}

@@ -1,0 +1,22 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+<div class="login-background">
+    @Body
+</div>
+
+<style>
+    /* CSS tạo nền gradient màu xanh - tím giống ảnh mẫu của bạn */
+    .login-background {
+        background: linear-gradient(135deg, #00d2ff 0%, #b224ef 100%);
+        height: 100vh;
+        width: 100vw;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>

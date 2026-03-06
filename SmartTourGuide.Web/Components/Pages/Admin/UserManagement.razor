@@ -9,83 +9,137 @@
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @attribute [Authorize(Roles = "Admin")]
 
-<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
-    <MudText Typo="Typo.h4">Quản Lý Người Dùng</MudText>
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd"
-               OnClick="OpenCreateDialog">Thêm User Mới</MudButton>
-</MudStack>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-10">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-8">
+        <MudStack Spacing="0">
+            <MudText Typo="Typo.h2" Style="font-weight: 900; letter-spacing: -1.5px; text-transform: uppercase;" Color="Color.Primary">
+                Hệ Thống Người Dùng
+            </MudText>
+            <MudText Typo="Typo.h6" Class="mud-text-secondary" Style="font-weight: 400;">
+                Tổng cộng có <b style="color: var(--mud-palette-primary);">@users.Count</b> tài khoản đang hoạt động
+            </MudText>
+        </MudStack>
+        
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   StartIcon="@Icons.Material.Filled.PersonAdd"
+                   OnClick="OpenCreateDialog"
+                   Size="Size.Large"
+                   Style="height: 60px; font-size: 1.1rem; font-weight: bold; border-radius: 12px; padding: 0 30px;">
+            THÊM USER MỚI
+        </MudButton>
+    </MudStack>
 
-<MudDataGrid Items="@users" Filterable="true" Bordered="true" Striped="true" QuickFilter="@_quickFilter">
-    <ToolBarContent>
-        <MudText Typo="Typo.h6">Danh sách tài khoản</MudText>
-        <MudSpacer />
-        <MudTextField @bind-Value="_searchString" Placeholder="Tìm kiếm..." Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-    </ToolBarContent>
+    <MudPaper Elevation="5" Style="border-radius: 20px; padding: 15px; border: 1px solid rgba(0,0,0,0.05)">
+        <MudDataGrid Items="@users" 
+                    Filterable="true" 
+                    Bordered="false" 
+                    Striped="true" 
+                    Hover="true"
+                    QuickFilter="@_quickFilter"
+                    T="UserDto">
+            <ToolBarContent>
+                <MudText Typo="Typo.h5" Style="font-weight: 700;">Danh Sách Chi Tiết</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString" 
+                             Placeholder="Nhập tên hoặc tài khoản cần tìm..." 
+                             Adornment="Adornment.Start"
+                             AdornmentIcon="@Icons.Material.Filled.Search" 
+                             IconSize="Size.Large" 
+                             Class="mt-0"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Normal"
+                             Style="max-width: 400px; font-size: 1.1rem; background-color: #fafafa;"></MudTextField>
+            </ToolBarContent>
 
-    <Columns>
-        <PropertyColumn Property="x => x.Id" Title="ID" Sortable="true" />
-        <PropertyColumn Property="x => x.Username" Title="Username" />
-        <PropertyColumn Property="x => x.FullName" Title="Họ tên" />
+            <Columns>
+                <PropertyColumn Property="x => x.Id" Title="MÃ ID" Sortable="true" HeaderStyle="font-weight: 800; font-size: 1rem;" />
+                
+                <TemplateColumn Title="HỌ TÊN & TÀI KHOẢN" HeaderStyle="font-weight: 800; font-size: 1rem;">
+                    <CellTemplate>
+                        <div class="d-flex align-center py-2">
+                            <MudAvatar Color="@GetRoleColor(context.Item.Role)" Variant="Variant.Filled" Size="Size.Medium" Class="mr-4" Style="height: 45px; width: 45px; font-size: 1.2rem;">
+                                @context.Item.FullName[0]
+                            </MudAvatar>
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body1" Style="font-weight: 700; font-size: 1.1rem;">@context.Item.FullName</MudText>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">@context.Item.Username</MudText>
+                            </div>
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
 
-        <!-- Cột Role hiển thị đẹp hơn -->
-        <TemplateColumn Title="Vai trò">
-            <CellTemplate>
-                <MudChip T="string" Color="@GetRoleColor(context.Item.Role)" Size="Size.Small">
-                    @context.Item.Role
-                </MudChip>
-            </CellTemplate>
-        </TemplateColumn>
+                <TemplateColumn Title="PHÂN QUYỀN" HeaderStyle="font-weight: 800; font-size: 1rem;">
+                    <CellTemplate>
+                        <MudChip T="string" 
+                                Color="@GetRoleColor(context.Item.Role)" 
+                                Variant="Variant.Filled" 
+                                Size="Size.Medium"
+                                Style="font-weight: bold; min-width: 100px; justify-content: center;">
+                            @context.Item.Role.ToString().ToUpper()
+                        </MudChip>
+                    </CellTemplate>
+                </TemplateColumn>
 
-        <!-- Cột Trạng thái (Khóa/Mở) -->
-        <TemplateColumn Title="Trạng thái">
-            <CellTemplate>
-                @if (context.Item.IsLocked)
-                {
-                    <MudChip T="string" Color="Color.Error" Icon="@Icons.Material.Filled.Lock">Đang khóa</MudChip>
-                }
-                else
-                {
-                    <MudChip T="string" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">Hoạt động</MudChip>
-                }
-            </CellTemplate>
-        </TemplateColumn>
+                <TemplateColumn Title="TRẠNG THÁI" HeaderStyle="font-weight: 800; font-size: 1rem;">
+                    <CellTemplate>
+                        @if (context.Item.IsLocked)
+                        {
+                            <MudText Color="Color.Error" Style="font-weight: 700; display: flex; align-items: center;">
+                                <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Class="mr-1"/> ĐÃ KHÓA
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Success" Style="font-weight: 700; display: flex; align-items: center;">
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Class="mr-1"/> HOẠT ĐỘNG
+                            </MudText>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
 
-        <!-- Cột Hành động -->
-        <TemplateColumn Title="Hành động">
-            <CellTemplate>
-                <!-- Nút Sửa -->
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
-                               OnClick="@(() => OpenEditDialog(context.Item))" title="Sửa thông tin" />
+                <TemplateColumn Title="THAO TÁC" HeaderStyle="font-weight: 800; font-size: 1rem;" CellClass="d-flex justify-end align-center">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" 
+                                       Color="Color.Info" 
+                                       Size="Size.Medium"
+                                       OnClick="@(() => OpenEditDialog(context.Item))" 
+                                       Class="mr-2"
+                                       Style="background-color: var(--mud-palette-info-hover)"/>
 
-                <!-- Nút Khóa/Mở Khóa -->
-                <MudIconButton
-                Icon="@(context.Item.IsLocked ? Icons.Material.Filled.LockOpen : Icons.Material.Filled.Lock)"
-                Color="@(context.Item.IsLocked ? Color.Success : Color.Error)"
-                OnClick="@(() => ToggleLockUser(context.Item))" Disabled="@(context.Item.Id == currentUserId)"
-                title="@(context.Item.Id == currentUserId ? "Không thể khóa chính mình" : (context.Item.IsLocked ? "Mở khóa" : "Khóa tài khoản"))" />
-            </CellTemplate>
-        </TemplateColumn>
-    </Columns>
+                        <MudIconButton
+                            Icon="@(context.Item.IsLocked ? Icons.Material.Filled.LockOpen : Icons.Material.Filled.Lock)"
+                            Color="@(context.Item.IsLocked ? Color.Success : Color.Error)"
+                            Size="Size.Medium"
+                            OnClick="@(() => ToggleLockUser(context.Item))" 
+                            Disabled="@(context.Item.Id == currentUserId)"
+                            Style="@($"background-color: {(context.Item.IsLocked ? "rgba(76, 175, 80, 0.1)" : "rgba(244, 67, 54, 0.1)")}")" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
 
-    <PagerContent>
-        <MudDataGridPager T="UserDto" />
-    </PagerContent>
-</MudDataGrid>
+            <PagerContent>
+                <div class="pa-4">
+                    <MudDataGridPager T="UserDto" />
+                </div>
+            </PagerContent>
+        </MudDataGrid>
+    </MudPaper>
+</MudContainer>
 
 @code {
+    // PHẦN CODE LOGIC GIỮ NGUYÊN HOÀN TOÀN NHƯ CŨ
     private List<UserDto> users = new();
     private string _searchString = string.Empty;
     private int currentUserId;
+
     protected override async Task OnInitializedAsync()
     {
-        // MỚI: Lấy ID từ LocalStorage
         try
         {
             currentUserId = await LocalStorage.GetItemAsync<int>("userId");
         }
         catch { }
-
         await LoadData();
     }
 
@@ -101,7 +155,6 @@
         }
     }
 
-    // 1. Mở Dialog Tạo Mới
     private async Task OpenCreateDialog()
     {
         var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
@@ -124,10 +177,8 @@
         }
     }
 
-    // 2. Mở Dialog Sửa
     private async Task OpenEditDialog(UserDto user)
     {
-        // Map dữ liệu cũ sang DTO để sửa
         var updateDto = new CreateUpdateUserDto
         {
             Username = user.Username,
@@ -140,7 +191,7 @@
         var parameters = new DialogParameters<UserDialog>
         {
             { x => x.Model, updateDto },
-            { x => x.IsEditInfo, true } // Báo đây là chế độ sửa (để ẩn password)
+            { x => x.IsEditInfo, true }
         };
 
         var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
@@ -162,7 +213,6 @@
         }
     }
 
-    // 3. Khóa / Mở khóa
     private async Task ToggleLockUser(UserDto user)
     {
         if (user.Id == currentUserId)
@@ -183,7 +233,7 @@
             if (response.IsSuccessStatusCode)
             {
                 Snackbar.Add($"Đã {action.ToLower()} thành công.", Severity.Success);
-                await LoadData(); // Reload lại để cập nhật icon
+                await LoadData();
             }
             else
             {
@@ -192,7 +242,6 @@
         }
     }
 
-    // Hàm tô màu Chip
     private Color GetRoleColor(UserRole role) => role switch
     {
         UserRole.Admin => Color.Error,
@@ -200,7 +249,6 @@
         _ => Color.Info
     };
 
-    // Hàm Search nhanh
     private Func<UserDto, bool> _quickFilter => x =>
     {
         if (string.IsNullOrWhiteSpace(_searchString))

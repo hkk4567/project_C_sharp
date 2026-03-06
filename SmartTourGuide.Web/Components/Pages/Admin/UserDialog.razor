@@ -2,36 +2,118 @@
 @using SmartTourGuide.Shared.Enums
 @using MudBlazor
 
-<MudDialog>
-    <DialogContent>
-        <MudForm @ref="form" @bind-IsValid="@success">
-            <!-- Username chỉ cho nhập khi tạo mới -->
-            <MudTextField @bind-Value="Model.Username" Label="Tên đăng nhập" Required="true" ReadOnly="@IsEditInfo"
-                          Variant="@(IsEditInfo? Variant.Filled: Variant.Text)" />
+<MudDialog Style="border-radius: 16px; padding: 12px;">
+    <TitleContent>
+        <MudText Typo="Typo.h5" Style="font-weight: 900; color: var(--mud-palette-primary); text-transform: uppercase;">
+            @(IsEditInfo ? "Sửa thông tin" : "Thêm User Mới")
+        </MudText>
+    </TitleContent>
 
-            <!-- Password chỉ hiện khi tạo mới -->
+    <DialogContent>
+        <MudForm @ref="form" @bind-IsValid="@success" Class="py-4">
+            
+            <MudTextField @bind-Value="Model.Username" 
+                          Label="Tên đăng nhập *" 
+                          Required="true" 
+                          RequiredError="Bắt buộc"
+                          ReadOnly="@IsEditInfo"
+                          Variant="@(IsEditInfo ? Variant.Filled : Variant.Outlined)"
+                          Class="perfect-input mb-4" />
+
             @if (!IsEditInfo)
             {
-                <MudTextField @bind-Value="Model.Password" Label="Mật khẩu" InputType="InputType.Password"
-                              Required="true" />
+                <MudTextField @bind-Value="Model.Password" 
+                              Label="Mật khẩu *" 
+                              InputType="InputType.Password"
+                              Required="true" 
+                              RequiredError="Bắt buộc"
+                              Variant="Variant.Outlined"
+                              Class="perfect-input mb-4" />
             }
 
-            <MudTextField @bind-Value="Model.FullName" Label="Họ tên" Required="true" />
-            <MudTextField @bind-Value="Model.Email" Label="Email" />
+            <MudTextField @bind-Value="Model.FullName" 
+                          Label="Họ tên *" 
+                          Required="true" 
+                          RequiredError="Bắt buộc"
+                          Variant="Variant.Outlined"
+                          Class="perfect-input mb-4" />
+            
+            <MudTextField @bind-Value="Model.Email" 
+                          Label="Email" 
+                          Variant="Variant.Outlined"
+                          Class="perfect-input mb-4" />
 
-            <MudSelect T="UserRole" Label="Vai trò" @bind-Value="Model.Role" AnchorOrigin="Origin.BottomCenter">
+            <MudSelect T="UserRole" 
+                       Label="Vai trò *" 
+                       @bind-Value="Model.Role" 
+                       AnchorOrigin="Origin.BottomCenter"
+                       Variant="Variant.Outlined"
+                       Class="perfect-input mb-4">
                 <MudSelectItem Value="UserRole.Tourist">Khách du lịch</MudSelectItem>
                 <MudSelectItem Value="UserRole.BoothOwner">Chủ gian hàng</MudSelectItem>
                 <MudSelectItem Value="UserRole.Admin">Admin</MudSelectItem>
             </MudSelect>
+
         </MudForm>
     </DialogContent>
+
     <DialogActions>
-        <MudButton OnClick="Cancel">Hủy</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!success)">Lưu
+        <MudButton OnClick="Cancel" 
+                   Color="Color.Error"
+                   Size="Size.Large"
+                   Style="font-size: 1.1rem; font-weight: 700; margin-right: 12px;">
+            HỦY
+        </MudButton>
+        <MudButton Color="Color.Success" 
+                   Variant="Variant.Filled" 
+                   OnClick="Submit" 
+                   Disabled="@(!success)"
+                   Size="Size.Large"
+                   Style="font-size: 1.1rem; font-weight: 800; padding: 10px 36px; border-radius: 8px;">
+            LƯU
         </MudButton>
     </DialogActions>
 </MudDialog>
+
+<style>
+    /* 1. Chữ người dùng gõ vào: To, rõ, đậm */
+    .perfect-input input, 
+    .perfect-input .mud-select-input {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        color: #222 !important;
+        padding-top: 14px !important;
+        padding-bottom: 14px !important;
+    }
+
+    /* 2. Chữ Label lúc nằm trong ô (chưa bấm vào) */
+    .perfect-input .mud-input-label {
+        font-size: 1.15rem !important;
+        color: #666 !important;
+    }
+
+    /* 3. PHÉP THUẬT CHE VIỀN: Khi chữ nhảy lên trên */
+    .perfect-input .mud-input-label-animated {
+        font-weight: 800 !important; 
+        color: var(--mud-palette-primary) !important; 
+        background-color: #ffffff !important; 
+        padding: 0 6px !important; 
+        margin-left: -4px !important; 
+        font-size: 1rem !important; 
+    }
+    
+    /* 4. TRIỆT TIÊU NỀN XANH: Xóa màu nền do Chrome tự điền Mật khẩu/Email */
+    .perfect-input input:-webkit-autofill,
+    .perfect-input input:-webkit-autofill:hover, 
+    .perfect-input input:-webkit-autofill:focus, 
+    .perfect-input input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 1000px white inset !important;
+        -webkit-text-fill-color: #222 !important;
+        transition: background-color 5000s ease-in-out 0s;
+    }
+</style>
+
+
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialogRef { get; set; } = default!;
