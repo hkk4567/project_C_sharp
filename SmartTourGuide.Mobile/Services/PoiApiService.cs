@@ -23,19 +23,32 @@ public class PoiApiService
     }
 
     public async Task<List<PoiModel>> GetPoisAsync()
+{
+    try
     {
-        try
+        // Sử dụng GetAsync thay vì GetStringAsync để kiểm tra mã lỗi HTTP
+        var response = await _httpClient.GetAsync("api/pois");
+        
+        if (!response.IsSuccessStatusCode)
         {
-            // API trả về danh sách POI (nhớ API get activie bên controller)
-            var response = await _httpClient.GetStringAsync("api/pois");
-            return JsonConvert.DeserializeObject<List<PoiModel>>(response) ?? new List<PoiModel>();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Lỗi API: {ex.Message}");
+            // Nếu lỗi 404 hoặc 500, nó sẽ nhảy vào đây
+            Console.WriteLine($"Lỗi HTTP: {response.StatusCode}");
             return new List<PoiModel>();
         }
+
+        var json = await response.Content.ReadAsStringAsync();
+        Console.WriteLine($"Dữ liệu nhận được: {json}"); // Xem ở cửa sổ Output/Console
+
+        var result = JsonConvert.DeserializeObject<List<PoiModel>>(json);
+        return result ?? new List<PoiModel>();
     }
+    catch (Exception ex)
+    {
+        // Nếu lỗi do Android chặn HTTP, nó sẽ báo "Cleartext HTTP traffic not permitted"
+        Console.WriteLine($"Lỗi kết nối API: {ex.Message}");
+        return new List<PoiModel>();
+    }
+}
 }
 
 public class PoiModel
@@ -45,4 +58,8 @@ public class PoiModel
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public string? Address { get; set; }
+    public string? Description { get; set; } 
+
+    // API trả về List<string> ImageUrls
+    public List<string>? ImageUrls { get; set; } 
 }
