@@ -3,58 +3,115 @@
 @layout AdminLayout
 @attribute [Authorize(Roles = "Admin")]
 
-<MudGrid>
-    <!-- Thống kê nhanh -->
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
-            <MudIcon Icon="@Icons.Material.Filled.Place" Color="Color.Primary" Class="mx-4"
-                     Style="width:54px; height:54px;"></MudIcon>
-            <div>
-                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Tổng Địa Điểm</MudText>
-                <MudText Typo="Typo.h5">125</MudText>
-            </div>
-        </MudPaper>
-    </MudItem>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+    <MudText Typo="Typo.h5" Style="font-weight: 800; color: #333;" Class="mb-6">TỔNG QUAN HỆ THỐNG</MudText>
 
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
-            <MudIcon Icon="@Icons.Material.Filled.PendingActions" Color="Color.Warning" Class="mx-4"
-                     Style="width:54px; height:54px;"></MudIcon>
-            <div>
-                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Chờ Duyệt</MudText>
-                <MudText Typo="Typo.h5">3</MudText> <!-- Có thể gọi API đếm số lượng -->
-            </div>
-        </MudPaper>
-    </MudItem>
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="3" Class="pa-4 d-flex flex-column justify-space-between" Style="border-radius: 16px; height: 140px;">
+                <div class="d-flex justify-space-between align-start">
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Class="mud-text-secondary mb-1" Style="font-weight: 600; text-transform: uppercase;">Tổng Địa Điểm</MudText>
+                        <MudText Typo="Typo.h4" Style="font-weight: 800; color: #2c3e50;">125</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Style="width: 56px; height: 56px; border-width: 2px;">
+                        <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Large" />
+                    </MudAvatar>
+                </div>
+                <MudText Typo="Typo.caption" Color="Color.Success" Class="d-flex align-center font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Class="mr-1"/> Tăng 12% so với tuần trước
+                </MudText>
+            </MudPaper>
+        </MudItem>
 
-    <MudItem xs="12" sm="6" md="3">
-        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
-            <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Success" Class="mx-4"
-                     Style="width:54px; height:54px;"></MudIcon>
-            <div>
-                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Người dùng</MudText>
-                <MudText Typo="Typo.h5">50</MudText>
-            </div>
-        </MudPaper>
-    </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="3" Class="pa-4 d-flex flex-column justify-space-between" Style="border-radius: 16px; height: 140px;">
+                <div class="d-flex justify-space-between align-start">
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Class="mud-text-secondary mb-1" Style="font-weight: 600; text-transform: uppercase;">Chờ Duyệt</MudText>
+                        <MudText Typo="Typo.h4" Style="font-weight: 800; color: #2c3e50;">3</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Style="width: 56px; height: 56px; border-width: 2px;">
+                        <MudIcon Icon="@Icons.Material.Filled.PendingActions" Size="Size.Large" />
+                    </MudAvatar>
+                </div>
+                <MudText Typo="Typo.caption" Color="Color.Warning" Class="d-flex align-center font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1"/> Cần xử lý trong hôm nay
+                </MudText>
+            </MudPaper>
+        </MudItem>
 
-    <!-- Biểu đồ hoặc danh sách gì đó -->
-    <MudItem xs="12" md="8">
-        <MudCard>
-            <MudCardHeader>
-                <CardHeaderContent>
-                    <MudText Typo="Typo.h6">Hoạt động gần đây</MudText>
-                </CardHeaderContent>
-            </MudCardHeader>
-            <MudCardContent>
-                <MudText>Admin vừa duyệt địa điểm "Hồ Gươm"</MudText>
-                <MudDivider Class="my-2" />
-                <MudText>User NguyenVanA vừa đăng nhập</MudText>
-            </MudCardContent>
-        </MudCard>
-    </MudItem>
-</MudGrid>
+        <MudItem xs="12" sm="12" md="4">
+            <MudPaper Elevation="3" Class="pa-4 d-flex flex-column justify-space-between" Style="border-radius: 16px; height: 140px;">
+                <div class="d-flex justify-space-between align-start">
+                    <div>
+                        <MudText Typo="Typo.subtitle2" Class="mud-text-secondary mb-1" Style="font-weight: 600; text-transform: uppercase;">Người Dùng</MudText>
+                        <MudText Typo="Typo.h4" Style="font-weight: 800; color: #2c3e50;">50</MudText>
+                    </div>
+                    <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Style="width: 56px; height: 56px; border-width: 2px;">
+                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" />
+                    </MudAvatar>
+                </div>
+                <MudText Typo="Typo.caption" Color="Color.Success" Class="d-flex align-center font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" Class="mr-1"/> +5 tài khoản mới tháng này
+                </MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="7" Class="mt-4">
+            <MudPaper Elevation="3" Class="pa-5" Style="border-radius: 16px; height: 100%;">
+                <MudText Typo="Typo.h6" Style="font-weight: 800; color: #333;" Class="mb-4">Lượt truy cập tuần qua</MudText>
+                <MudChart ChartType="ChartType.Bar" ChartSeries="@Series" XAxisLabels="@XAxisLabels" Width="100%" Height="320px"></MudChart>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="5" Class="mt-4">
+            <MudPaper Elevation="3" Class="pa-5" Style="border-radius: 16px; height: 100%;">
+                <MudText Typo="Typo.h6" Style="font-weight: 800; color: #333;" Class="mb-4">Hoạt động gần đây</MudText>
+                
+                <MudTimeline TimelinePosition="TimelinePosition.Start" Class="ml-n6">
+                    <MudTimelineItem Color="Color.Success" Size="Size.Small">
+                        <ItemOpposite>
+                            <MudText Color="Color.Success" Typo="Typo.caption" Style="font-weight: bold;">10 phút trước</MudText>
+                        </ItemOpposite>
+                        <ItemContent>
+                            <MudText Typo="Typo.body2" Style="font-weight: 600; color: #444;">Duyệt địa điểm "Hồ Gươm"</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Thực hiện bởi: Admin</MudText>
+                        </ItemContent>
+                    </MudTimelineItem>
+
+                    <MudTimelineItem Color="Color.Info" Size="Size.Small">
+                        <ItemOpposite>
+                            <MudText Color="Color.Info" Typo="Typo.caption" Style="font-weight: bold;">1 giờ trước</MudText>
+                        </ItemOpposite>
+                        <ItemContent>
+                            <MudText Typo="Typo.body2" Style="font-weight: 600; color: #444;">Đăng nhập hệ thống</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">User: NguyenVanA</MudText>
+                        </ItemContent>
+                    </MudTimelineItem>
+
+                    <MudTimelineItem Color="Color.Warning" Size="Size.Small">
+                        <ItemOpposite>
+                            <MudText Color="Color.Warning" Typo="Typo.caption" Style="font-weight: bold;">Hôm qua</MudText>
+                        </ItemOpposite>
+                        <ItemContent>
+                            <MudText Typo="Typo.body2" Style="font-weight: 600; color: #444;">Yêu cầu mở gian hàng mới</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Quán Phở Thìn</MudText>
+                        </ItemContent>
+                    </MudTimelineItem>
+                </MudTimeline>
+
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
 
 @code {
-    // Gọi API lấy số liệu thống kê ở đây nếu cần
+    // Dữ liệu mẫu mồi cho Biểu đồ cột
+    public List<ChartSeries> Series = new List<ChartSeries>()
+    {
+        new ChartSeries() { Name = "Khách du lịch", Data = new double[] { 40, 20, 25, 27, 46, 60, 48 } },
+        new ChartSeries() { Name = "Chủ gian hàng", Data = new double[] { 10, 15, 12, 18, 20, 25, 22 } },
+    };
+    public string[] XAxisLabels = { "T2", "T3", "T4", "T5", "T6", "T7", "CN" };
 }

@@ -9,13 +9,130 @@
 @inject NavigationManager Nav
 @attribute [Authorize(Roles = "Admin")]
 
-<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
-    <MudText Typo="Typo.h4">Quản Lý Tuyến Du Lịch (Tours)</MudText>
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Map"
-               OnClick="OpenCreateTourDialog">Tạo Tour Mới</MudButton>
+
+<style>
+    /* 1. IMPORT FONT INTER - Dùng 2 dấu @@ để tránh lỗi C# trong Blazor */
+    @@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    /* Áp dụng font cho toàn bộ khu vực quản lý tour */
+    .tour-header, .tour-table, .tour-title, .tour-create-btn {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    .tour-header {
+        margin-top: 12px;
+        padding-bottom: 8px;
+    }
+
+    /* ===== TITLE: Chỉnh cho sắc nét và hiện đại hơn ===== */
+    .tour-title {
+        font-weight: 800;
+        font-size: 1.75rem !important; /* Chỉnh size cho chuẩn h4 */
+        letter-spacing: -0.02em; /* Thu hẹp nhẹ khoảng cách để trông cao cấp hơn */
+        margin-top: 6px;
+        color: var(--mud-palette-text-primary);
+    }
+
+    /* ===== CREATE BUTTON: Bo góc và hiệu ứng mượt ===== */
+    .tour-create-btn {
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 10px 20px;
+        text-transform: none; /* Giữ nguyên chữ hoa/thường cho dễ đọc */
+        letter-spacing: 0.2px;
+        box-shadow: 0 4px 14px 0 rgba(var(--mud-palette-primary-rgb), 0.39);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tour-create-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(var(--mud-palette-primary-rgb), 0.23);
+    }
+
+    /* ===== TABLE: Kẻ dọc và Font chữ dữ liệu ===== */
+    .tour-table {
+        border: 1px solid var(--mud-palette-divider) !important;
+        border-radius: 12px; /* Tăng độ bo góc cho hiện đại */
+        overflow: hidden;
+        background-color: var(--mud-palette-surface);
+    }
+
+    .tour-table .mud-table-cell {
+        border-right: 1px solid var(--mud-palette-divider) !important;
+        vertical-align: middle !important;
+        padding: 14px 16px !important; /* Tăng padding để bảng "thở" được */
+        font-size: 0.875rem;
+        color: var(--mud-palette-text-secondary);
+    }
+
+    .tour-table .mud-table-cell:last-child {
+        border-right: none !important;
+    }
+
+    /* Header của bảng: Chữ nhỏ, đậm, khoảng cách rộng (kiểu Argon) */
+    .tour-table .mud-table-head .mud-table-cell {
+        background-color: rgba(var(--mud-palette-action-default-rgb), 0.04) !important;
+        font-weight: 700 !important;
+        color: var(--mud-palette-text-primary) !important;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.05em;
+    }
+
+    /* Căn chỉnh các cột */
+    .tour-table .mud-table-cell:nth-child(1),
+    .tour-table .mud-table-cell:nth-child(2),
+    .tour-table .mud-table-cell:nth-child(5),
+    .tour-table .mud-table-cell:nth-child(6),
+    .tour-table .mud-table-cell:nth-child(7) {
+        text-align: center !important;
+    }
+
+    /* Xử lý text quá dài: hiện dấu ... */
+    .tour-table .mud-table-cell:nth-child(3),
+    .tour-table .mud-table-cell:nth-child(4) {
+        max-width: 280px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* ===== DARK MODE OPTIMIZATION ===== */
+    .mud-theme-dark .tour-title {
+        color: #f8fafc; /* Trắng dịu chống lóa */
+    }
+
+    .mud-theme-dark .tour-table {
+        border: 1px solid rgba(255,255,255,0.05) !important;
+    }
+
+    /* Hiệu ứng sọc cho Dark Mode */
+    .mud-theme-dark .mud-table-striped .mud-table-body .mud-tr-striped {
+        background-color: rgba(255, 255, 255, 0.02) !important;
+    }
+</style>
+<MudStack Row="true"
+          Justify="Justify.SpaceBetween"
+          AlignItems="AlignItems.Center"
+          Class="tour-header mb-4">
+          
+    <MudText Typo="Typo.h4" Class="tour-title">
+        Quản Lý Tuyến Du Lịch
+    </MudText>
+
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Map"
+               OnClick="OpenCreateTourDialog"
+               Class="tour-create-btn">
+        Tạo Tour Mới
+    </MudButton>
+
 </MudStack>
 
-<MudDataGrid Items="@tours" Filterable="true" Bordered="true" Striped="true">
+<MudDataGrid Items="@tours" Filterable="true" Bordered="true" Striped="true"  Class="tour-table">
     <Columns>
         <PropertyColumn Property="x => x.Id" Title="ID" Sortable="true" />
 

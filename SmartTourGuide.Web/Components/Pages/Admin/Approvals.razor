@@ -10,85 +10,140 @@
 
 @attribute [Authorize(Roles = "Admin")]
 
-<MudText Typo="Typo.h4" Class="mb-4">Quản Lý Địa Điểm</MudText>
 
-<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+<MudTabs Elevation="2"
+         Rounded="true"
+         ApplyEffectsToContainer="true"
+         PanelClass="pa-6 tab-panel-modern"
+         Class="poi-tabs">
 
-    <!-- TAB 1: DANH SÁCH CHỜ DUYỆT -->
+    <!-- TAB 1 -->
     <MudTabPanel Text="Đang chờ duyệt (Pending)" Icon="@Icons.Material.Filled.PendingActions">
-        <!-- Chú ý: PropertyColumn phải có Type cụ thể là PoiDto -->
-        <MudDataGrid T="PoiDto" Items="@pendingPois" Bordered="true" Striped="true">
-            <Columns>
-                <PropertyColumn Property="x => x.Name" title="Tên địa điểm" />
-                <PropertyColumn Property="x => x.Address" title="Địa chỉ" />
-                <TemplateColumn Title="Chi tiết">
-                    <CellTemplate>
-                        <MudButton StartIcon="@Icons.Material.Filled.Visibility" Color="Color.Info"
-                                   Variant="Variant.Outlined" Size="Size.Small"
-                                   OnClick="@(() => Nav.NavigateTo($"/admin/poi/{context.Item.Id}"))">
-                            Xem Ngay
-                        </MudButton>
-                    </CellTemplate>
-                </TemplateColumn>
-                <TemplateColumn Title="Hành động">
-                    <CellTemplate>
-                        <MudIconButton Icon="@Icons.Material.Filled.Settings" Color="Color.Primary"
-                                       OnClick="@(() => OpenGeofenceDialog(context.Item!))" title="Cấu hình Geofence" />
-                    </CellTemplate>
-                </TemplateColumn>
 
-                <TemplateColumn Title="Dịch thuật">
-                    <CellTemplate>
-                        <MudButton StartIcon="@Icons.Material.Filled.Translate" Variant="Variant.Outlined"
-                                   Color="Color.Tertiary" Size="Size.Small"
-                                   OnClick="@(() => OpenTranslationDialog(context.Item.Id))">
-                            Quản lý Dịch
-                        </MudButton>
-                    </CellTemplate>
-                </TemplateColumn>
-            </Columns>
-            <NoRecordsContent>
-                <MudText>Không có bài đăng nào chờ duyệt.</MudText>
-            </NoRecordsContent>
-        </MudDataGrid>
+        <MudPaper Class="table-card">
+
+            <MudDataGrid T="PoiDto"
+                         Items="@pendingPois"
+                         Bordered="true"
+                         Striped="true"
+                         Class="modern-table">
+
+                <Columns>
+                    <PropertyColumn Property="x => x.Name" title="Tên địa điểm" />
+                    <PropertyColumn Property="x => x.Address" title="Địa chỉ" />
+
+                    <TemplateColumn Title="Chi tiết">
+                        <CellTemplate>
+                            <MudButton StartIcon="@Icons.Material.Filled.Visibility"
+                                       Color="Color.Info"
+                                       Variant="Variant.Filled"
+                                       Size="Size.Small"
+                                       Class="action-btn"
+                                       OnClick="@(() => Nav.NavigateTo($"/admin/poi/{context.Item.Id}"))">
+                                Xem
+                            </MudButton>
+                        </CellTemplate>
+                    </TemplateColumn>
+
+                    <TemplateColumn Title="Hành động">
+                        <CellTemplate>
+                            <MudIconButton Icon="@Icons.Material.Filled.Settings"
+                                           Color="Color.Primary"
+                                           Class="icon-btn"
+                                           OnClick="@(() => OpenGeofenceDialog(context.Item!))" />
+                        </CellTemplate>
+                    </TemplateColumn>
+
+                    <TemplateColumn Title="Dịch thuật">
+                        <CellTemplate>
+                            <MudButton StartIcon="@Icons.Material.Filled.Translate"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Tertiary"
+                                       Size="Size.Small"
+                                       Class="action-btn"
+                                       OnClick="@(() => OpenTranslationDialog(context.Item.Id))">
+                                Dịch
+                            </MudButton>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+
+                <NoRecordsContent>
+                    <MudText Class="no-records">
+                        Không có bài đăng nào chờ duyệt.
+                    </MudText>
+                </NoRecordsContent>
+
+            </MudDataGrid>
+
+        </MudPaper>
+
     </MudTabPanel>
 
-    <!-- TAB 2: DANH SÁCH ĐANG HOẠT ĐỘNG -->
+    <!-- TAB 2 -->
     <MudTabPanel Text="Đang hoạt động (Active)" Icon="@Icons.Material.Filled.CheckCircle">
-        <MudDataGrid T="PoiDto" Items="@activePois" Bordered="true" Striped="true">
-            <Columns>
-                <PropertyColumn Property="x => x.Name" Title="Tên địa điểm" />
-                <PropertyColumn Property="x => x.TriggerRadius" Title="Bán kính (m)" />
-                <PropertyColumn Property="x => x.Priority" Title="Ưu tiên" Sortable="true" />
-                <TemplateColumn Title="Chi tiết">
-                    <CellTemplate>
-                        <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info"
-                                       OnClick="@(() => Nav.NavigateTo($"/admin/poi/{context.Item.Id}"))" />
-                    </CellTemplate>
-                </TemplateColumn>
 
-                <TemplateColumn Title="Cấu hình">
-                    <CellTemplate>
-                        <MudButton StartIcon="@Icons.Material.Filled.Settings" Color="Color.Info"
-                                   Variant="Variant.Outlined" Size="Size.Small"
-                                   OnClick="@(() => OpenGeofenceDialog(context.Item))">Chỉnh Geofence</MudButton>
-                    </CellTemplate>
-                </TemplateColumn>
+        <MudPaper Class="table-card">
 
-                <TemplateColumn Title="Dịch thuật">
-                    <CellTemplate>
-                        <MudButton StartIcon="@Icons.Material.Filled.Translate" Variant="Variant.Outlined"
-                                   Color="Color.Tertiary" Size="Size.Small"
-                                   OnClick="@(() => OpenTranslationDialog(context.Item.Id))">
-                            Quản lý Dịch
-                        </MudButton>
-                    </CellTemplate>
-                </TemplateColumn>
-            </Columns>
-            <NoRecordsContent>
-                <MudText>Chưa có địa điểm nào hoạt động.</MudText>
-            </NoRecordsContent>
-        </MudDataGrid>
+            <MudDataGrid T="PoiDto"
+                         Items="@activePois"
+                         Bordered="true"
+                         Striped="true"
+                         Class="modern-table">
+
+                <Columns>
+
+                    <PropertyColumn Property="x => x.Name" Title="Tên địa điểm" />
+                    <PropertyColumn Property="x => x.TriggerRadius" Title="Bán kính (m)" />
+                    <PropertyColumn Property="x => x.Priority" Title="Ưu tiên" Sortable="true" />
+
+                    <TemplateColumn Title="Chi tiết">
+                        <CellTemplate>
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                           Color="Color.Info"
+                                           Class="icon-btn"
+                                           OnClick="@(() => Nav.NavigateTo($"/admin/poi/{context.Item.Id}"))" />
+                        </CellTemplate>
+                    </TemplateColumn>
+
+                    <TemplateColumn Title="Cấu hình">
+                        <CellTemplate>
+                            <MudButton StartIcon="@Icons.Material.Filled.Settings"
+                                       Color="Color.Info"
+                                       Variant="Variant.Filled"
+                                       Size="Size.Small"
+                                       Class="action-btn"
+                                       OnClick="@(() => OpenGeofenceDialog(context.Item))">
+                                Geofence
+                            </MudButton>
+                        </CellTemplate>
+                    </TemplateColumn>
+
+                    <TemplateColumn Title="Dịch thuật">
+                        <CellTemplate>
+                            <MudButton StartIcon="@Icons.Material.Filled.Translate"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Tertiary"
+                                       Size="Size.Small"
+                                       Class="action-btn"
+                                       OnClick="@(() => OpenTranslationDialog(context.Item.Id))">
+                                Dịch
+                            </MudButton>
+                        </CellTemplate>
+                    </TemplateColumn>
+
+                </Columns>
+
+                <NoRecordsContent>
+                    <MudText Class="no-records">
+                        Chưa có địa điểm nào hoạt động.
+                    </MudText>
+                </NoRecordsContent>
+
+            </MudDataGrid>
+
+        </MudPaper>
+
     </MudTabPanel>
 
 </MudTabs>
