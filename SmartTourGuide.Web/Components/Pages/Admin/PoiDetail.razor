@@ -46,7 +46,7 @@
                                       Class="mb-3" />
 
                         <MudText Typo="Typo.subtitle2" Class="mt-2">Mô tả chi tiết:</MudText>
-                        <MudPaper Class="pa-3 mt-1" Style="background-color: #f5f5f5; min-height: 100px;">
+                        <MudPaper Class="pa-3 mt-1 description-box">
                             <MudText Typo="Typo.body1" Style="white-space: pre-wrap;">@poi.Description</MudText>
                         </MudPaper>
 
@@ -115,8 +115,11 @@
                         {
                             <!-- NÚT NGHE TTS NẾU KHÔNG CÓ AUDIO -->
                             <MudAlert Severity="Severity.Info" Class="mb-2">Sử dụng giọng đọc máy (TTS).</MudAlert>
-                            <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.VolumeUp"
-                                       OnClick="ReadDescription">
+                            <MudButton Variant="Variant.Outlined"
+                                    Color="Color.Info"
+                                    StartIcon="@Icons.Material.Filled.VolumeUp"
+                                    OnClick="ReadDescription"
+                                    Class="tts-btn">
                                 Nghe thử giọng đọc mô tả
                             </MudButton>
                         }

@@ -3,58 +3,340 @@
 
 <MudText Typo="Typo.h5" Class="mb-4" Style="font-weight: bold;">Tổng quan gian hàng</MudText>
 
-<MudGrid>
+<style>
+    /* --- CSS CHO DASHBOARD HIỆN ĐẠI --- */
+    .dash-card {
+        background-color: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        height: 100%;
+    }
+
+    .dash-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Hộp chứa Icon */
+    .icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+
+    .icon-primary { background: rgba(var(--mud-palette-primary-rgb), 0.1); color: var(--mud-palette-primary); }
+    .icon-warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
+    .icon-success { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); }
+
+    /* Chữ số thống kê */
+    .stat-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--mud-palette-text-secondary);
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--mud-palette-text-primary);
+        line-height: 1;
+    }
+
+    /* Badge tăng/giảm phần trăm */
+    .trend-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        gap: 4px;
+    }
+
+    .trend-up { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); }
+    .trend-down { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); }
+
+    /* Card Hoạt động gần đây */
+    .activity-list .mud-list-item {
+        padding: 16px 0 !important;
+        border-bottom: 1px dashed var(--mud-palette-divider);
+    }
+    .activity-list .mud-list-item:last-child {
+        border-bottom: none;
+    }
+
+    /* ========================================================= */
+    /* --- TỐI ƯU HIỂN THỊ CHỮ TRONG CHẾ ĐỘ TỐI (DARK MODE) ---  */
+    /* ========================================================= */
+    .mud-theme-dark .dash-card {
+        background-color: #111827 !important; 
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+    }
+
+    .mud-theme-dark .stat-title {
+        color: #9ca3af !important; 
+        font-weight: 500 !important;
+    }
+
+    .mud-theme-dark .stat-value {
+        color: #f9fafb !important; 
+        text-shadow: 0 2px 10px rgba(255, 255, 255, 0.15); 
+    }
+
+    .mud-theme-dark .dash-card .mud-typography-h6,
+    .mud-theme-dark .dash-card .mud-typography-h5 {
+        color: #f3f4f6 !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); 
+    }
+
+    .mud-theme-dark .activity-list .mud-typography-body2 {
+        color: #e5e7eb !important; 
+    }
+
+    .mud-theme-dark .activity-list .mud-text-secondary {
+        color: #9ca3af !important; 
+    }
+
+    .mud-theme-dark .activity-list .mud-list-item {
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.1) !important;
+    }
+    body{
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    text-rendering:optimizeLegibility;
+    } 
+    /* Card */
+.dash-card{
+    background: var(--mud-palette-surface);
+    border-radius:16px;
+    padding:20px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.08);
+}
+
+/* tiêu đề nhỏ */
+.stat-title{
+    font-size:14px;
+    font-weight:600;
+    color:var(--mud-palette-text-secondary);
+}
+
+/* số thống kê */
+.stat-value{
+    font-size:28px;
+    font-weight:800;
+    color:var(--mud-palette-text-primary);
+}
+
+/* trend */
+.trend-badge{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    font-size:13px;
+    font-weight:700;
+}
+
+.trend-up{
+    color:#4ade80;
+}
+
+.trend-down{
+    color:#f87171;
+}
+
+/* icon box */
+.icon-box{
+    width:44px;
+    height:44px;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-bottom:10px;
+}
+
+/* màu icon */
+.icon-primary{
+    background:rgba(59,130,246,0.15);
+    color:#3b82f6;
+}
+
+.icon-warning{
+    background:rgba(251,191,36,0.15);
+    color:#f59e0b;
+}
+
+.icon-success{
+    background:rgba(16,185,129,0.15);
+    color:#10b981;
+}
+
+/* activity */
+.activity-list .mud-list-item{
+    padding:10px 0;
+}
+
+/* text activity */
+.activity-list .mud-typography-body2{
+    color:var(--mud-palette-text-primary);
+    font-weight:600;
+}
+
+/* caption */
+.mud-typography-caption{
+    color:var(--mud-palette-text-secondary);
+}  
+
+</style>
+
+<MudGrid Class="mt-2">
     <MudItem xs="12" sm="6" md="4">
-        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
-            <MudIcon Icon="@Icons.Material.Filled.Store" Color="Color.Primary" Class="mx-4"
-                     Style="width:54px; height:54px;"></MudIcon>
-            <div>
-                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Địa điểm của tôi</MudText>
-                <MudText Typo="Typo.h5">5</MudText>
+        <div class="dash-card">
+            <div class="icon-box icon-primary">
+                <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Medium" />
             </div>
-        </MudPaper>
+            <div class="stat-title">Địa điểm của tôi</div>
+            <div class="d-flex justify-space-between align-end">
+                <div class="stat-value">5</div>
+                <div class="trend-badge trend-up">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> 
+                    <span>+2 Mới</span>
+                </div>
+            </div>
+        </div>
     </MudItem>
 
     <MudItem xs="12" sm="6" md="4">
-        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
-            <MudIcon Icon="@Icons.Material.Filled.StarRate" Color="Color.Warning" Class="mx-4"
-                     Style="width:54px; height:54px;"></MudIcon>
-            <div>
-                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Lượt đánh giá</MudText>
-                <MudText Typo="Typo.h5">42</MudText> 
+        <div class="dash-card">
+            <div class="icon-box icon-warning">
+                <MudIcon Icon="@Icons.Material.Filled.StarRate" Size="Size.Medium" />
             </div>
-        </MudPaper>
+            <div class="stat-title">Lượt đánh giá</div>
+            <div class="d-flex justify-space-between align-end">
+                <div class="stat-value">42</div>
+                <div class="trend-badge trend-up">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> 
+                    <span>+15.3%</span>
+                </div>
+            </div>
+        </div>
     </MudItem>
 
     <MudItem xs="12" sm="6" md="4">
-        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
-            <MudIcon Icon="@Icons.Material.Filled.Visibility" Color="Color.Success" Class="mx-4"
-                     Style="width:54px; height:54px;"></MudIcon>
-            <div>
-                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Tổng lượt xem</MudText>
-                <MudText Typo="Typo.h5">1,250</MudText>
+        <div class="dash-card">
+            <div class="icon-box icon-success">
+                <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="Size.Medium" />
             </div>
-        </MudPaper>
+            <div class="stat-title">Tổng lượt xem</div>
+            <div class="d-flex justify-space-between align-end">
+                <div class="stat-value">1,250</div>
+                <div class="trend-badge trend-down">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Size="Size.Small" /> 
+                    <span>-2.1%</span>
+                </div>
+            </div>
+        </div>
     </MudItem>
 
-    <MudItem xs="12" md="8">
-        <MudCard>
-            <MudCardHeader>
-                <CardHeaderContent>
-                    <MudText Typo="Typo.h6">Hoạt động gần đây</MudText>
-                </CardHeaderContent>
-            </MudCardHeader>
-            <MudCardContent>
-                <MudText>Admin vừa duyệt địa điểm "Quán phở gia truyền"</MudText>
-                <MudDivider Class="my-2" />
-                <MudText>Khách hàng Trần Văn B vừa đánh giá 5 sao cho địa điểm của bạn</MudText>
-                <MudDivider Class="my-2" />
-                <MudText>Địa điểm "Cà phê Chill" đạt 100 lượt xem trong tuần này</MudText>
-            </MudCardContent>
-        </MudCard>
+    <MudItem xs="12" md="7">
+        <div class="dash-card" style="padding: 24px;">
+            <div class="d-flex justify-space-between align-start mb-2">
+                <div>
+                    <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-secondary); text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">
+                        Tổng quan
+                    </MudText>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800; color: var(--mud-palette-text-primary);">
+                        Lượt xem địa điểm
+                    </MudText>
+                </div>
+                <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: bold;">
+                    Năm 2024
+                </MudChip>
+            </div>
+
+            <MudChart ChartType="ChartType.Line" 
+                      ChartSeries="@_chartSeries" 
+                      XAxisLabels="@_xAxisLabels" 
+                      Width="100%" 
+                      Height="320px" 
+                      ChartOptions="@_chartOptions" />
+        </div>
+    </MudItem>
+
+    <MudItem xs="12" md="5">
+        <div class="dash-card" style="padding: 24px;">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h6" Style="font-weight: 800;">Hoạt động gần đây</MudText>
+                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Style="font-weight: 600;">Xem tất cả</MudButton>
+            </div>
+            
+            <MudList T="string" Class="activity-list pa-0">
+                <MudListItem T="string">
+                    <div class="d-flex align-center gap-4">
+                        <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
+                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.body2" Style="font-weight: 600;">Admin vừa duyệt "Quán phở"</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">2 giờ trước</MudText>
+                        </div>
+                    </div>
+                </MudListItem>
+
+                <MudListItem T="string">
+                    <div class="d-flex align-center gap-4">
+                        <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small">
+                            <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" />
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.body2" Style="font-weight: 600;">Trần B đánh giá 5 sao</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">5 giờ trước</MudText>
+                        </div>
+                    </div>
+                </MudListItem>
+
+                <MudListItem T="string">
+                    <div class="d-flex align-center gap-4">
+                        <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Small">
+                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" />
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.body2" Style="font-weight: 600;">"Cà phê Chill" đạt 100 view</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">1 ngày trước</MudText>
+                        </div>
+                    </div>
+                </MudListItem>
+            </MudList>
+        </div>
     </MudItem>
 </MudGrid>
 
 @code {
-    // Tạm thời để trống, sau này bạn gọi API lấy dữ liệu thật của Owner vào đây
+    // 1. Cấu hình trục X (Tên các tháng)
+    private string[] _xAxisLabels = { "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9" };
+
+    // 2. Dữ liệu các đường thẳng
+    private List<ChartSeries> _chartSeries = new List<ChartSeries>()
+    {
+        new ChartSeries() { Name = "Tổng lượt xem", Data = new double[] { 120, 200, 150, 250, 310, 280, 420, 390, 500 } },
+        new ChartSeries() { Name = "Lượt đánh giá", Data = new double[] { 10, 25, 15, 40, 35, 50, 45, 60, 85 } }
+    };
+
+    // 3. Tùy chỉnh hiển thị biểu đồ
+    private ChartOptions _chartOptions = new ChartOptions()
+    {
+        InterpolationOption = InterpolationOption.NaturalSpline, 
+        LineStrokeWidth = 4, 
+        YAxisLines = true, 
+        YAxisTicks = 100 
+    };
 }

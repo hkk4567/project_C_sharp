@@ -4,60 +4,166 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
-<MudThemeProvider />
+<MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="@_customTheme" />
 <MudDialogProvider />
 <MudSnackbarProvider />
 <MudPopoverProvider />
 
+<PageTitle>Admin</PageTitle>
+
 <MudLayout>
-    <!-- Thanh App Bar màu Tối dành riêng cho Admin -->
-    <MudAppBar Elevation="1" Color="Color.Dark">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
-                       OnClick="@((e) => DrawerToggle())" />
-        <MudText Typo="Typo.h6" Class="ml-3">HỆ THỐNG QUẢN TRỊ (ADMIN)</MudText>
+
+    <MudAppBar Elevation="1" Color="Color.Surface" Dense="true" Class="px-3 py-1" Style="min-height:56px;">
+        
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" 
+                       OnClick="HandleDrawerClick" 
+                       Class="me-3" 
+                       Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)")}; color: {(_isDarkMode ? "#fff" : "#333")}; border-radius: 8px; width: 42px; height: 42px;")" />
+        
         <MudSpacer />
+        
         <AuthorizeView>
-            <Authorized>
-                <MudText Class="mr-4">Admin: @context.User.Identity?.Name</MudText>
-                <MudButton Variant="Variant.Outlined" Color="Color.Inherit" OnClick="Logout">Thoát</MudButton>
+            <Authorized Context="authContext">
+                <div class="d-flex align-center gap-3"> <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
+                                   OnClick="@DarkModeToggle"
+                                   Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)")}; color: {(_isDarkMode ? "#ffb300" : "#333")}; border-radius: 50%; width: 40px; height: 40px; transition: all 0.3s;")" />
+
+                    <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone" 
+                                   Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)")}; color: {(_isDarkMode ? "#fff" : "#333")}; border-radius: 50%; width: 40px; height: 40px;")" />
+
+                    <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" PopoverClass="rounded-xl mt-2" ListClass="pa-0" Style="border-radius: 12px;">
+                        
+                        <ActivatorContent>
+                            <MudPaper Elevation="0" Class="d-flex align-center rounded-pill px-2 py-1 gap-2 cursor-pointer" 
+                                      Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)")}; border: 1px solid var(--mud-palette-divider); transition: all 0.2s;")">
+                                <div style="width:36px; height:36px; border-radius:50%; overflow:hidden; border:2px solid var(--mud-palette-surface);">
+                                    <img src="@_adminAvatarUrl" alt="Admin Avatar" style="width:100%; height:100%; object-fit:cover;" />
+                                </div>
+                                <MudIcon Icon="@Icons.Material.Filled.Settings" Size="Size.Small" Class="me-1" 
+                                         Style="@($"color: {(_isDarkMode ? "#fff" : "#444")};")" />
+                            </MudPaper>
+                        </ActivatorContent>
+
+                        <ChildContent>
+                            <div style="width: 320px; background-color: var(--mud-palette-surface);">
+                                <div class="px-4 pt-4 pb-2">
+                                    <MudText Typo="Typo.subtitle1" Style="font-weight: 800; color: var(--mud-palette-text-primary);">@GetGreeting(), @authContext.User.Identity?.Name</MudText>
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Quản trị viên hệ thống</MudText>
+                                </div>
+
+                                <div class="mx-4 my-2 pa-3" style="background-color: var(--mud-palette-background); border-radius: 12px; border: 1px solid var(--mud-palette-divider);">
+                                    <div class="d-flex justify-space-between align-center mb-1">
+                                        <MudText Typo="Typo.body2" Style="font-weight: 600; color: var(--mud-palette-text-primary);">Chế độ Không làm phiền</MudText>
+                                        <MudSwitch T="bool" Color="Color.Primary" Size="Size.Small" Style="margin: 0;" />
+                                    </div>
+                                    <div class="d-flex justify-space-between align-center">
+                                        <MudText Typo="Typo.body2" Style="font-weight: 600; color: var(--mud-palette-text-primary);">Cho phép Thông báo</MudText>
+                                        <MudSwitch T="bool" Color="Color.Primary" Size="Size.Small" Style="margin: 0;" />
+                                    </div>
+                                </div>
+
+                                <MudList T="string" Class="py-2">
+                                    <MudListItem Icon="@Icons.Material.Outlined.PersonOutline">
+                                        <div class="d-flex justify-space-between align-center w-100">
+                                            <MudText Typo="Typo.body2" Style="font-weight: 500;">Hồ sơ cá nhân</MudText>
+                                            <MudChip T="string" Color="Color.Warning" Size="Size.Small" Style="font-weight: bold; border-radius: 50%;">02</MudChip>
+                                        </div>
+                                    </MudListItem>
+                                    <MudDivider Class="my-2" />
+                                    <MudListItem Icon="@Icons.Material.Outlined.Logout" OnClick="Logout">
+                                        <MudText Typo="Typo.body2" Style="font-weight: 500;">Đăng xuất</MudText>
+                                    </MudListItem>
+                                </MudList>
+                            </div>
+                        </ChildContent>
+                    </MudMenu>
+                </div>
             </Authorized>
         </AuthorizeView>
     </MudAppBar>
 
-    <!-- Menu bên trái chỉ chứa chức năng Admin -->
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
-        <MudNavMenu>
-            <MudText Typo="Typo.caption" Class="pa-4">QUẢN LÝ CHUNG</MudText>
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Class="argon-drawer" Style="border-right: 1px solid var(--mud-palette-divider);">
+        <div class="sidebar-content">
+            <div class="brand-section">
+                <MudIcon Icon="@Icons.Material.Filled.TravelExplore" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h6" Class="brand-text">SMART TOUR</MudText>
+            </div>
 
-            <MudNavLink Href="/admin/dashboard" Icon="@Icons.Material.Filled.Dashboard" Match="NavLinkMatch.All">Tổng
-                quan</MudNavLink>
-
+            <MudNavMenu Class="mt-4">
+                <MudText Typo="Typo.caption" Class="menu-group-title">QUẢN LÝ CHÍNH</MudText>
+                <MudNavLink Href="/admin/dashboard" Icon="@Icons.Material.Filled.Dashboard" Match="NavLinkMatch.All">Tổng quan</MudNavLink>
                 <MudNavLink Href="/admin/approvals" Icon="@Icons.Material.Filled.CheckCircle">Duyệt bài đăng</MudNavLink>
-
-                @* <MudNavLink Href="/admin/tracking" Icon="@Icons.Material.Filled.Map">Bản đồ theo dõi</MudNavLink> *@
-
                 <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">Quản lý User</MudNavLink>
-
                 <MudNavLink Href="/admin/tours" Icon="@Icons.Material.Filled.DirectionsBus">Quản lý Tours</MudNavLink>
-            </MudNavMenu>
-        </MudDrawer>
 
-        <MudMainContent>
-            <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
-                <!-- Đây là nơi các trang con (Dashboard, Approval...) hiển thị -->
-                @Body
-            </MudContainer>
-        </MudMainContent>
-    </MudLayout>
+                <MudText Typo="Typo.caption" Class="menu-group-title mt-6">CÀI ĐẶT HỆ THỐNG</MudText>
+                <MudNavLink Href="/admin/settings" Icon="@Icons.Material.Filled.Settings">Cấu hình chung</MudNavLink>
+            </MudNavMenu>
+        </div>
+    </MudDrawer>
+
+    <MudMainContent Class="pa-0" Style="background: var(--mud-palette-background); min-height: 100vh;">
+        <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 mb-6 py-4" Style="background: transparent; min-height: calc(100vh - 120px);">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
 
 @code {
     bool _drawerOpen = true;
+    string _adminAvatarUrl = "";
+    
+    // Mặc định bật luôn Dark Mode khi tải trang
+    bool _isDarkMode = false; 
+
+    // 3. TẠO BỘ MÀU CHUẨN NEON HACKER
+MudTheme _customTheme = new MudTheme()
+    {
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#00e676",       // Xanh Neon rực rỡ
+            Surface = "#0d1117",       // Đen nhám cho các thẻ Card/Menu (giống GitHub)
+            Background = "#010409",    // Đen sâu thẳm cho toàn bộ nền trang
+            AppbarBackground = "#010409", 
+            DrawerBackground = "#0d1117", 
+            TextPrimary = "#f0f6fc",   // Trắng dịu chống lóa mắt
+            TextSecondary = "#8b949e", // Xám xanh hiện đại
+            Divider = "rgba(255,255,255,0.05)", // Viền siêu mỏng
+            ActionDefault = "#8b949e"
+        },
+        PaletteLight = new PaletteLight() // Giữ nguyên hoặc chỉnh tương tự
+        {
+            Primary = "#1976d2",
+            Background = "#f5f7fa",
+            Surface = "#ffffff",
+        }
+    };
+
+    protected override void OnInitialized()
+    {
+        _adminAvatarUrl = Nav.BaseUri + "img/icon.jpg";
+    }
+
     void DrawerToggle() => _drawerOpen = !_drawerOpen;
+    void HandleDrawerClick() => DrawerToggle();
+
+    void DarkModeToggle()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
 
     private async Task Logout()
     {
         await LocalStorage.ClearAsync();
         await ((CustomAuthStateProvider)AuthStateProvider).NotifyUserLogout();
         Nav.NavigateTo("/", forceLoad: true);
+    }
+    
+    private string GetGreeting()
+    {
+        int hour = DateTime.Now.Hour;
+        if (hour >= 0 && hour < 12) return "Chào buổi sáng";
+        else if (hour >= 12 && hour < 18) return "Chào buổi chiều";
+        else return "Chào buổi tối";
     }
 }

@@ -8,7 +8,55 @@
 @inject ISnackbar Snackbar
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @attribute [Authorize(Roles = "Admin")]
+<style>     /* ===== SEARCH INPUT ===== */
 
+.search-input .mud-input-root{
+    border-radius:10px;
+}
+
+/* chữ khi nhập */
+
+.mud-theme-dark .search-input input{
+
+    color:#ffffff !important;
+
+    font-weight:500;
+
+}
+
+/* placeholder */
+
+.mud-theme-dark .search-input input::placeholder{
+
+    color:rgba(255,255,255,0.75) !important;
+
+}
+
+/* icon search */
+
+.mud-theme-dark .search-input .mud-input-adornment{
+
+    color:rgba(255,255,255,0.8);
+
+}
+
+/* border input */
+
+.mud-theme-dark .search-input .mud-input-outlined-border{
+
+    border-color:rgba(255,255,255,0.35);
+
+}
+
+/* focus */
+
+.mud-theme-dark .search-input.mud-input-focused .mud-input-outlined-border{
+
+    border-color:#4fc3f7;
+
+    box-shadow:0 0 6px rgba(79,195,247,0.6);
+
+}</style>
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-10">
     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-8">
         <MudStack Spacing="0">
@@ -41,15 +89,14 @@
             <ToolBarContent>
                 <MudText Typo="Typo.h5" Style="font-weight: 700;">Danh Sách Chi Tiết</MudText>
                 <MudSpacer />
-                <MudTextField @bind-Value="_searchString" 
-                             Placeholder="Nhập tên hoặc tài khoản cần tìm..." 
-                             Adornment="Adornment.Start"
-                             AdornmentIcon="@Icons.Material.Filled.Search" 
-                             IconSize="Size.Large" 
-                             Class="mt-0"
-                             Variant="Variant.Outlined"
-                             Margin="Margin.Normal"
-                             Style="max-width: 400px; font-size: 1.1rem; background-color: #fafafa;"></MudTextField>
+                <MudTextField @bind-Value="_searchString"
+                            Placeholder="Nhập tên hoặc tài khoản cần tìm..."
+                            Adornment="Adornment.Start"
+                            AdornmentIcon="@Icons.Material.Filled.Search"
+                            Variant="Variant.Outlined"
+                            Class="search-input"
+                            Style="max-width:400px;">
+                </MudTextField>
             </ToolBarContent>
 
             <Columns>
