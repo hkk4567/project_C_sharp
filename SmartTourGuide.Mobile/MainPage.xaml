@@ -94,7 +94,8 @@
                            FontSize="15" 
                            LineHeight="1.4" />
 
-                    <Button Text="🔊 Nghe Thuyết Minh" 
+                    <Button x:Name="btnPlayAudio"
+                            Text="🔊 Nghe Thuyết Minh" 
                             BackgroundColor="#2196F3" 
                             TextColor="White"
                             FontAttributes="Bold"

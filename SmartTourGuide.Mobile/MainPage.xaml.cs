@@ -1,12 +1,8 @@
 ﻿using Mapsui;
 using Mapsui.Layers;         // Để tạo MemoryLayer
-using Mapsui.Nts;            // (Tùy chọn nếu dùng NTS, nhưng ở đây ta dùng logic cơ bản)
 using Mapsui.Projections;
-using Mapsui.Providers;      // Để chứa dữ liệu MemoryProvider
-using Mapsui.Styles;         // Để tạo màu sắc (VectorStyle, Brush, Pen)
 using Mapsui.Tiling; // Để load bản đồ OSM
 using Mapsui.UI.Maui;
-using Microsoft.Maui.Devices.Sensors;
 using NetTopologySuite.Geometries;
 using SmartTourGuide.Mobile.Services;
 
@@ -65,7 +61,8 @@ public partial class MainPage : ContentPage
         var smc = SphericalMercator.FromLonLat(lon, lat);
         var mPoint = new MPoint(smc.x, smc.y);
 
-        MainThread.BeginInvokeOnMainThread(() => {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
             // 2. ÉP lớp vị trí mặc định về Hà Nội (Sửa lỗi chấm xanh ngoài biển)
             mapView.MyLocationLayer.UpdateMyLocation(new Mapsui.UI.Maui.Position(lat, lon));
 

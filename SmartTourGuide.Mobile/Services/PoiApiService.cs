@@ -61,5 +61,6 @@ public class PoiModel
     public string? Description { get; set; } 
 
     // API trả về List<string> ImageUrls
-    public List<string>? ImageUrls { get; set; } 
+    public List<string>? ImageUrls { get; set; }
+    public List<string>? AudioUrls { get; set; }
 }
