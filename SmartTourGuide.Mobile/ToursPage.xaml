@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SmartTourGuide.Mobile.ToursPage"
+             Title="Danh sách Tuyến Du Lịch">
+
+    <Grid RowDefinitions="Auto, *">
+        <!-- Nút Trở về và Tiêu đề -->
+        <HorizontalStackLayout Grid.Row="0"
+                               Margin="15"
+                               Spacing="10">
+            <Button Text="🔙 Quay lại"
+                    Clicked="OnBackClicked"
+                    BackgroundColor="Transparent"
+                    TextColor="Black"/>
+            <Label Text="Chọn hành trình của bạn"
+                   FontSize="20"
+                   FontAttributes="Bold"
+                   VerticalOptions="Center"/>
+        </HorizontalStackLayout>
+
+        <!-- Danh sách Tour -->
+        <CollectionView x:Name="cvTours"
+                        Grid.Row="1"
+                        SelectionMode="Single"
+                        SelectionChanged="OnTourSelected"
+                        Margin="15,0,15,0">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="0,0,0,15"
+                            Padding="0"
+                            Stroke="LightGray"
+                            StrokeThickness="1">
+
+                        <!-- Bo góc cho Border -->
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="15"/>
+                        </Border.StrokeShape>
+
+                        <!-- Đổ bóng cho Border -->
+                        <Border.Shadow>
+                            <Shadow Brush="Black"
+                                    Offset="0, 5"
+                                    Radius="10"
+                                    Opacity="0.1"/>
+                        </Border.Shadow>
+
+                        <!-- Nội dung bên trong giữ nguyên -->
+                        <Grid RowDefinitions="150, Auto">
+                            <Image Grid.Row="0"
+                                   Source="{Binding ThumbnailUrl}"
+                                   Aspect="AspectFill"
+                                   BackgroundColor="#E0E0E0"/>
+
+                            <VerticalStackLayout Grid.Row="1"
+                                                 Padding="15">
+                                <Label Text="{Binding Name}"
+                                       FontSize="18"
+                                       FontAttributes="Bold"
+                                       TextColor="Black"/>
+                                <Label Text="{Binding Description}"
+                                       FontSize="14"
+                                       TextColor="DarkGray"
+                                       MaxLines="2"
+                                       LineBreakMode="TailTruncation"
+                                       Margin="0,5,0,0"/>
+
+                                <HorizontalStackLayout Margin="0,10,0,0"
+                                                       Spacing="5">
+                                    <Label Text="📍"
+                                           VerticalOptions="Center"/>
+                                    <Label Text="{Binding TotalPois, StringFormat='Gồm {0} địa điểm'}"
+                                           TextColor="#2196F3"
+                                           FontAttributes="Bold"/>
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <!-- Label hiển thị khi không có data -->
+            <CollectionView.EmptyView>
+                <Label Text="Đang tải danh sách Tour..."
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"
+                       Margin="20"/>
+            </CollectionView.EmptyView>
+        </CollectionView>
+    </Grid>
+</ContentPage>

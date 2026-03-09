@@ -29,6 +29,8 @@ public partial class MainPage : ContentPage
     // Tọa độ dùng chung (Fake Location)
     private const double DefaultLat = 21.016492;
     private const double DefaultLon = 105.834132;
+
+    private readonly SemaphoreSlim _mapLock = new SemaphoreSlim(1, 1);
     public MainPage()
     {
         InitializeComponent();
@@ -89,14 +91,15 @@ public partial class MainPage : ContentPage
         await Task.CompletedTask;
     }
 
-    private async void OnCenterMyLocationClicked(object sender, EventArgs e)
+    private async void OnCenterMyLocationClicked(object? sender, EventArgs e)
     {
-        // 1. Hiệu ứng thị giác: Thu nhỏ rồi phóng to lại (Dùng ScaleToAsync cho MAUI mới)
-        var view = (View)sender;
-        await view.ScaleToAsync(0.9, 100, Easing.CubicOut);
-        await view.ScaleToAsync(1, 100, Easing.CubicIn);
+        if (sender is View view)
+        {
+            // 1. Hiệu ứng thị giác: Thu nhỏ rồi phóng to lại
+            await view.ScaleToAsync(0.9, 100, Easing.CubicOut);
+            await view.ScaleToAsync(1, 100, Easing.CubicIn);
+        }
 
-        // 2. Gọi logic di chuyển bản đồ (Dùng hàm chung đã tạo ở bước trước)
         MoveMapToDefaultLocation(resolution: 1.5);
     }
 
@@ -276,7 +279,7 @@ public partial class MainPage : ContentPage
         }
     }
 
-    // --- HÀM 1: PHÁT FILE AUDIO TỪ URL ---
+    // --- PHÁT FILE AUDIO TỪ URL ---
     private async Task PlayRemoteAudio(string url)
     {
         try
@@ -320,7 +323,7 @@ public partial class MainPage : ContentPage
         }
     }
 
-    // --- HÀM 2: ĐỌC TEXT-TO-SPEECH (TIẾNG VIỆT) ---
+    // --- ĐỌC TEXT-TO-SPEECH (TIẾNG VIỆT) ---
     private async Task SpeakDescription(string? text)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
@@ -388,5 +391,88 @@ public partial class MainPage : ContentPage
             ShowPoiDetail(poi);
             e.Handled = true; // Ngăn bản đồ thực hiện các lệnh mặc định khác
         }
+    }
+
+    // --- MỚI: Mở trang Danh sách Tour ---
+    private async void OnShowToursClicked(object? sender, EventArgs e)
+    {
+        // Truyền chữ "this" (chính là MainPage) qua ToursPage
+        await Navigation.PushModalAsync(new ToursPage(this));
+    }
+
+    // --- MỚI: Hàm được gọi từ ToursPage để vẽ lại bản đồ ---
+    public async Task RenderTourOnMap(TourModel tour)
+    {
+        // Đợi để lấy "chìa khóa" truy cập bản đồ, nếu đang có người dùng thì sẽ đợi
+        if (!await _mapLock.WaitAsync(500))
+        {
+            await DisplayAlertAsync("Thông báo", "Hệ thống đang xử lý tour trước, vui lòng đợi chút!", "OK");
+            return;
+        }
+
+        try
+        {
+            // Cho UI "thở" một chút để trang Modal đóng hoàn toàn (Tránh xung đột UI)
+            await Task.Delay(300);
+
+            if (mapView?.Map == null) return;
+
+            // Tải dữ liệu POI từ API (Làm ngoài MainThread cho mượt)
+            var allPois = await _apiService.GetPoisAsync();
+
+            // Bây giờ mới nhảy vào MainThread để vẽ
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                // 1. Dọn dẹp sạch sẽ và an toàn
+                mapView.Pins.Clear();
+
+                // Xóa Layer Geofences cũ bằng cách lọc danh sách an toàn
+                var layersToRemove = mapView.Map.Layers.Where(l => l.Name == "Geofences").ToList();
+                foreach (var layer in layersToRemove)
+                {
+                    mapView.Map.Layers.Remove(layer);
+                }
+
+                // 2. Vẽ Pins
+                double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+                bool hasPoints = false;
+
+                foreach (var poi in tour.Pois)
+                {
+                    var smc = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
+                    minX = Math.Min(minX, smc.x); minY = Math.Min(minY, smc.y);
+                    maxX = Math.Max(maxX, smc.x); maxY = Math.Max(maxY, smc.y);
+                    hasPoints = true;
+
+                    var pin = new Pin(mapView)
+                    {
+                        Position = new Mapsui.UI.Maui.Position(poi.Latitude, poi.Longitude),
+                        Label = poi.PoiName,
+                        Color = Colors.Orange,
+                        Tag = allPois.FirstOrDefault(p => p.Id == poi.PoiId)
+                    };
+                    mapView.Pins.Add(pin);
+                }
+
+                // 3. Zoom
+                if (hasPoints)
+                {
+                    var padding = (maxX - minX) * 0.15;
+                    var box = new MRect(minX - padding, minY - padding, maxX + padding, maxY + padding);
+                    mapView.Map.Navigator.ZoomToBox(box, duration: 500);
+                }
+
+                mapView.RefreshGraphics();
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Lỗi RenderTour: {ex.Message}");
+        }
+        finally
+        {
+            // Luôn luôn phải thả "chìa khóa" ra ở block finally
+            _mapLock.Release();
+        }
     }
 } 

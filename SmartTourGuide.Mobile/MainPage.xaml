@@ -33,6 +33,23 @@
                     HorizontalTextAlignment="Center"/>
         </Border>
 
+        <!-- Nút mở Danh sách Tour (Thêm vào Grid) -->
+        <Button Text="🗺️ Chọn Tour"
+                Clicked="OnShowToursClicked"
+                FontAttributes="Bold"
+                HeightRequest="50"
+                CornerRadius="25"
+                BackgroundColor="#FF9800"
+                TextColor="White"
+                HorizontalOptions="Center"
+                VerticalOptions="End"
+                Margin="0,0,0,90">
+            <!-- THÊM ĐOẠN NÀY ĐỂ ĐỔ BÓNG -->
+            <Button.Shadow>
+                <Shadow Brush="Black" Offset="5,5" Radius="5" Opacity="0.3" />
+            </Button.Shadow>
+        </Button>
+
         <Border Stroke="#E0E0E0"
                 StrokeThickness="1"
                 BackgroundColor="White"
