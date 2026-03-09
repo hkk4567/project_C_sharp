@@ -26,6 +26,9 @@ public partial class MainPage : ContentPage
     private CancellationTokenSource? _ttsCancellationToken; // Để dừng giọng đọc
     private bool _isPlaying = false; // Trạng thái đang phát hay dừng
     private PoiModel? _currentSelectedPoi;
+    // Tọa độ dùng chung (Fake Location)
+    private const double DefaultLat = 21.016492;
+    private const double DefaultLon = 105.834132;
     public MainPage()
     {
         InitializeComponent();
@@ -64,24 +67,37 @@ public partial class MainPage : ContentPage
         }
     }
 
-    private async Task LoadCurrentLocation()
+    private void MoveMapToDefaultLocation(double resolution = 2)
     {
-        var lat = 21.016492;
-        var lon = 105.834132;
-
-        // 1. Chuyển đổi tọa độ để Zoom bản đồ
-        var smc = SphericalMercator.FromLonLat(lon, lat);
+        // 1. Chuyển đổi tọa độ
+        var smc = SphericalMercator.FromLonLat(DefaultLon, DefaultLat);
         var mPoint = new MPoint(smc.x, smc.y);
 
         MainThread.BeginInvokeOnMainThread(() => {
-            // 2. ÉP lớp vị trí mặc định về Hà Nội (Sửa lỗi chấm xanh ngoài biển)
-            mapView.MyLocationLayer.UpdateMyLocation(new Mapsui.UI.Maui.Position(lat, lon));
+            // 2. Cập nhật "chấm xanh" MyLocationLayer
+            mapView.MyLocationLayer.UpdateMyLocation(new Mapsui.UI.Maui.Position(DefaultLat, DefaultLon));
 
-            // 3. Zoom đến đó
-            mapView.Map?.Navigator.CenterOnAndZoomTo(mPoint, resolution: 2);
+            // 3. Zoom và di chuyển bản đồ (thêm duration để lướt cho mượt)
+            mapView.Map?.Navigator.CenterOnAndZoomTo(mPoint, resolution: resolution, duration: 500);
 
-            statusLabel.Text = $"Đã định vị: {lat}, {lon}";
         });
+    }
+
+    private async Task LoadCurrentLocation()
+    {
+        MoveMapToDefaultLocation(resolution: 2);
+        await Task.CompletedTask;
+    }
+
+    private async void OnCenterMyLocationClicked(object sender, EventArgs e)
+    {
+        // 1. Hiệu ứng thị giác: Thu nhỏ rồi phóng to lại (Dùng ScaleToAsync cho MAUI mới)
+        var view = (View)sender;
+        await view.ScaleToAsync(0.9, 100, Easing.CubicOut);
+        await view.ScaleToAsync(1, 100, Easing.CubicIn);
+
+        // 2. Gọi logic di chuyển bản đồ (Dùng hàm chung đã tạo ở bước trước)
+        MoveMapToDefaultLocation(resolution: 1.5);
     }
 
     private async Task LoadPoisOnMap()
