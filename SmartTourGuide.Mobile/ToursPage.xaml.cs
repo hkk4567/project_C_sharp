@@ -2,11 +2,13 @@
 
 namespace SmartTourGuide.Mobile;
 
+using CommunityToolkit.Mvvm.Messaging; // Thêm namespace này
+using SmartTourGuide.Mobile.Models;
 public partial class ToursPage : ContentPage
 {
     private readonly PoiApiService _apiService;
     private readonly MainPage _mainPage;
-    private const string BaseApiUrl = "http://localhost:5277";
+    private const string BaseApiUrl = "http://10.0.2.2:5277";
 
     // BIẾN QUẢN LÝ TRẠNG THÁI
     private bool _isBusy = false;
@@ -72,48 +74,29 @@ public partial class ToursPage : ContentPage
 
     private async void OnTourSelected(object? sender, SelectionChangedEventArgs e)
     {
-        // 1. CHỐNG CLICK ĐÚP: Nếu đang xử lý thì không làm gì cả
         if (_isBusy) return;
 
         if (e.CurrentSelection.FirstOrDefault() is TourModel selectedTour)
         {
             try
             {
-                _isBusy = true; // Khóa ngay lập tức
-
-                // 2. Lấy chi tiết các điểm
+                _isBusy = true;
                 var tourDetail = await _apiService.GetTourDetailsAsync(selectedTour.Id);
 
                 if (tourDetail != null && tourDetail.Pois.Count > 0)
                 {
-                    // 3. Reset UI của List trước khi đóng
-                    cvTours.SelectedItem = null;
+                    // 1. Đóng trang Modal trước
+                    await Navigation.PopModalAsync();
 
-                    // 4. KIỂM TRA ĐIỀU KIỆN AN TOÀN TRƯỚC KHI POP
-                    // Tránh lỗi nếu người dùng bấm Back ngay lúc đang load
-                    if (Navigation.ModalStack.Count > 0)
-                    {
-                        await Navigation.PopModalAsync();
-                    }
-
-                    // 5. Gửi dữ liệu sang MainPage để vẽ (Hàm này đã có SemaphoreLock ở MainPage)
-                    // Không dùng await ở đây để MainPage tự xử lý việc vẽ sau khi Modal đã đóng hẳn
-                    _ = _mainPage.RenderTourOnMap(tourDetail);
-                }
-                else
-                {
-                    await DisplayAlertAsync("Thông báo", "Tour này chưa có địa điểm nào.", "OK");
-                    cvTours.SelectedItem = null;
+                    // 2. Gửi bản tin thông báo đã chọn Tour
+                    WeakReferenceMessenger.Default.Send(new SelectTourMessage(tourDetail));
                 }
             }
             catch (Exception ex)
             {
-                await DisplayAlertAsync("Lỗi", "Không thể tải tour: " + ex.Message, "OK");
+                await DisplayAlertAsync("Lỗi", ex.Message, "OK");
             }
-            finally
-            {
-                _isBusy = false; // Mở khóa
-            }
+            finally { _isBusy = false; }
         }
     }
 }

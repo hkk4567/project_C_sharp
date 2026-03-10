@@ -13,6 +13,8 @@ using NetTopologySuite.Geometries;
 using NetTopologySuite.Triangulate.Tri;
 using Plugin.Maui.Audio;
 using SmartTourGuide.Mobile.Services;
+using CommunityToolkit.Mvvm.Messaging;
+using SmartTourGuide.Mobile.Models;
 
 namespace SmartTourGuide.Mobile;
 
@@ -20,7 +22,7 @@ public partial class MainPage : ContentPage
 {
     private readonly PoiApiService _apiService;
     private MemoryLayer _geofenceLayer;
-    private const string BaseApiUrl = "http://localhost:5277";
+    private const string BaseApiUrl = "http://10.0.2.2:5277";
     // BIẾN QUẢN LÝ ÂM THANH
     private IAudioPlayer? _audioPlayer;
     private CancellationTokenSource? _ttsCancellationToken; // Để dừng giọng đọc
@@ -34,6 +36,20 @@ public partial class MainPage : ContentPage
     public MainPage()
     {
         InitializeComponent();
+
+        WeakReferenceMessenger.Default.Register<SelectTourMessage>(this, (r, m) =>
+        {
+            // m.Value chính là đối tượng tourDetail bạn đã gửi
+            var tourDetail = m.Value;
+
+            // Cho Android "nghỉ" 500ms để đóng trang Modal hoàn tất
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                await Task.Delay(500);
+                await RenderTourOnMap(tourDetail);
+            });
+        });
+
         _apiService = new PoiApiService();
 
         var map = new Mapsui.Map();
