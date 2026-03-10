@@ -1,4 +1,5 @@
-﻿using Mapsui;
+﻿using CommunityToolkit.Mvvm.Messaging;
+using Mapsui;
 using Mapsui.Layers;         // Để tạo MemoryLayer
 using Mapsui.Nts;            // (Tùy chọn nếu dùng NTS, nhưng ở đây ta dùng logic cơ bản)
 using Mapsui.Projections;
@@ -12,9 +13,9 @@ using Microsoft.Maui.Devices.Sensors;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Triangulate.Tri;
 using Plugin.Maui.Audio;
-using SmartTourGuide.Mobile.Services;
-using CommunityToolkit.Mvvm.Messaging;
 using SmartTourGuide.Mobile.Models;
+using SmartTourGuide.Mobile.Services;
+using System.Globalization;
 
 namespace SmartTourGuide.Mobile;
 
@@ -31,6 +32,8 @@ public partial class MainPage : ContentPage
     // Tọa độ dùng chung (Fake Location)
     private const double DefaultLat = 21.016492;
     private const double DefaultLon = 105.834132;
+    // biến lưu ngôn ngữ hiện tại
+    private string _currentLanguageCode = "vi-VN";
 
     private readonly SemaphoreSlim _mapLock = new SemaphoreSlim(1, 1);
     public MainPage()
@@ -51,6 +54,10 @@ public partial class MainPage : ContentPage
         });
 
         _apiService = new PoiApiService();
+        _currentLanguageCode = Preferences.Get("AppLanguage", "vi-VN");
+        SetAppLanguage(_currentLanguageCode);
+
+        UpdateLanguageButtonUI();
 
         var map = new Mapsui.Map();
         map.Layers.Add(OpenStreetMap.CreateTileLayer());
@@ -66,6 +73,40 @@ public partial class MainPage : ContentPage
         mapView.PinClicked += OnPinClicked;
         // Bật lớp hiển thị vị trí ở đây thay vì XAML
         mapView.MyLocationLayer.Enabled = true;
+    }
+
+    // HÀM SET NGÔN NGỮ CHO TOÀN BỘ APP
+    private void SetAppLanguage(string langCode)
+    {
+        CultureInfo culture;
+
+        // Nếu là vi-VN, ta gọi Culture mặc định (rỗng) để nó trỏ chính xác vào file AppResources.resx
+        if (langCode == "vi-VN")
+        {
+            culture = new CultureInfo(""); // Khởi tạo culture trung lập
+        }
+        else
+        {
+            culture = new CultureInfo(langCode);
+        }
+
+        Thread.CurrentThread.CurrentCulture = culture;
+        Thread.CurrentThread.CurrentUICulture = culture;
+        CultureInfo.DefaultThreadCurrentCulture = culture;
+        CultureInfo.DefaultThreadCurrentUICulture = culture;
+    }
+
+    private void UpdateLanguageButtonUI()
+    {
+        if (_currentLanguageCode == "en-US")
+        {
+            btnLanguage.Text = "🇺🇸 English";
+        }
+        else
+        {
+            // Mặc định là Tiếng Việt
+            btnLanguage.Text = "🇻🇳 Tiếng Việt";
+        }
     }
 
     protected override async void OnAppearing()
@@ -121,10 +162,10 @@ public partial class MainPage : ContentPage
 
     private async Task LoadPoisOnMap()
     {
-        statusLabel.Text = "Đang tải dữ liệu...";
+        statusLabel.Text = SmartTourGuide.Mobile.Resources.Strings.AppResources.StatusLoading;
         try
         {
-            var pois = await _apiService.GetPoisAsync();
+            var pois = await _apiService.GetPoisAsync(_currentLanguageCode);
 
             mapView.Pins.Clear();
 
@@ -150,11 +191,11 @@ public partial class MainPage : ContentPage
 
                 mapView.Pins.Add(pin);
             }
-            statusLabel.Text = $"Đã tải {pois.Count} địa điểm.";
+            statusLabel.Text = string.Format(SmartTourGuide.Mobile.Resources.Strings.AppResources.StatusLoaded, pois.Count);
         }
         catch (Exception ex)
         {
-            statusLabel.Text = "Lỗi: " + ex.Message;
+            statusLabel.Text = string.Format(SmartTourGuide.Mobile.Resources.Strings.AppResources.StatusError, ex.Message);
         }
     }
 
@@ -489,6 +530,43 @@ public partial class MainPage : ContentPage
         {
             // Luôn luôn phải thả "chìa khóa" ra ở block finally
             _mapLock.Release();
+        }
+    }
+
+    // HÀM MỚI: Xử lý khi bấm nút "Ngôn ngữ"
+    private async void OnChangeLanguageClicked(object? sender, EventArgs e)
+    {
+        // Hiển thị menu chọn
+        string action = await DisplayActionSheetAsync("Chọn ngôn ngữ / Select Language", "Hủy/Cancel", null,
+            "🇻🇳 Tiếng Việt",
+            "🇺🇸 English");
+
+        string selectedCode = _currentLanguageCode;
+
+        if (action == "🇻🇳 Tiếng Việt") selectedCode = "vi-VN";
+        else if (action == "🇺🇸 English") selectedCode = "en-US";
+
+        // Nếu người dùng CHỌN MỘT NGÔN NGỮ KHÁC với ngôn ngữ hiện tại
+        if (selectedCode != _currentLanguageCode && action != "Hủy/Cancel" && !string.IsNullOrEmpty(action))
+        {
+            _currentLanguageCode = selectedCode;
+
+            // 1. Lưu vào bộ nhớ máy
+            Preferences.Set("AppLanguage", _currentLanguageCode);
+
+            // 2. Set lại Culture cho hệ thống
+            SetAppLanguage(_currentLanguageCode);
+
+            // 3. QUAN TRỌNG NHẤT: Khởi động lại trang để XAML dịch lại toàn bộ chữ
+            // (Không cần gọi LoadPoisOnMap() ở đây nữa vì khi tạo MainPage mới, hàm OnAppearing sẽ tự chạy)
+            if (Application.Current?.Windows.Count > 0)
+            {
+                Application.Current.Windows[0].Page = new MainPage();
+            }
+            else if (this.Window != null)
+            {
+                this.Window.Page = new MainPage();
+            }
         }
     }
 } 

@@ -21,33 +21,20 @@ public class PoiApiService
 #endif
     }
 
-    public async Task<List<PoiModel>> GetPoisAsync()
-{
-    try
+    public async Task<List<PoiModel>> GetPoisAsync(string langCode = "vi-VN")
     {
-        // Sử dụng GetAsync thay vì GetStringAsync để kiểm tra mã lỗi HTTP
-        var response = await _httpClient.GetAsync("api/pois");
-        
-        if (!response.IsSuccessStatusCode)
+        try
         {
-            // Nếu lỗi 404 hoặc 500, nó sẽ nhảy vào đây
-            Console.WriteLine($"Lỗi HTTP: {response.StatusCode}");
+            // Gửi kèm langCode lên Server
+            var response = await _httpClient.GetStringAsync($"api/pois?langCode={langCode}");
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<List<PoiModel>>(response) ?? new List<PoiModel>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi API: {ex.Message}");
             return new List<PoiModel>();
         }
-
-        var json = await response.Content.ReadAsStringAsync();
-        Console.WriteLine($"Dữ liệu nhận được: {json}"); // Xem ở cửa sổ Output/Console
-
-        var result = JsonConvert.DeserializeObject<List<PoiModel>>(json);
-        return result ?? new List<PoiModel>();
     }
-    catch (Exception ex)
-    {
-        // Nếu lỗi do Android chặn HTTP, nó sẽ báo "Cleartext HTTP traffic not permitted"
-        Console.WriteLine($"Lỗi kết nối API: {ex.Message}");
-        return new List<PoiModel>();
-    }
-}
     public async Task<List<TourModel>> GetToursAsync()
     {
         try

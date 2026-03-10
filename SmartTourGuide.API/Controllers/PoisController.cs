@@ -22,31 +22,61 @@ public class PoisController : ControllerBase
 
     // 1. API cho App Mobile
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<PoiDto>>> GetPois()
+    // 1. API cho App Mobile (Có hỗ trợ Đa ngôn ngữ)
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<PoiDto>>> GetPois([FromQuery] string langCode = "vi-VN")
     {
+        // Lấy danh sách địa điểm Active
         var pois = await _context.Pois
             .Include(p => p.GeofenceSetting)
             .Include(p => p.MediaAssets)
             .Where(p => p.Status == PoiStatus.Active)
             .ToListAsync();
 
-        var result = pois.Select(p => new PoiDto
+        // Lấy tất cả bản dịch theo ngôn ngữ yêu cầu (nếu khác tiếng Việt)
+        var translations = new List<PoiTranslation>();
+        if (langCode != "vi-VN")
         {
-            Id = p.Id,
-            Name = p.Name,
-            Description = p.Description ?? "", // Đảm bảo gán cho thuộc tính required
-            Address = p.Address ?? "",         // Đảm bảo gán cho thuộc tính required
-            Status = p.Status.ToString(),
-            Latitude = p.Latitude,
-            Longitude = p.Longitude,
-            TriggerRadius = p.GeofenceSetting?.TriggerRadiusInMeters ?? 50,
-            Priority = p.GeofenceSetting?.Priority ?? 1,
-            AudioUrls = p.MediaAssets
-                .Where(m => m.Type == MediaType.AudioFile)
-                .Select(m => m.UrlOrContent).ToList(),
-            ImageUrls = p.MediaAssets
-                .Where(m => m.Type == MediaType.Image)
-                .Select(m => m.UrlOrContent).ToList()
+            translations = await _context.PoiTranslations
+                .Where(t => t.LanguageCode == langCode)
+                .ToListAsync();
+        }
+
+        var result = pois.Select(p =>
+        {
+            // Tìm xem địa điểm này có bản dịch không
+            var trans = translations.FirstOrDefault(t => t.PoiId == p.Id);
+
+            // Lọc file Audio theo ngôn ngữ
+            var audioList = p.MediaAssets.Where(m => m.Type == MediaType.AudioFile);
+            if (langCode != "vi-VN")
+            {
+                // Nếu ngôn ngữ khác, lấy audio của ngôn ngữ đó
+                audioList = audioList.Where(m => m.LanguageCode == langCode);
+            }
+            else
+            {
+                // Nếu tiếng Việt, lấy audio gốc (vi-VN hoặc chưa set)
+                audioList = audioList.Where(m => m.LanguageCode == "vi-VN" || string.IsNullOrEmpty(m.LanguageCode));
+            }
+
+            return new PoiDto
+            {
+                Id = p.Id,
+                // NẾU CÓ BẢN DỊCH THÌ LẤY BẢN DỊCH, KHÔNG THÌ LẤY BẢN GỐC (Fallback)
+                Name = trans?.TranslatedName ?? p.Name,
+                Description = trans?.TranslatedDescription ?? p.Description ?? "",
+                Address = trans?.TranslatedAddress ?? p.Address ?? "",
+
+                Status = p.Status.ToString(),
+                Latitude = p.Latitude,
+                Longitude = p.Longitude,
+                TriggerRadius = p.GeofenceSetting?.TriggerRadiusInMeters ?? 50,
+                Priority = p.GeofenceSetting?.Priority ?? 1,
+
+                AudioUrls = audioList.Select(m => m.UrlOrContent).ToList(),
+                ImageUrls = p.MediaAssets.Where(m => m.Type == MediaType.Image).Select(m => m.UrlOrContent).ToList()
+            };
         });
 
         return Ok(result);

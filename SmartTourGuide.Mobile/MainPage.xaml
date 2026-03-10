@@ -2,8 +2,9 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:mapsui="clr-namespace:Mapsui.UI.Maui;assembly=Mapsui.UI.Maui"
+             xmlns:res="clr-namespace:SmartTourGuide.Mobile.Resources.Strings" 
              x:Class="SmartTourGuide.Mobile.MainPage"
-             Title="Bản đồ OSM Miễn Phí">
+             Title="{x:Static res:AppResources.MapTitle}">
 
     <Grid>
 		<mapsui:MapView x:Name="mapView"
@@ -12,7 +13,7 @@
 			    IsMyLocationButtonVisible="True" />
 
         <!-- Nút tải lại dữ liệu (góc trên) -->
-        <Button Text="Tải lại điểm đến"
+        <Button Text="{x:Static res:AppResources.BtnReload}" 
                 Clicked="OnReloadClicked"
                 HorizontalOptions="Center"
                 VerticalOptions="Start"
@@ -34,7 +35,7 @@
         </Border>
 
         <!-- Nút mở Danh sách Tour (Thêm vào Grid) -->
-        <Button Text="🗺️ Chọn Tour"
+        <Button Text="{x:Static res:AppResources.BtnSelectTour}"
                 Clicked="OnShowToursClicked"
                 FontAttributes="Bold"
                 HeightRequest="50"
@@ -50,6 +51,22 @@
             </Button.Shadow>
         </Button>
 
+        <!-- MỚI: Nút đổi ngôn ngữ (Nằm trên bản đồ) -->
+        <Button x:Name="btnLanguage"
+                Clicked="OnChangeLanguageClicked"
+                FontAttributes="Bold"
+                HeightRequest="40"
+                CornerRadius="20"
+                BackgroundColor="#4CAF50"
+                TextColor="White"
+                HorizontalOptions="Start"
+                VerticalOptions="Start"
+                Margin="0,20,20,0">
+            <Button.Shadow>
+                <Shadow Brush="Black" Offset="5,5" Radius="5" Opacity="0.3" />
+            </Button.Shadow>
+        </Button>
+        
         <Border Stroke="#E0E0E0"
                 StrokeThickness="1"
                 BackgroundColor="White"
@@ -157,7 +174,7 @@
                            LineHeight="1.4" />
 
                     <Button x:Name="btnPlayAudio"
-                            Text="🔊 Nghe Thuyết Minh" 
+                            Text="{x:Static res:AppResources.BtnListen}" 
                             BackgroundColor="#2196F3" 
                             TextColor="White"
                             FontAttributes="Bold"
