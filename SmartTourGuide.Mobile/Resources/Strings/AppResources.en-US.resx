@@ -123,6 +123,9 @@
   <data name="AlertInfo" xml:space="preserve">
     <value>Information</value>
   </data>
+  <data name="BtnBack" xml:space="preserve">
+    <value>🔙 Back</value>
+  </data>
   <data name="BtnLanguage" xml:space="preserve">
     <value>🌐 Language</value>
   </data>
@@ -150,6 +153,12 @@
   <data name="NoDescription" xml:space="preserve">
     <value>No description available.</value>
   </data>
+  <data name="PoiCountFormat" xml:space="preserve">
+    <value>Includes {0} locations</value>
+  </data>
+  <data name="SelectTourHeader" xml:space="preserve">
+    <value>Select your journey</value>
+  </data>
   <data name="StatusError" xml:space="preserve">
     <value>Error: {0}</value>
   </data>
@@ -166,9 +175,12 @@
     <value>Language changed</value>
   </data>
   <data name="StatusLoaded" xml:space="preserve">
-    <value>Đã tải {0} địa điểm.</value>
+    <value>Downloaded {0} locations.</value>
   </data>
   <data name="StatusLoading" xml:space="preserve">
     <value>Loading data...</value>
+  </data>
+  <data name="ToursPageTitle" xml:space="preserve">
+    <value>Tour List</value>
   </data>
 </root>

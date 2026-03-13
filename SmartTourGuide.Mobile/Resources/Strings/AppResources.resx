@@ -123,6 +123,9 @@
   <data name="AlertInfo" xml:space="preserve">
     <value>Thông tin</value>
   </data>
+  <data name="BtnBack" xml:space="preserve">
+    <value>🔙 Quay lại</value>
+  </data>
   <data name="BtnLanguage" xml:space="preserve">
     <value>🌐 Ngôn ngữ</value>
   </data>
@@ -150,6 +153,12 @@
   <data name="NoDescription" xml:space="preserve">
     <value>Chưa có mô tả.</value>
   </data>
+  <data name="PoiCountFormat" xml:space="preserve">
+    <value>Gồm {0} địa điểm</value>
+  </data>
+  <data name="SelectTourHeader" xml:space="preserve">
+    <value>Chọn hành trình của bạn</value>
+  </data>
   <data name="StatusError" xml:space="preserve">
     <value>Lỗi: {0}</value>
   </data>
@@ -170,5 +179,8 @@
   </data>
   <data name="StatusLoading" xml:space="preserve">
     <value>Đang tải dữ liệu...</value>
+  </data>
+  <data name="ToursPageTitle" xml:space="preserve">
+    <value>Tuyến Du Lịch</value>
   </data>
 </root>

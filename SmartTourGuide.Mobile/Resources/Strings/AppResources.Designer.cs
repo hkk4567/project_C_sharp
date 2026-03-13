@@ -79,6 +79,15 @@ namespace SmartTourGuide.Mobile.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to 🔙 Quay lại.
+        /// </summary>
+        public static string BtnBack {
+            get {
+                return ResourceManager.GetString("BtnBack", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to 🌐 Ngôn ngữ.
         /// </summary>
         public static string BtnLanguage {
@@ -160,6 +169,24 @@ namespace SmartTourGuide.Mobile.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Gồm {0} địa điểm.
+        /// </summary>
+        public static string PoiCountFormat {
+            get {
+                return ResourceManager.GetString("PoiCountFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Chọn hành trình của bạn.
+        /// </summary>
+        public static string SelectTourHeader {
+            get {
+                return ResourceManager.GetString("SelectTourHeader", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Lỗi: {0}.
         /// </summary>
         public static string StatusError {
@@ -219,6 +246,15 @@ namespace SmartTourGuide.Mobile.Resources.Strings {
         public static string StatusLoading {
             get {
                 return ResourceManager.GetString("StatusLoading", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Tuyến Du Lịch.
+        /// </summary>
+        public static string ToursPageTitle {
+            get {
+                return ResourceManager.GetString("ToursPageTitle", resourceCulture);
             }
         }
     }

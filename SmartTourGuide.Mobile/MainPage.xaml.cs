@@ -38,6 +38,11 @@ public partial class MainPage : ContentPage
     private readonly SemaphoreSlim _mapLock = new SemaphoreSlim(1, 1);
     public MainPage()
     {
+        // Đọc và gán ngôn ngữ TRƯỚC KHI vẽ XAML
+        _currentLanguageCode = Preferences.Get("AppLanguage", "vi-VN");
+        SetAppLanguage(_currentLanguageCode);
+
+        // VẼ GIAO DIỆN 
         InitializeComponent();
 
         WeakReferenceMessenger.Default.Register<SelectTourMessage>(this, (r, m) =>
@@ -54,8 +59,6 @@ public partial class MainPage : ContentPage
         });
 
         _apiService = new PoiApiService();
-        _currentLanguageCode = Preferences.Get("AppLanguage", "vi-VN");
-        SetAppLanguage(_currentLanguageCode);
 
         UpdateLanguageButtonUI();
 
@@ -83,7 +86,7 @@ public partial class MainPage : ContentPage
         // Nếu là vi-VN, ta gọi Culture mặc định (rỗng) để nó trỏ chính xác vào file AppResources.resx
         if (langCode == "vi-VN")
         {
-            culture = new CultureInfo(""); // Khởi tạo culture trung lập
+            culture = new CultureInfo("vi-VN"); // Khởi tạo culture trung lập
         }
         else
         {
@@ -94,6 +97,8 @@ public partial class MainPage : ContentPage
         Thread.CurrentThread.CurrentUICulture = culture;
         CultureInfo.DefaultThreadCurrentCulture = culture;
         CultureInfo.DefaultThreadCurrentUICulture = culture;
+
+        SmartTourGuide.Mobile.Resources.Strings.AppResources.Culture = culture;
     }
 
     private void UpdateLanguageButtonUI()

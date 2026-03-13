@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:strings="clr-namespace:SmartTourGuide.Mobile.Resources.Strings"
              x:Class="SmartTourGuide.Mobile.ToursPage"
-             Title="Danh sách Tuyến Du Lịch">
+             Title="{x:Static strings:AppResources.ToursPageTitle}">
 
     <Grid RowDefinitions="Auto, *">
         <!-- Nút Trở về và Tiêu đề -->
         <HorizontalStackLayout Grid.Row="0"
                                Margin="15"
                                Spacing="10">
-            <Button Text="🔙 Quay lại"
+            <Button Text="{x:Static strings:AppResources.BtnBack}"
                     Clicked="OnBackClicked"
                     BackgroundColor="Transparent"
                     TextColor="Black"/>
-            <Label Text="Chọn hành trình của bạn"
+            <Label Text="{x:Static strings:AppResources.SelectTourHeader}"
                    FontSize="20"
                    FontAttributes="Bold"
                    VerticalOptions="Center"/>
@@ -69,7 +70,7 @@
                                                        Spacing="5">
                                     <Label Text="📍"
                                            VerticalOptions="Center"/>
-                                    <Label Text="{Binding TotalPois, StringFormat='Gồm {0} địa điểm'}"
+                                    <Label Text="{Binding TotalPois, StringFormat={x:Static strings:AppResources.PoiCountFormat}}"
                                            TextColor="#2196F3"
                                            FontAttributes="Bold"/>
                                 </HorizontalStackLayout>
@@ -80,7 +81,7 @@
             </CollectionView.ItemTemplate>
             <!-- Label hiển thị khi không có data -->
             <CollectionView.EmptyView>
-                <Label Text="Đang tải danh sách Tour..."
+                <Label Text="{x:Static strings:AppResources.StatusLoading}"
                        HorizontalOptions="Center"
                        VerticalOptions="Center"
                        Margin="20"/>
