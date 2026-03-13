@@ -147,14 +147,32 @@
   <data name="BtnStop" xml:space="preserve">
     <value>⏹️ Stop Playback</value>
   </data>
+  <data name="CloseButton" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="ConnectionError" xml:space="preserve">
+    <value>Connection Error</value>
+  </data>
+  <data name="ConnectionErrorMessage" xml:space="preserve">
+    <value>Unable to connect to the server. Please check your network or API address.</value>
+  </data>
   <data name="MapTitle" xml:space="preserve">
     <value>Tourist Map</value>
   </data>
   <data name="NoDescription" xml:space="preserve">
     <value>No description available.</value>
   </data>
+  <data name="NoToursAvailable" xml:space="preserve">
+    <value>Currently, no tours are available.</value>
+  </data>
+  <data name="OkButton" xml:space="preserve">
+    <value>OK</value>
+  </data>
   <data name="PoiCountFormat" xml:space="preserve">
     <value>Includes {0} locations</value>
+  </data>
+  <data name="RetryButton" xml:space="preserve">
+    <value>Retry</value>
   </data>
   <data name="SelectTourHeader" xml:space="preserve">
     <value>Select your journey</value>
@@ -179,6 +197,12 @@
   </data>
   <data name="StatusLoading" xml:space="preserve">
     <value>Loading data...</value>
+  </data>
+  <data name="SystemError" xml:space="preserve">
+    <value>System Error</value>
+  </data>
+  <data name="SystemErrorMessage" xml:space="preserve">
+    <value>An error occurred: {0}</value>
   </data>
   <data name="ToursPageTitle" xml:space="preserve">
     <value>Tour List</value>

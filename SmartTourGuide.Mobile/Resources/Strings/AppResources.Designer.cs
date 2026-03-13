@@ -151,6 +151,33 @@ namespace SmartTourGuide.Mobile.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Đóng.
+        /// </summary>
+        public static string CloseButton {
+            get {
+                return ResourceManager.GetString("CloseButton", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Lỗi kết nối.
+        /// </summary>
+        public static string ConnectionError {
+            get {
+                return ResourceManager.GetString("ConnectionError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng hoặc địa chỉ API..
+        /// </summary>
+        public static string ConnectionErrorMessage {
+            get {
+                return ResourceManager.GetString("ConnectionErrorMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Bản đồ du lịch.
         /// </summary>
         public static string MapTitle {
@@ -169,11 +196,38 @@ namespace SmartTourGuide.Mobile.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Hiện tại chưa có tour nào được cập nhật..
+        /// </summary>
+        public static string NoToursAvailable {
+            get {
+                return ResourceManager.GetString("NoToursAvailable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to OK.
+        /// </summary>
+        public static string OkButton {
+            get {
+                return ResourceManager.GetString("OkButton", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Gồm {0} địa điểm.
         /// </summary>
         public static string PoiCountFormat {
             get {
                 return ResourceManager.GetString("PoiCountFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Thử lại.
+        /// </summary>
+        public static string RetryButton {
+            get {
+                return ResourceManager.GetString("RetryButton", resourceCulture);
             }
         }
         
@@ -246,6 +300,24 @@ namespace SmartTourGuide.Mobile.Resources.Strings {
         public static string StatusLoading {
             get {
                 return ResourceManager.GetString("StatusLoading", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Lỗi hệ thống.
+        /// </summary>
+        public static string SystemError {
+            get {
+                return ResourceManager.GetString("SystemError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Đã xảy ra lỗi: {0}.
+        /// </summary>
+        public static string SystemErrorMessage {
+            get {
+                return ResourceManager.GetString("SystemErrorMessage", resourceCulture);
             }
         }
         

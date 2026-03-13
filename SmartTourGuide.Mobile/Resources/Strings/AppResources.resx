@@ -147,14 +147,32 @@
   <data name="BtnStop" xml:space="preserve">
     <value>⏹️ Dừng phát</value>
   </data>
+  <data name="CloseButton" xml:space="preserve">
+    <value>Đóng</value>
+  </data>
+  <data name="ConnectionError" xml:space="preserve">
+    <value>Lỗi kết nối</value>
+  </data>
+  <data name="ConnectionErrorMessage" xml:space="preserve">
+    <value>Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng hoặc địa chỉ API.</value>
+  </data>
   <data name="MapTitle" xml:space="preserve">
     <value>Bản đồ du lịch</value>
   </data>
   <data name="NoDescription" xml:space="preserve">
     <value>Chưa có mô tả.</value>
   </data>
+  <data name="NoToursAvailable" xml:space="preserve">
+    <value>Hiện tại chưa có tour nào được cập nhật.</value>
+  </data>
+  <data name="OkButton" xml:space="preserve">
+    <value>OK</value>
+  </data>
   <data name="PoiCountFormat" xml:space="preserve">
     <value>Gồm {0} địa điểm</value>
+  </data>
+  <data name="RetryButton" xml:space="preserve">
+    <value>Thử lại</value>
   </data>
   <data name="SelectTourHeader" xml:space="preserve">
     <value>Chọn hành trình của bạn</value>
@@ -179,6 +197,12 @@
   </data>
   <data name="StatusLoading" xml:space="preserve">
     <value>Đang tải dữ liệu...</value>
+  </data>
+  <data name="SystemError" xml:space="preserve">
+    <value>Lỗi hệ thống</value>
+  </data>
+  <data name="SystemErrorMessage" xml:space="preserve">
+    <value>Đã xảy ra lỗi: {0}</value>
   </data>
   <data name="ToursPageTitle" xml:space="preserve">
     <value>Tuyến Du Lịch</value>
