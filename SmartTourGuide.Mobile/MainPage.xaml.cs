@@ -9,14 +9,13 @@ using Mapsui.Tiling; // Để load bản đồ OSM
 using Mapsui.UI.Maui;
 using Mapsui.Widgets;
 using Mapsui.Widgets.ButtonWidgets;
-using Microsoft.Maui.Devices.Sensors;
+using MauiLocation = Microsoft.Maui.Devices.Sensors;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Triangulate.Tri;
 using Plugin.Maui.Audio;
 using SmartTourGuide.Mobile.Models;
 using SmartTourGuide.Mobile.Services;
 using System.Globalization;
-
 namespace SmartTourGuide.Mobile;
 
 public partial class MainPage : ContentPage
@@ -34,6 +33,11 @@ public partial class MainPage : ContentPage
     private const double DefaultLon = 105.834132;
     // biến lưu ngôn ngữ hiện tại
     private string _currentLanguageCode = "vi-VN";
+    // biến cho phần geofence
+    private IDispatcherTimer? _geofenceTimer; // Bộ đếm giờ chạy ngầm
+    private List<PoiModel> _allPoisCache = new(); // Lưu cache danh sách địa điểm
+    private PoiModel? _currentlyPlayingGeofencePoi; // Lưu địa điểm ĐANG PHÁT audio
+    private MauiLocation.Location _currentUserLocation = new MauiLocation.Location(DefaultLat, DefaultLon);// Vị trí hiện tại
 
     private readonly SemaphoreSlim _mapLock = new SemaphoreSlim(1, 1);
     public MainPage()
@@ -74,6 +78,7 @@ public partial class MainPage : ContentPage
 
         mapView.Map = map;
         mapView.PinClicked += OnPinClicked;
+        mapView.MapClicked += OnMapClicked_SimulateWalk;
         // Bật lớp hiển thị vị trí ở đây thay vì XAML
         mapView.MyLocationLayer.Enabled = true;
     }
@@ -120,6 +125,14 @@ public partial class MainPage : ContentPage
         await CheckPermissions();
         await LoadCurrentLocation();
         await LoadPoisOnMap();
+
+        if (_geofenceTimer == null)
+        {
+            _geofenceTimer = Application.Current!.Dispatcher.CreateTimer();
+            _geofenceTimer.Interval = TimeSpan.FromSeconds(3); // Cứ 3s quét 1 lần
+            _geofenceTimer.Tick += (s, e) => CheckGeofences(); // Gọi hàm Engine
+            _geofenceTimer.Start();
+        }
     }
 
     private async Task CheckPermissions()
@@ -171,7 +184,7 @@ public partial class MainPage : ContentPage
         try
         {
             var pois = await _apiService.GetPoisAsync(_currentLanguageCode);
-
+            _allPoisCache = pois;
             mapView.Pins.Clear();
 
             var oldLayer = mapView.Map.Layers.FirstOrDefault(l => l.Name == "Geofences");
@@ -216,7 +229,7 @@ public partial class MainPage : ContentPage
 
         foreach (var poi in pois)
         {
-            double radius = 50;
+            double radius = poi.TriggerRadius > 0 ? poi.TriggerRadius : 50;
             var center = Mapsui.Projections.SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
 
             // Tính toán bán kính thực tế đơn giản hơn
@@ -519,9 +532,21 @@ public partial class MainPage : ContentPage
                 // 3. Zoom
                 if (hasPoints)
                 {
-                    var padding = (maxX - minX) * 0.15;
-                    var box = new MRect(minX - padding, minY - padding, maxX + padding, maxY + padding);
-                    mapView.Map.Navigator.ZoomToBox(box, duration: 500);
+                    // KIỂM TRA: Nếu chỉ có 1 điểm, hoặc các điểm trùng tọa độ nhau 100%
+                    if (tour.Pois.Count == 1 || (minX == maxX && minY == maxY))
+                    {
+                        // Dùng lệnh đưa về tâm (Resolution: 2 là zoom khá gần)
+                        var centerPoint = new MPoint(minX, minY);
+                        mapView.Map.Navigator.CenterOnAndZoomTo(centerPoint, resolution: 2, duration: 500);
+                    }
+                    else
+                    {
+                        // Dùng lệnh đóng khung cho nhiều điểm
+                        var paddingX = (maxX - minX) * 0.15;
+                        var paddingY = (maxY - minY) * 0.15;
+                        var box = new MRect(minX - paddingX, minY - paddingY, maxX + paddingX, maxY + paddingY);
+                        mapView.Map.Navigator.ZoomToBox(box, duration: 500);
+                    }
                 }
 
                 mapView.RefreshGraphics();
@@ -573,5 +598,114 @@ public partial class MainPage : ContentPage
                 this.Window.Page = new MainPage();
             }
         }
+    }
+    private async void CheckGeofences()
+    {
+        if (_allPoisCache.Count == 0) return;
+
+        // 1. Tìm TẤT CẢ các vùng mà User đang đứng bên trong
+        var poisInRange = new List<PoiModel>();
+        foreach (var poi in _allPoisCache)
+        {
+            var poiLocation = new MauiLocation.Location(poi.Latitude, poi.Longitude);
+
+            // Tính khoảng cách (Kilometer -> đổi ra mét)
+            double distanceInMeters = MauiLocation.Location.CalculateDistance(_currentUserLocation, poiLocation, DistanceUnits.Kilometers) * 1000;
+
+            if (distanceInMeters <= poi.TriggerRadius)
+            {
+                poisInRange.Add(poi);
+            }
+        }
+
+        // 2. KỊCH BẢN A: Người dùng đã đi ra khỏi TẤT CẢ các vùng
+        if (poisInRange.Count == 0)
+        {
+            if (_currentlyPlayingGeofencePoi != null)
+            {
+                // Đi ra khỏi vùng -> Tắt nhạc
+                StopAudio();
+                _currentlyPlayingGeofencePoi = null;
+                MainThread.BeginInvokeOnMainThread(() => statusLabel.Text = "Đã rời khỏi vùng tham quan.");
+            }
+            return;
+        }
+
+        // 3. Lọc ra địa điểm có ƯU TIÊN CAO NHẤT trong số các vùng đang đứng
+        // Giả sử số càng to thì ưu tiên càng cao (2 > 1)
+        var highestPriorityPoi = poisInRange.OrderByDescending(p => p.Priority).First();
+
+        // 4. KỊCH BẢN B: Xử lý luật phát âm thanh
+        if (_currentlyPlayingGeofencePoi == null)
+        {
+            // 4.1. Đang không có gì phát -> Phát ngay vùng ưu tiên cao nhất vừa vào
+            _currentlyPlayingGeofencePoi = highestPriorityPoi;
+            await TriggerAutoAudio(highestPriorityPoi);
+        }
+        else if (_currentlyPlayingGeofencePoi.Id != highestPriorityPoi.Id)
+        {
+            // 4.2. Đang phát vùng A, nhưng lại đi vào vùng B
+
+            // LUẬT: Nếu vùng mới (B) có ưu tiên CAO HƠN vùng đang phát (A)
+            if (highestPriorityPoi.Priority > _currentlyPlayingGeofencePoi.Priority)
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                    statusLabel.Text = $"Chuyển sang: {highestPriorityPoi.Name} (Ưu tiên {highestPriorityPoi.Priority})");
+
+                StopAudio(); // Tắt vùng 1
+                _currentlyPlayingGeofencePoi = highestPriorityPoi;
+                await TriggerAutoAudio(highestPriorityPoi); // Phát vùng 2
+            }
+            else
+            {
+                // LUẬT: Nếu vùng mới (B) bằng hoặc thấp hơn vùng đang phát (A)
+                // -> BỎ QUA. Tiếp tục phát vùng A (Ai đến trước phục vụ trước).
+                Console.WriteLine($"Đang ở trong {highestPriorityPoi.Name} nhưng ưu tiên thấp hơn/bằng -> Bỏ qua.");
+            }
+        }
+    }
+
+    // Hàm phụ để gọi phát âm thanh tự động (tái sử dụng logic của nút Play)
+    private async Task TriggerAutoAudio(PoiModel poi)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+            statusLabel.Text = $"Vào vùng: {poi.Name} - Đang phát tự động!");
+
+        _currentSelectedPoi = poi;
+        _isPlaying = true;
+
+        if (btnPlayAudio != null)
+            MainThread.BeginInvokeOnMainThread(() => btnPlayAudio.Text = "⏹️ Dừng phát");
+
+        if (poi.AudioUrls != null && poi.AudioUrls.Count > 0)
+        {
+            string rawPath = poi.AudioUrls[0].Replace("\\", "/").TrimStart('/');
+            string fullUrl = $"{BaseApiUrl.TrimEnd('/')}/{rawPath}";
+            await PlayRemoteAudio(fullUrl);
+        }
+        else
+        {
+            await SpeakDescription(poi.Description);
+        }
+    }
+
+    // HÀM GIẢ LẬP ĐI BỘ
+    private void OnMapClicked_SimulateWalk(object? sender, MapClickedEventArgs e)
+    {
+        // Chuyển đổi tọa độ bản đồ sang tọa độ GPS Lat/Lon
+        double lat = e.Point.Latitude;
+        double lon = e.Point.Longitude;
+
+        // Cập nhật vị trí GPS giả lập
+        _currentUserLocation = new MauiLocation.Location(lat, lon);
+
+        // Cập nhật cái chấm xanh dương MyLocation trên bản đồ
+        MainThread.BeginInvokeOnMainThread(() => {
+            mapView.MyLocationLayer.UpdateMyLocation(new Mapsui.UI.Maui.Position(lat, lon));
+            mapView.RefreshGraphics();
+        });
+
+        // Đánh dấu sự kiện đã xử lý
+        e.Handled = true;
     }
 } 

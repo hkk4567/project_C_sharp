@@ -29,6 +29,8 @@ namespace SmartTourGuide.Shared.DTOs
         public List<string> AudioUrls { get; set; } = new();
 
         public List<string> ImageUrls { get; set; } = new();
+
+        public List<MediaAssetDto> ExistingAudios { get; set; } = new();
     }
 }
 

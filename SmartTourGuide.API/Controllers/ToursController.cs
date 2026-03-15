@@ -27,7 +27,9 @@ public class ToursController : ControllerBase
     public async Task<ActionResult<List<TourDto>>> GetAllTours()
     {
         var tours = await _context.Tours
-            .Include(t => t.TourDetails)
+            // Sử dụng tính năng Filtered Include của EF Core để chỉ lấy các chi tiết có POI đã Active
+            .Include(t => t.TourDetails.Where(td => td.Poi.Status == PoiStatus.Active))
+                .ThenInclude(td => td.Poi)
             .OrderByDescending(t => t.Id)
             .ToListAsync();
 
@@ -37,6 +39,8 @@ public class ToursController : ControllerBase
             Name = t.Name,
             Description = t.Description,
             ThumbnailUrl = t.ThumbnailUrl ?? string.Empty,
+
+            // Số lượng điểm bây giờ chỉ đếm những điểm Active
             TotalPois = t.TourDetails.Count
         }).ToList();
     }
@@ -47,7 +51,8 @@ public class ToursController : ControllerBase
     public async Task<ActionResult<TourDto>> GetTour(int id)
     {
         var tour = await _context.Tours
-            .Include(t => t.TourDetails)
+            // Lọc ngay từ lúc truy vấn Database để tối ưu hiệu năng
+            .Include(t => t.TourDetails.Where(td => td.Poi.Status == PoiStatus.Active))
                 .ThenInclude(td => td.Poi)
             .FirstOrDefaultAsync(t => t.Id == id);
 
@@ -60,6 +65,8 @@ public class ToursController : ControllerBase
             Description = tour.Description,
             ThumbnailUrl = tour.ThumbnailUrl ?? string.Empty,
             TotalPois = tour.TourDetails.Count,
+
+            // Map danh sách điểm (Lúc này list TourDetails chỉ còn chứa các điểm Active)
             Pois = tour.TourDetails
                 .OrderBy(td => td.OrderIndex)
                 .Select(td => new TourDetailDto

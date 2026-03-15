@@ -130,8 +130,8 @@ public class PoisController : ControllerBase
         var pois = await _context.Pois
             .Include(p => p.GeofenceSetting)
             .Include(p => p.MediaAssets)
-            .Where(p => p.OwnerId == ownerId) // Lọc theo Owner
-            .OrderByDescending(p => p.Id)   // Mới nhất lên đầu
+            .Where(p => p.OwnerId == ownerId)
+            .OrderByDescending(p => p.Id)
             .ToListAsync();
 
         var result = pois.Select(p => new PoiDto
@@ -142,14 +142,19 @@ public class PoisController : ControllerBase
             Latitude = p.Latitude,
             Longitude = p.Longitude,
             Address = p.Address,
-            Status = p.Status.ToString(), // Chuyển Enum sang String
+            Status = p.Status.ToString(),
             TriggerRadius = p.GeofenceSetting?.TriggerRadiusInMeters ?? 50,
 
-            // Lấy ảnh đầu tiên làm ảnh đại diện
-            ImageUrls = p.MediaAssets
-                        .Where(m => m.Type == MediaType.Image)
-                        .Select(m => m.UrlOrContent)
-                        .ToList()
+            ImageUrls = p.MediaAssets.Where(m => m.Type == MediaType.Image).Select(m => m.UrlOrContent).ToList(),
+
+            // Code cũ: AudioUrls = ...
+            AudioUrls = p.MediaAssets.Where(m => m.Type == MediaType.AudioFile).Select(m => m.UrlOrContent).ToList(),
+
+            // MỚI: Lấy danh sách Audio Tiếng Việt (hoặc mặc định) KÈM THEO ID
+            ExistingAudios = p.MediaAssets
+                .Where(m => m.Type == MediaType.AudioFile && (m.LanguageCode == "vi-VN" || string.IsNullOrEmpty(m.LanguageCode)))
+                .Select(m => new MediaAssetDto { Id = m.Id, Url = m.UrlOrContent })
+                .ToList()
         });
 
         return Ok(result);
@@ -160,14 +165,32 @@ public class PoisController : ControllerBase
     public async Task<IActionResult> DeletePoi(int id)
     {
         var poi = await _context.Pois.FindAsync(id);
-        if (poi == null) return NotFound();
+        if (poi == null) return NotFound("Không tìm thấy địa điểm.");
 
-        // (Tùy chọn) Kiểm tra xem người gọi API có phải là chủ sở hữu không 
-        // ở bước này tạm thời bỏ qua để đơn giản hóa
+        // --- MỚI: KIỂM TRA RÀNG BUỘC VỚI BẢNG TOUR ---
+        // Kiểm tra xem ID của địa điểm này có đang nằm trong bất kỳ chi tiết Tour nào không
+        bool isInAnyTour = await _context.TourDetails.AnyAsync(td => td.PoiId == id);
 
+        if (isInAnyTour)
+        {
+            // Trả về lỗi 400 (BadRequest) kèm câu thông báo cho chủ gian hàng
+            return BadRequest("Địa điểm này đang nằm trong một Tuyến Du Lịch (Tour). Vui lòng liên hệ Admin để gỡ địa điểm ra khỏi Tour trước khi xóa!");
+        }
+
+        // --- MỚI: XÓA CÁC BẢN DỊCH (Nếu có) ---
+        // Lấy tất cả bản dịch của địa điểm này và xóa
+        var translations = await _context.PoiTranslations.Where(t => t.PoiId == id).ToListAsync();
+        if (translations.Any())
+        {
+            _context.PoiTranslations.RemoveRange(translations);
+        }
+
+        // Xóa địa điểm gốc (EF Core sẽ tự động Cascade xóa MediaAssets và GeofenceSetting đi kèm)
         _context.Pois.Remove(poi);
+
         await _context.SaveChangesAsync();
-        return Ok(new { message = "Đã xóa thành công" });
+
+        return Ok(new { message = "Đã xóa địa điểm thành công!" });
     }
     //2.3. API cho Chủ gian hàng: sửa địa điểm 
     [HttpPut("{id}")]

@@ -3,6 +3,7 @@
 @inject ISnackbar Snackbar
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject IDialogService MudDialogService
 @implements IDisposable
 
 <MudDialog>
@@ -16,13 +17,13 @@
             @if (Poi.ImageUrls != null && Poi.ImageUrls.Any())
             {
                 <MudCarousel Class="mud-width-full" Style="height:300px;" ShowArrows="true" ShowBullets="true"
-                    AutoCycle="true" TData="string">
+                             AutoCycle="true" TData="string">
                     @foreach (var img in Poi.ImageUrls)
                     {
                         <MudCarouselItem Transition="Transition.Slide">
                             <div class="d-flex align-center justify-center" style="height:100%; background-color: #eee;">
                                 <MudImage Src="@CombineUrl(ApiUrl, img)" ObjectFit="ObjectFit.Contain"
-                                    Style="width:100%; height:100%;" Alt="@Poi.Name" />
+                                          Style="width:100%; height:100%;" Alt="@Poi.Name" />
                             </div>
                         </MudCarouselItem>
                     }
@@ -31,7 +32,7 @@
             else
             {
                 <MudAlert Severity="Severity.Normal" Variant="Variant.Outlined"
-                    ContentAlignment="HorizontalAlignment.Center">
+                          ContentAlignment="HorizontalAlignment.Center">
                     Chưa có ảnh mô tả.
                 </MudAlert>
             }
@@ -41,24 +42,48 @@
             <MudText Typo="Typo.h6" GutterBottom="true" icon="@Icons.Material.Filled.AudioFile">Thông tin thuyết minh
             </MudText>
 
-            @if (Poi.AudioUrls != null && Poi.AudioUrls.Any())
+            @if (Poi.ExistingAudios != null && Poi.ExistingAudios.Any())
             {
                 <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">
                     Sử dụng file ghi âm gốc.
                 </MudAlert>
 
-                @foreach (var audio in Poi.AudioUrls)
+                @foreach (var audio in Poi.ExistingAudios)
+                {
+                    <div class="d-flex align-center justify-space-between mb-2 pa-2"
+                         style="border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa;">
+
+                        <div class="d-flex align-center flex-grow-1 mr-2">
+                            <audio controls style="width: 100%; height: 40px;">
+                                <source src="@CombineUrl(ApiUrl, audio.Url)" type="audio/mpeg">
+                            </audio>
+                        </div>
+
+                        @* MỚI: Nút Xóa Audio (Chỉ hiện khi Chủ quán xem, ẩn nếu Admin xem) *@
+                        @if (!IsReadOnly)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                           OnClick="@(() => DeleteAudioAsync(audio))" Title="Xóa file này" />
+                        }
+                    </div>
+                }
+            }
+            @* Fallback: Phòng trường hợp Backend chưa trả về ExistingAudios mà chỉ có AudioUrls *@
+            else if (Poi.AudioUrls != null && Poi.AudioUrls.Any())
+            {
+                @foreach (var audioUrl in Poi.AudioUrls)
                 {
                     <div class="d-flex align-center mb-2 pa-2"
-                        style="border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa;">
+                         style="border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa;">
                         <audio controls style="width: 100%; height: 40px;">
-                            <source src="@CombineUrl(ApiUrl, audio)" type="audio/mpeg">
+                            <source src="@CombineUrl(ApiUrl, audioUrl)" type="audio/mpeg">
                         </audio>
                     </div>
                 }
             }
             else
             {
+                <!-- PHẦN 3: TTS -->
                 <MudPaper Class="pa-4" Elevation="0" Outlined="true" Style="background-color: #f9f9f9; border-radius: 8px;">
                     <div class="d-flex justify-space-between align-center mb-3">
                         <MudText Typo="Typo.subtitle2" Color="Color.Primary">Tự động thuyết minh (AI):</MudText>
@@ -67,40 +92,83 @@
                             @if (_isReading)
                             {
                                 <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Stop"
-                                    OnClick="StopSpeaking" Size="Size.Small">Dừng đọc</MudButton>
+                                           OnClick="StopSpeaking" Size="Size.Small">Dừng đọc</MudButton>
                             }
                             else
                             {
                                 <MudButton Variant="Variant.Filled" Color="Color.Info"
-                                    StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="ReadDescription" Size="Size.Small">
-                                    Nghe thuyết minh</MudButton>
-                            }
+                                           StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="ReadDescription" Size="Size.Small">
+                                    Nghe thử</MudButton>
+                                }
+                            </div>
                         </div>
-                    </div>
 
-                    <MudText Typo="Typo.body2" Style="line-height: 1.7; color: #444;">
-                        @(string.IsNullOrWhiteSpace(Poi.Description) ? "Địa điểm này chưa có nội dung mô tả." :
-                                            Poi.Description)
-                    </MudText>
-                </MudPaper>
-            }
+                        <MudText Typo="Typo.body2" Style="line-height: 1.7; color: #444;">
+                            @(string.IsNullOrWhiteSpace(Poi.Description) ? "Địa điểm này chưa có nội dung mô tả." :
+                        Poi.Description)
+                        </MudText>
+                    </MudPaper>
+                }
 
-        </MudContainer>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="Close">Đóng</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="GoToEdit">Chỉnh sửa</MudButton>
-    </DialogActions>
-</MudDialog>
+
+            </MudContainer>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="Close">Đóng</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="GoToEdit">Chỉnh sửa</MudButton>
+        </DialogActions>
+    </MudDialog>
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialogRef { get; set; } = default!;
     [Parameter] public required PoiDto Poi { get; set; }
     [Parameter] public string ApiUrl { get; set; } = "";
     [Parameter] public EventCallback OnEditClicked { get; set; }
-
+    [Parameter] public bool IsReadOnly { get; set; } = false;
     private bool _isReading = false;
 
+    private async Task DeleteAudioAsync(MediaAssetDto audio)
+    {
+        // 1. Hỏi xác nhận
+        bool? confirm = await MudDialogService.ShowMessageBox(
+            "Xác nhận xóa",
+            "Bạn có chắc chắn muốn xóa file ghi âm này không?",
+            yesText: "Xóa ngay", cancelText: "Hủy");
+
+        if (confirm == true)
+        {
+            try
+            {
+                // 2. Gọi API để xóa file trên Server
+                var response = await Http.DeleteAsync($"api/assets/{audio.Id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    // 3. Cập nhật lại giao diện (Xóa khỏi danh sách)
+                    Poi.ExistingAudios.Remove(audio);
+
+                    // Xóa luôn bên AudioUrls để đồng bộ
+                    if (Poi.AudioUrls != null && audio.Url != null && Poi.AudioUrls.Contains(audio.Url))
+                    {
+                        Poi.AudioUrls.Remove(audio.Url);
+                    }
+
+                    Snackbar.Add("Đã xóa file Audio thành công!", Severity.Success);
+
+                    // Vẽ lại màn hình Dialog
+                    StateHasChanged();
+                }
+                else
+                {
+                    Snackbar.Add("Xóa thất bại. Có thể do lỗi mạng.", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Lỗi kết nối: {ex.Message}", Severity.Error);
+            }
+        }
+    }
     private async Task ReadDescription()
     {
         if (string.IsNullOrWhiteSpace(Poi.Description))
@@ -120,7 +188,7 @@
         await JS.InvokeVoidAsync("blazorTts.stop");
     }
 
-    private string CombineUrl(string baseUri, string relativePath)
+    private string CombineUrl(string baseUri, string? relativePath)
     {
         if (string.IsNullOrEmpty(relativePath)) return "";
         if (relativePath.StartsWith("http")) return relativePath;

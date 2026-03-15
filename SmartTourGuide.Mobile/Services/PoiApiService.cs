@@ -76,6 +76,8 @@ public class PoiModel
     // API trả về List<string> ImageUrls
     public List<string>? ImageUrls { get; set; }
     public List<string>? AudioUrls { get; set; }
+    public double TriggerRadius { get; set; } = 50;
+    public int Priority { get; set; } = 1;
 }
 public class TourModel
 {

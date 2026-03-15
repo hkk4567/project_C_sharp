@@ -10,7 +10,7 @@
 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h4">Địa Điểm Của Tôi</MudText>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
-        OnClick="@(() => Nav.NavigateTo("/owner/create-poi"))">
+               OnClick="@(() => Nav.NavigateTo("/owner/create-poi"))">
         Tạo mới
     </MudButton>
 </MudStack>
@@ -31,7 +31,7 @@
                 <MudTooltip Text="Bấm để xem chi tiết ảnh & audio">
                     @* Thêm sự kiện OnClick vào ảnh *@
                     <MudImage Src="@($"{ApiUrl}{context.ImageUrls[0]}")" Width="80" Height="60" ObjectFit="ObjectFit.Cover"
-                        Class="rounded cursor-pointer" @onclick="@(() => OpenMediaDialog(context))" />
+                              Class="rounded cursor-pointer" @onclick="@(() => OpenMediaDialog(context))" />
                 </MudTooltip>
             }
             else
@@ -49,7 +49,7 @@
                 else
                 {
                     <MudChip T="string" Color="Color.Default" Size="Size.Small"
-                        Icon="@Icons.Material.Filled.RecordVoiceOver">Đọc TTS</MudChip>
+                             Icon="@Icons.Material.Filled.RecordVoiceOver">Đọc TTS</MudChip>
                 }
             </div>
         </MudTd>
@@ -86,13 +86,13 @@
 
                 <!-- MỚI: Thêm nút xem Media riêng -->
                 <MudIconButton Icon="@Icons.Material.Filled.PermMedia" Color="Color.Tertiary" title="Xem Ảnh & Audio"
-                    OnClick="@(() => OpenMediaDialog(context))" />
+                               OnClick="@(() => OpenMediaDialog(context))" />
 
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Sửa thông tin"
-                    OnClick="@(() => Nav.NavigateTo($"/owner/edit-poi/{context.Id}"))" />
+                               OnClick="@(() => Nav.NavigateTo($"/owner/edit-poi/{context.Id}"))" />
 
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" title="Xóa"
-                    OnClick="@(async (MouseEventArgs e) => await DeletePoi(context))" />
+                               OnClick="@(async (MouseEventArgs e) => await DeletePoi(context))" />
             </MudStack>
         </MudTd>
     </RowTemplate>
@@ -149,17 +149,34 @@
     private async Task DeletePoi(PoiDto poi)
     {
         bool? result = await DialogService.ShowMessageBox(
-        "Xác nhận xóa", $"Xóa địa điểm '{poi.Name}'?", yesText: "Xóa", cancelText: "Hủy");
+            "Xác nhận xóa",
+            $"Bạn có chắc muốn xóa địa điểm '{poi.Name}' không?",
+            yesText: "Xóa", cancelText: "Hủy");
 
         if (result == true)
         {
-            var response = await Http.DeleteAsync($"api/pois/{poi.Id}");
-            if (response.IsSuccessStatusCode)
+            try
             {
-                Snackbar.Add("Đã xóa!", Severity.Success);
-                pois.Remove(poi);
+                var response = await Http.DeleteAsync($"api/pois/{poi.Id}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("Đã xóa thành công!", Severity.Success);
+                    pois.Remove(poi);
+                }
+                else
+                {
+                    // SỬA Ở ĐÂY: Đọc thông báo lỗi từ Backend trả về
+                    var errorMsg = await response.Content.ReadAsStringAsync();
+
+                    // Nếu lỗi do vướng Tour, errorMsg sẽ chính là câu: "Địa điểm này đang nằm trong..."
+                    Snackbar.Add(errorMsg, Severity.Warning);
+                }
             }
-            else Snackbar.Add("Xóa thất bại.", Severity.Error);
+            catch (Exception ex)
+            {
+                Snackbar.Add("Lỗi server: " + ex.Message, Severity.Error);
+            }
         }
     }
 }
