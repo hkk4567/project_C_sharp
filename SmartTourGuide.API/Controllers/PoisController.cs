@@ -247,7 +247,8 @@ public class PoisController : ControllerBase
     {
         var p = await _context.Pois
             .Include(p => p.GeofenceSetting)
-            .FirstOrDefaultAsync(x => x.Id == id); // Có thể include thêm MediaAssets nếu muốn hiển thị ảnh cũ
+            .Include(p => p.MediaAssets) // QUAN TRỌNG: Bổ sung dòng này để lấy Ảnh/Audio cũ
+            .FirstOrDefaultAsync(x => x.Id == id);
 
         if (p == null) return NotFound();
 
@@ -260,7 +261,19 @@ public class PoisController : ControllerBase
             Latitude = p.Latitude,
             Longitude = p.Longitude,
             Status = p.Status.ToString(),
-            // Map các field khác nếu cần
+            OwnerId = p.OwnerId,
+
+            // Map thông tin cấu hình Geofence
+            TriggerRadius = p.GeofenceSetting?.TriggerRadiusInMeters ?? 50,
+            Priority = p.GeofenceSetting?.Priority ?? 1,
+
+            // BẮT BUỘC: Map Ảnh và Audio để trang Sửa (Edit) hiển thị được dữ liệu cũ
+            ImageUrls = p.MediaAssets.Where(m => m.Type == MediaType.Image).Select(m => m.UrlOrContent).ToList(),
+            AudioUrls = p.MediaAssets.Where(m => m.Type == MediaType.AudioFile).Select(m => m.UrlOrContent).ToList(),
+            ExistingAudios = p.MediaAssets
+                .Where(m => m.Type == MediaType.AudioFile && (m.LanguageCode == "vi-VN" || string.IsNullOrEmpty(m.LanguageCode)))
+                .Select(m => new MediaAssetDto { Id = m.Id, Url = m.UrlOrContent })
+                .ToList()
         };
     }
 
@@ -283,6 +296,7 @@ public class PoisController : ControllerBase
     {
         var pois = await _context.Pois
             .Include(p => p.GeofenceSetting)
+            .Include(p => p.MediaAssets) // Bổ sung Include MediaAssets
             .Where(p => p.Status == PoiStatus.Pending) // Chỉ lấy bài chờ duyệt
             .ToListAsync();
 
@@ -294,7 +308,10 @@ public class PoisController : ControllerBase
             Address = p.Address ?? "",
             Status = p.Status.ToString(),
             Latitude = p.Latitude,
-            Longitude = p.Longitude
+            Longitude = p.Longitude,
+
+            // Bổ sung lấy ảnh đại diện để hiển thị trên UI Admin
+            ImageUrls = p.MediaAssets.Where(m => m.Type == MediaType.Image).Select(m => m.UrlOrContent).ToList()
         });
 
         return Ok(result);
@@ -360,7 +377,12 @@ public class PoisController : ControllerBase
 
             ImageUrls = p.MediaAssets
                 .Where(m => m.Type == MediaType.Image)
-                .Select(m => m.UrlOrContent).ToList()
+                .Select(m => m.UrlOrContent).ToList(),
+
+            ExistingAudios = p.MediaAssets
+                .Where(m => m.Type == MediaType.AudioFile && (m.LanguageCode == "vi-VN" || string.IsNullOrEmpty(m.LanguageCode)))
+                .Select(m => new MediaAssetDto { Id = m.Id, Url = m.UrlOrContent })
+                .ToList()
         });
     }
 }

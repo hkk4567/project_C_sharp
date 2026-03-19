@@ -39,7 +39,8 @@
 
             <MudDivider Class="my-4" />
 
-            <MudText Typo="Typo.h6" GutterBottom="true" icon="@Icons.Material.Filled.AudioFile">Thông tin thuyết minh
+            <MudText Typo="Typo.h6" GutterBottom="true">
+                Thông tin thuyết minh @ViewLangLabel
             </MudText>
 
             @if (Poi.ExistingAudios != null && Poi.ExistingAudios.Any())
@@ -125,6 +126,7 @@
     [Parameter] public string ApiUrl { get; set; } = "";
     [Parameter] public EventCallback OnEditClicked { get; set; }
     [Parameter] public bool IsReadOnly { get; set; } = false;
+    [Parameter] public string ViewLangLabel { get; set; } = ""; // VD: " (en-US)"
     private bool _isReading = false;
 
     private async Task DeleteAudioAsync(MediaAssetDto audio)

@@ -87,8 +87,14 @@
             <MudNavMenu>
                 <AuthorizeView Roles="Admin">
                     <MudText Typo="Typo.caption" Class="menu-group-title">QUẢN LÝ ADMIN</MudText>
+                    <MudNavLink Href="/admin/dashboard" Icon="@Icons.Material.Filled.Dashboard" Match="NavLinkMatch.All">Tổng quan</MudNavLink>
                     <MudNavLink Href="/admin/approvals" Icon="@Icons.Material.Filled.CheckCircle">Duyệt bài đăng</MudNavLink>
-                    <MudNavLink Href="/admin/tracking" Icon="@Icons.Material.Filled.Map">Bản đồ theo dõi</MudNavLink>
+                    <MudNavLink Href="/admin/tours" Icon="@Icons.Material.Filled.Map">Quản lý Tour</MudNavLink>
+                    <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">Quản lý User</MudNavLink>
+                    <MudNavLink Href="/tts-studio" Icon="@Icons.Material.Filled.RecordVoiceOver"
+                                Style="color: var(--mud-palette-secondary);">
+                        🎙️ TTS Studio
+                    </MudNavLink>
                 </AuthorizeView>
 
                 <AuthorizeView Roles="BoothOwner">
@@ -96,6 +102,10 @@
                     <MudNavLink Href="/owner/dashboard" Icon="@Icons.Material.Filled.Dashboard" Match="NavLinkMatch.All">Tổng quan</MudNavLink>
                     <MudNavLink Href="/owner/create-poi" Icon="@Icons.Material.Filled.AddLocation">Tạo địa điểm</MudNavLink>
                     <MudNavLink Href="/owner/my-pois" Icon="@Icons.Material.Filled.List">Địa điểm của tôi</MudNavLink>
+                    <MudNavLink Href="/tts-studio" Icon="@Icons.Material.Filled.RecordVoiceOver"
+                                Style="color: var(--mud-palette-secondary);">
+                        🎙️ TTS Studio
+                    </MudNavLink>
                 </AuthorizeView>
             </MudNavMenu>
         </div>

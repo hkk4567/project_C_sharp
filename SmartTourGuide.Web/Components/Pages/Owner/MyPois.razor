@@ -7,7 +7,69 @@
 @inject NavigationManager Nav
 @attribute [Authorize(Roles = "BoothOwner")]
 
-<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+<style>
+    .lang-switcher {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .ls-btn {
+        padding: 5px 14px;
+        border-radius: 99px;
+        cursor: pointer;
+        font-size: .8rem;
+        font-weight: 600;
+        border: 1.5px solid var(--mud-palette-divider);
+        background: var(--mud-palette-background);
+        color: var(--mud-palette-text-secondary);
+        transition: all .15s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .ls-btn:hover {
+        border-color: var(--mud-palette-primary);
+        color: var(--mud-palette-primary);
+    }
+
+    .ls-btn.active {
+        background: var(--mud-palette-primary);
+        border-color: var(--mud-palette-primary);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+    }
+
+    .poi-translated {
+        font-size: .72rem;
+        opacity: .6;
+        margin-top: 2px;
+    }
+
+    /* Mini audio player trong tooltip */
+    .audio-mini-list {
+        padding: 6px 4px;
+    }
+
+    .audio-mini-list audio {
+        width: 240px;
+        height: 32px;
+        display: block;
+        margin: 4px 0;
+    }
+
+    /* Badge audio theo ngôn ngữ */
+    .audio-lang-chip {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        cursor: default;
+    }
+</style>
+
+<!-- HEADER -->
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
     <MudText Typo="Typo.h4">Địa Điểm Của Tôi</MudText>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
                OnClick="@(() => Nav.NavigateTo("/owner/create-poi"))">
@@ -15,21 +77,41 @@
     </MudButton>
 </MudStack>
 
+<!-- LANG SWITCHER -->
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4" Spacing="2">
+    <MudIcon Icon="@Icons.Material.Filled.Language" Size="Size.Small" Style="opacity:.6;" />
+    <MudText Typo="Typo.caption" Style="opacity:.7; font-weight:600;">Hiển thị ngôn ngữ:</MudText>
+    <div class="lang-switcher">
+        @foreach (var lang in _langs)
+        {
+            <div class="ls-btn @(_viewLang == lang.Code ? "active" : "")" @onclick="() => SwitchViewLang(lang.Code)">
+                <span>@lang.Flag</span>
+                <span>@lang.Name</span>
+            </div>
+        }
+    </div>
+    @if (_loadingTranslations)
+    {
+        <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Primary" />
+    }
+</MudStack>
+
 <MudTable Items="@pois" Hover="true" Loading="@_loading" Striped="true" Elevation="3">
     <HeaderContent>
-        <MudTh>Media (Ảnh/Audio)</MudTh> @* Sửa tiêu đề cột *@
+        <MudTh>Media</MudTh>
         <MudTh>Tên địa điểm</MudTh>
         <MudTh>Trạng thái</MudTh>
         <MudTh>Vị trí</MudTh>
         <MudTh Style="text-align:right">Hành động</MudTh>
     </HeaderContent>
     <RowTemplate>
+
+        <!-- ── CỘT MEDIA ── -->
         <MudTd DataLabel="Media">
-            <!-- 1. Hiển thị Ảnh đại diện -->
+            @* Ảnh *@
             @if (context.ImageUrls != null && context.ImageUrls.Count > 0)
             {
                 <MudTooltip Text="Bấm để xem chi tiết ảnh & audio">
-                    @* Thêm sự kiện OnClick vào ảnh *@
                     <MudImage Src="@($"{ApiUrl}{context.ImageUrls[0]}")" Width="80" Height="60" ObjectFit="ObjectFit.Cover"
                               Class="rounded cursor-pointer" @onclick="@(() => OpenMediaDialog(context))" />
                 </MudTooltip>
@@ -39,26 +121,52 @@
                 <MudIcon Icon="@Icons.Material.Filled.ImageNotSupported" Size="Size.Large" Color="Color.Default" />
             }
 
-            <!-- 2. Hiển thị Icon Audio nhỏ bên dưới để biết trạng thái -->
+            @* Badge trạng thái audio theo ngôn ngữ đang xem *@
             <div class="mt-1">
-                @if (context.AudioUrls != null && context.AudioUrls.Count > 0)
+                @if (_viewLang == "vi-VN")
                 {
-                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Mic">File riêng
-                    </MudChip>
+                    @if (context.AudioUrls != null && context.AudioUrls.Count > 0)
+                    {
+                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Mic">
+                            @context.AudioUrls.Count audio (vi)
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Default" Size="Size.Small"
+                                 Icon="@Icons.Material.Filled.RecordVoiceOver">Đọc TTS</MudChip>
+                    }
                 }
                 else
                 {
-                    <MudChip T="string" Color="Color.Default" Size="Size.Small"
-                             Icon="@Icons.Material.Filled.RecordVoiceOver">Đọc TTS</MudChip>
+                    @if (GetAudiosForLang(context).Count > 0)
+                    {
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.VolumeUp">
+                            @GetAudiosForLang(context).Count audio (@GetLangShort(_viewLang))
+                        </MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.VolumeOff">
+                            Chưa có audio
+                        </MudChip>
+                    }
                 }
             </div>
         </MudTd>
 
+        <!-- ── CỘT TÊN ── -->
         <MudTd DataLabel="Tên">
-            <MudText Typo="Typo.subtitle1" Style="font-weight:bold">@context.Name</MudText>
-            <MudText Typo="Typo.caption">ID: @context.Id</MudText>
+            <MudText Typo="Typo.subtitle1" Style="font-weight:bold;">@GetDisplayName(context)</MudText>
+            @if (HasTranslatedName(context))
+            {
+                <div class="poi-translated">🌐 @context.Name</div>
+            }
+            <MudText Typo="Typo.caption">@GetDisplayAddress(context)</MudText>
+            <MudText Typo="Typo.caption" Style="opacity:.5;">ID: @context.Id</MudText>
         </MudTd>
 
+        <!-- ── TRẠNG THÁI ── -->
         <MudTd DataLabel="Trạng thái">
             @if (context.Status == "Active")
             {
@@ -66,27 +174,28 @@
             }
             else if (context.Status == "Pending")
             {
-
                 <MudChip T="string" Color="Color.Warning" Size="Size.Small">Đang chờ</MudChip>
             }
             else
             {
-
                 <MudChip T="string" Color="Color.Error" Size="Size.Small">Từ chối</MudChip>
             }
         </MudTd>
 
+        <!-- ── VỊ TRÍ ── -->
         <MudTd DataLabel="Vị trí">
             <MudText Typo="Typo.body2">Lat: @context.Latitude</MudText>
             <MudText Typo="Typo.body2">Long: @context.Longitude</MudText>
         </MudTd>
 
+        <!-- ── HÀNH ĐỘNG ── -->
         <MudTd DataLabel="Hành động" Style="text-align:right">
             <MudStack Row="true" Justify="Justify.FlexEnd">
-
-                <!-- MỚI: Thêm nút xem Media riêng -->
                 <MudIconButton Icon="@Icons.Material.Filled.PermMedia" Color="Color.Tertiary" title="Xem Ảnh & Audio"
                                OnClick="@(() => OpenMediaDialog(context))" />
+
+                <MudIconButton Icon="@Icons.Material.Filled.RecordVoiceOver" Color="Color.Secondary"
+                               title="TTS Studio & Bản dịch" OnClick="@(() => Nav.NavigateTo($"/tts-studio/{context.Id}"))" />
 
                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Sửa thông tin"
                                OnClick="@(() => Nav.NavigateTo($"/owner/edit-poi/{context.Id}"))" />
@@ -95,6 +204,7 @@
                                OnClick="@(async (MouseEventArgs e) => await DeletePoi(context))" />
             </MudStack>
         </MudTd>
+
     </RowTemplate>
     <NoRecordsContent>
         <MudText>Bạn chưa có địa điểm nào.</MudText>
@@ -104,12 +214,24 @@
 @code {
     private List<PoiDto> pois = new();
     private bool _loading = true;
+    private bool _loadingTranslations = false;
     private string ApiUrl = "http://localhost:5277";
+    private string _viewLang = "vi-VN";
 
-    protected override async Task OnInitializedAsync()
+    // Cache: key = "poiId_langCode" -> PoiTranslationDto
+    // Dùng composite key để mỗi ngôn ngữ có cache riêng, tránh nhầm lẫn khi switch
+    private Dictionary<string, PoiTranslationDto> _transCache = new();
+
+    private readonly List<(string Code, string Name, string Flag)> _langs = new()
     {
-        await LoadData();
-    }
+        ("vi-VN", "Việt", "🇻🇳"),
+        ("en-US", "English", "🇺🇸"),
+        ("ja-JP", "日本語", "🇯🇵"),
+        ("ko-KR", "한국어", "🇰🇷"),
+    };
+
+    // ── INIT ──────────────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync() => await LoadData();
 
     private async Task LoadData()
     {
@@ -119,31 +241,159 @@
             var userId = await LocalStorage.GetItemAsync<int>("userId");
             if (userId > 0)
             {
-                // Cần đảm bảo PoiDto từ API đã trả về AudioUrls và ImageUrls
                 var result = await Http.GetFromJsonAsync<List<PoiDto>>($"api/pois/owner/{userId}");
                 pois = result ?? new();
             }
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Lỗi: " + ex.Message, Severity.Error);
-        }
+        catch (Exception ex) { Snackbar.Add("Lỗi: " + ex.Message, Severity.Error); }
         finally { _loading = false; }
     }
 
-    // --- HÀM MỞ DIALOG MEDIA ---
+    // ── CHUYỂN NGÔN NGỮ XEM ───────────────────────────────────────────────
+    private async Task SwitchViewLang(string lang)
+    {
+        _viewLang = lang;
+
+        // Tiếng Việt: không cần cache, dùng data gốc từ PoiDto
+        if (lang == "vi-VN") return;
+
+        _loadingTranslations = true;
+        StateHasChanged();
+        try
+        {
+            var tasks = pois.Select(async p =>
+            {
+                var cacheKey = $"{p.Id}_{lang}";
+                if (_transCache.ContainsKey(cacheKey)) return; // đã có cache cho ngôn ngữ này rồi
+                try
+                {
+                    var t = await Http.GetFromJsonAsync<PoiTranslationDto>(
+                        $"api/translations/{p.Id}/{lang}");
+                    if (t != null)
+                    {
+                        t.PoiId = p.Id;
+                        t.LanguageCode = lang;
+                        _transCache[cacheKey] = t;
+                    }
+                }
+                catch { /* POI này chưa có bản dịch, bỏ qua */ }
+            });
+            await Task.WhenAll(tasks);
+        }
+        catch (Exception ex) { Snackbar.Add("Lỗi tải bản dịch: " + ex.Message, Severity.Warning); }
+        finally { _loadingTranslations = false; }
+    }
+
+    // ── HELPERS ───────────────────────────────────────────────────────────
+    private PoiTranslationDto? GetCached(PoiDto poi)
+        => _transCache.TryGetValue($"{poi.Id}_{_viewLang}", out var t) ? t : null;
+
+    private string GetDisplayName(PoiDto poi)
+    {
+        var t = GetCached(poi);
+        return (_viewLang != "vi-VN" && !string.IsNullOrEmpty(t?.Name)) ? t!.Name : poi.Name;
+    }
+
+    private string GetDisplayDescription(PoiDto poi)
+    {
+        var t = GetCached(poi);
+        return (_viewLang != "vi-VN" && !string.IsNullOrEmpty(t?.Description)) ? t!.Description : poi.Description;
+    }
+
+    private string GetDisplayAddress(PoiDto poi)
+    {
+        var t = GetCached(poi);
+        return (_viewLang != "vi-VN" && !string.IsNullOrEmpty(t?.Address)) ? t!.Address : poi.Address;
+    }
+
+    // Bug fix: tiếng Việt dùng ExistingAudios (đã lọc vi-VN), không dùng AudioUrls (chứa tất cả ngôn ngữ)
+    private List<string> GetAudiosForLang(PoiDto poi)
+    {
+        if (_viewLang == "vi-VN")
+            return poi.ExistingAudios?.Select(a => a.Url ?? "").Where(u => !string.IsNullOrEmpty(u)).ToList()
+                   ?? poi.AudioUrls ?? new();
+
+        var t = GetCached(poi);
+        if (t?.Audios?.Count > 0)
+            return t.Audios.Where(a => !string.IsNullOrEmpty(a.Url)).Select(a => a.Url!).ToList();
+
+        return new();
+    }
+
+    private bool HasTranslatedName(PoiDto poi)
+    {
+        var t = GetCached(poi);
+        return _viewLang != "vi-VN" && !string.IsNullOrEmpty(t?.Name);
+    }
+
+    private static string GetLangShort(string code) => code.Split('-')[0].ToLower();
+
+    // ── DIALOG & CRUD ──────────────────────────────────────────────────────
     private async Task OpenMediaDialog(PoiDto poi)
     {
+        // 1. Tạo một bản sao dữ liệu (Clone) để truyền vào Dialog
+        // Để tránh thay đổi trực tiếp vào list gốc gây lỗi giao diện
+        var poiForDialog = new PoiDto
+        {
+            Id = poi.Id,
+            Name = poi.Name,
+            Description = poi.Description,
+            Address = poi.Address,
+            Latitude = poi.Latitude,
+            Longitude = poi.Longitude,
+            Status = poi.Status,
+            OwnerId = poi.OwnerId,
+            ImageUrls = poi.ImageUrls, // Ảnh dùng chung cho mọi ngôn ngữ
+
+            // Mặc định gán audio của bản gốc (tiếng Việt)
+            AudioUrls = poi.AudioUrls != null ? new List<string>(poi.AudioUrls) : new List<string>(),
+            ExistingAudios = poi.ExistingAudios != null ? new List<MediaAssetDto>(poi.ExistingAudios) : new List<MediaAssetDto>()
+        };
+
+        // 2. NẾU ĐANG XEM NGÔN NGỮ KHÁC (VD: Tiếng Anh, Nhật...)
+        if (_viewLang != "vi-VN")
+        {
+            var trans = GetCached(poi);
+
+            // A. Cập nhật Text: Nếu có bản dịch thì lấy, không thì giữ text gốc
+            poiForDialog.Name = !string.IsNullOrEmpty(trans?.Name) ? trans.Name : poi.Name;
+            poiForDialog.Description = !string.IsNullOrEmpty(trans?.Description) ? trans.Description : poi.Description;
+            poiForDialog.Address = !string.IsNullOrEmpty(trans?.Address) ? trans.Address : poi.Address;
+
+            // B. CẬP NHẬT AUDIO (QUY TẮC NGHIÊM NGẶT)
+            if (trans != null && trans.Audios != null && trans.Audios.Any())
+            {
+                // B1. Nếu ngôn ngữ này CÓ audio -> Gán đè audio của ngôn ngữ này vào
+                poiForDialog.AudioUrls = trans.Audios.Select(a => a.Url ?? "").Where(u => !string.IsNullOrEmpty(u)).ToList();
+                poiForDialog.ExistingAudios = trans.Audios;
+            }
+            else
+            {
+                // B2. Nếu ngôn ngữ này KHÔNG CÓ audio -> ÉP BUỘC XÓA SẠCH AUDIO CŨ
+                // Để Dialog bắt buộc phải hiển thị phần "Tự động thuyết minh (TTS)"
+                poiForDialog.AudioUrls = new List<string>();
+                poiForDialog.ExistingAudios = new List<MediaAssetDto>();
+            }
+        }
+
+        // 3. Mở Dialog
         var parameters = new DialogParameters<MediaDetailDialog>
-{
-{ x => x.Poi, poi },
-{ x => x.ApiUrl, ApiUrl },
-{ x => x.OnEditClicked, EventCallback.Factory.Create(this, () => Nav.NavigateTo($"/owner/edit-poi/{poi.Id}")) }
-};
+        {
+            { x => x.Poi, poiForDialog },
+            { x => x.ApiUrl, ApiUrl },
+            { x => x.IsReadOnly, false }, // Chủ quán được quyền xóa
+            { x => x.ViewLangLabel, _viewLang != "vi-VN" ? $" ({_viewLang})" : "" },
+            { x => x.OnEditClicked, EventCallback.Factory.Create(this, () => Nav.NavigateTo($"/owner/edit-poi/{poi.Id}")) }
+        };
 
-        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true
+        };
 
-        await DialogService.ShowAsync<MediaDetailDialog>(poi.Name, parameters, options);
+        await DialogService.ShowAsync<MediaDetailDialog>(poiForDialog.Name, parameters, options);
     }
 
     private async Task DeletePoi(PoiDto poi)
@@ -158,25 +408,18 @@
             try
             {
                 var response = await Http.DeleteAsync($"api/pois/{poi.Id}");
-
                 if (response.IsSuccessStatusCode)
                 {
                     Snackbar.Add("Đã xóa thành công!", Severity.Success);
                     pois.Remove(poi);
+                    // Xóa tất cả cache của POI này (mọi ngôn ngữ)
+                    var keysToRemove = _transCache.Keys.Where(k => k.StartsWith($"{poi.Id}_")).ToList();
+                    foreach (var k in keysToRemove) _transCache.Remove(k);
                 }
                 else
-                {
-                    // SỬA Ở ĐÂY: Đọc thông báo lỗi từ Backend trả về
-                    var errorMsg = await response.Content.ReadAsStringAsync();
-
-                    // Nếu lỗi do vướng Tour, errorMsg sẽ chính là câu: "Địa điểm này đang nằm trong..."
-                    Snackbar.Add(errorMsg, Severity.Warning);
-                }
+                    Snackbar.Add(await response.Content.ReadAsStringAsync(), Severity.Warning);
             }
-            catch (Exception ex)
-            {
-                Snackbar.Add("Lỗi server: " + ex.Message, Severity.Error);
-            }
+            catch (Exception ex) { Snackbar.Add("Lỗi server: " + ex.Message, Severity.Error); }
         }
     }
 }

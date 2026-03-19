@@ -1,0 +1,656 @@
+@page "/tts-studio"
+@page "/tts-studio/{PoiId:int}"
+@using SmartTourGuide.Shared.DTOs
+@using System.Net.Http.Headers
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@attribute [Authorize]
+
+<PageTitle>TTS Studio — Smart Tour Guide</PageTitle>
+
+<style>
+    .studio-root { max-width: 1140px; margin: 0 auto; }
+
+    .studio-banner {
+        background: linear-gradient(135deg, #1E3A5F 0%, #2E86AB 100%);
+        border-radius: 16px; padding: 28px 32px; color: #fff;
+        margin-bottom: 24px; display: flex; align-items: center; gap: 18px;
+    }
+    .studio-banner h1 { margin: 0; font-size: 1.7rem; font-weight: 800; }
+    .studio-banner p  { margin: 4px 0 0; opacity: .85; font-size: .92rem; }
+
+    /* LANG TABS */
+    .lang-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+    .lang-tab {
+        padding: 8px 20px; border-radius: 99px; cursor: pointer; font-size: .85rem;
+        font-weight: 600; border: 2px solid var(--mud-palette-divider);
+        background: var(--mud-palette-background);
+        color: var(--mud-palette-text-secondary); transition: all .18s;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .lang-tab:hover { border-color: #2E86AB; color: #2E86AB; transform: translateY(-1px); }
+    .lang-tab.active {
+        background: #2E86AB; border-color: #2E86AB; color: #fff;
+        box-shadow: 0 4px 14px rgba(46,134,171,.35);
+    }
+    .lang-tab .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; display: none; }
+    .lang-tab.has-data .dot { display: block; }
+
+    /* CARDS */
+    .s-card {
+        background: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider);
+        border-radius: 14px; padding: 22px 24px;
+        box-shadow: 0 2px 12px rgba(0,0,0,.05); margin-bottom: 16px;
+    }
+    .s-card-title {
+        font-size: .88rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .8px; color: var(--mud-palette-primary);
+        margin-bottom: 14px; display: flex; align-items: center; gap: 7px;
+    }
+
+    .section-label {
+        font-size: .75rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 1px; color: var(--mud-palette-text-secondary);
+        margin: 18px 0 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .section-label::after { content:''; flex:1; height:1px; background:var(--mud-palette-divider); }
+
+    /* AUDIO */
+    .audio-row {
+        display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+        border: 1px solid var(--mud-palette-divider); border-radius: 10px;
+        margin-bottom: 8px; background: var(--mud-palette-background);
+    }
+    .audio-row audio { flex: 1; height: 36px; }
+    .badge-tts    { font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:99px; background:#dbeafe; color:#1d4ed8; }
+    .badge-upload { font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:99px; background:#dcfce7; color:#15803d; }
+
+    /* TEXTAREA */
+    .s-textarea {
+        width: 100%; min-height: 110px; padding: 12px 14px;
+        border: 2px solid var(--mud-palette-divider); border-radius: 10px;
+        font-size: .95rem; line-height: 1.7; resize: vertical;
+        background: var(--mud-palette-background); color: var(--mud-palette-text-primary);
+        font-family: inherit; transition: border-color .2s; box-sizing: border-box;
+    }
+    .s-textarea:focus { outline:none; border-color:#2E86AB; box-shadow:0 0 0 3px rgba(46,134,171,.12); }
+
+    .preview-box {
+        background: rgba(46,134,171,.07); border: 1px solid rgba(46,134,171,.3);
+        border-radius: 10px; padding: 14px 18px; display: flex; align-items: center; gap: 12px;
+    }
+    .preview-box audio { flex:1; height:38px; }
+
+    .char-ok   { color:var(--mud-palette-success); font-size:.78rem; text-align:right; margin-top:4px; }
+    .char-warn { color:var(--mud-palette-warning); font-size:.78rem; text-align:right; margin-top:4px; }
+    .char-over { color:var(--mud-palette-error);   font-size:.78rem; text-align:right; margin-top:4px; }
+
+    .btn-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+
+    .ldots::after { content:''; animation:ldots 1.4s steps(4,end) infinite; }
+    @@keyframes ldots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} }
+
+    .empty-state { text-align:center; padding:28px 16px; color:var(--mud-palette-text-secondary); font-size:.9rem; }
+    .empty-state .icon { font-size:2.4rem; margin-bottom:8px; }
+</style>
+
+<div class="studio-root">
+
+    <!-- BANNER -->
+    <div class="studio-banner">
+        <div style="font-size:2.8rem;">🎙️</div>
+        <div>
+            <h1>TTS Studio &amp; Quản lý bản dịch</h1>
+            <p>Dịch nội dung, tạo &amp; quản lý audio thuyết minh cho từng ngôn ngữ</p>
+        </div>
+    </div>
+
+    <!-- CHỌN POI -->
+    <div class="s-card">
+        <div class="s-card-title">
+            <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small"/>
+            Chọn địa điểm
+        </div>
+        @if (_loadingPois)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true"/>
+        }
+        else if (_pois.Count == 0)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true">Không có địa điểm nào. Hãy tạo POI trước.</MudAlert>
+        }
+        else
+        {
+            <MudGrid>
+                <MudItem xs="12" md="8">
+                    <MudSelect T="int" Label="Địa điểm (POI)" @bind-Value="_poiId"
+                               SelectedValuesChanged="OnPoiSelected"
+                               Variant="Variant.Outlined" Dense="true">
+                        @foreach (var p in _pois)
+                        {
+                            <MudSelectItem Value="@p.Id">[@p.Status] @p.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4" Class="d-flex align-center">
+                    @if (_poi != null)
+                    {
+                        <MudText Typo="Typo.caption" Style="opacity:.7;">@_poi.Address</MudText>
+                    }
+                </MudItem>
+            </MudGrid>
+        }
+    </div>
+
+    @if (_poi != null)
+    {
+        <!-- LANG TABS -->
+        <div class="lang-tabs">
+            @foreach (var lang in _langs)
+            {
+                var hasData = _translationCache.ContainsKey(lang.Code)
+                              && !string.IsNullOrEmpty(_translationCache[lang.Code].Name);
+                <div class="lang-tab @(_activeLang == lang.Code ? "active" : "") @(hasData ? "has-data" : "")"
+                     @onclick="() => SwitchLang(lang.Code)">
+                    <span class="dot"></span>
+                    <span>@lang.Flag</span>
+                    <span>@lang.Name</span>
+                </div>
+            }
+        </div>
+
+        @if (_loadingLang)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4"/>
+        }
+        else
+        {
+            <MudGrid>
+                <!-- CỘT TRÁI -->
+                <MudItem xs="12" md="7">
+
+                    <!-- 1. BẢN DỊCH TEXT -->
+                    <div class="s-card">
+                        <div class="s-card-title">
+                            <MudIcon Icon="@Icons.Material.Filled.Translate" Size="Size.Small"/>
+                            Nội dung bản dịch — @_activeLang
+                        </div>
+
+                        @if (_activeLang == "vi-VN")
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                                Đây là nội dung gốc tiếng Việt. Chọn ngôn ngữ khác để thêm bản dịch.
+                            </MudAlert>
+                            <MudTextField Value="@_poi.Name"        Label="Tên"     ReadOnly="true" Variant="Variant.Filled" Class="mb-2"/>
+                            <MudTextField Value="@_poi.Description" Label="Mô tả"   ReadOnly="true" Variant="Variant.Filled" Lines="3" Class="mb-2"/>
+                            <MudTextField Value="@_poi.Address"     Label="Địa chỉ" ReadOnly="true" Variant="Variant.Filled"/>
+                        }
+                        else
+                        {
+                            <MudTextField @bind-Value="_draft.Name"        Label="Tên (đã dịch)"   Variant="Variant.Outlined" Class="mb-2"/>
+                            <MudTextField @bind-Value="_draft.Description" Label="Mô tả (đã dịch)" Variant="Variant.Outlined" Lines="3" Class="mb-2"/>
+                            <MudTextField @bind-Value="_draft.Address"     Label="Địa chỉ (đã dịch)" Variant="Variant.Outlined" Class="mb-3"/>
+
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Save"
+                                       OnClick="SaveTranslationText" Disabled="_savingText"
+                                       Size="Size.Small" Style="border-radius:8px;">
+                                @if (_savingText) { <span class="ldots">Đang lưu</span> }
+                                else { <span>💾 Lưu bản dịch</span> }
+                            </MudButton>
+                        }
+                    </div>
+
+                    <!-- 2. TẠO AUDIO TTS -->
+                    <div class="s-card">
+                        <div class="s-card-title">
+                            <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Size="Size.Small"/>
+                            Tạo audio bằng TTS
+                        </div>
+
+                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Info"
+                                   StartIcon="@Icons.Material.Filled.ContentPaste"
+                                   OnClick="FillText" Class="mb-2">
+                            @(_activeLang == "vi-VN" ? "Điền từ mô tả gốc" : "Điền từ bản dịch")
+                        </MudButton>
+
+                        <textarea class="s-textarea"
+                                  placeholder="Nhập nội dung muốn chuyển thành giọng nói..."
+                                  maxlength="1000"
+                                  @bind="_ttsText" @bind:event="oninput"></textarea>
+                        <div class="@GetCharClass()">@_ttsText.Length / 1000 ký tự</div>
+
+                        <div class="btn-row">
+                            <MudButton Variant="Variant.Filled" Color="Color.Info"
+                                       StartIcon="@Icons.Material.Filled.PlayArrow"
+                                       OnClick="PreviewTts"
+                                       Disabled="@(_previewing || string.IsNullOrWhiteSpace(_ttsText))"
+                                       Style="border-radius:8px; font-weight:700;">
+                                @if (_previewing) { <span class="ldots">Đang tạo</span> }
+                                else { <span>▶ Nghe thử</span> }
+                            </MudButton>
+
+                            <MudButton Variant="Variant.Filled" Color="Color.Success"
+                                       StartIcon="@Icons.Material.Filled.SaveAlt"
+                                       OnClick="SaveTtsAudio"
+                                       Disabled="@(_savingTts || string.IsNullOrWhiteSpace(_ttsText))"
+                                       Style="border-radius:8px; font-weight:700;">
+                                @if (_savingTts) { <span class="ldots">Đang lưu</span> }
+                                else { <span>💾 Lưu audio vào POI</span> }
+                            </MudButton>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(_previewUrl))
+                        {
+                            <div class="preview-box mt-3">
+                                <MudIcon Icon="@Icons.Material.Filled.Headphones" Color="Color.Info"/>
+                                <audio controls autoplay src="@_previewUrl" style="flex:1;height:38px;"></audio>
+                            </div>
+                            <MudText Typo="Typo.caption" Class="mt-1" Style="opacity:.7;">
+                                Hài lòng? Nhấn <b>💾 Lưu audio vào POI</b> để lưu file này.
+                            </MudText>
+                        }
+                    </div>
+
+                </MudItem>
+
+                <!-- CỘT PHẢI: AUDIO ĐÃ LƯU + UPLOAD -->
+                <MudItem xs="12" md="5">
+                    <div class="s-card" style="position:sticky;top:80px;">
+
+                        <div class="s-card-title">
+                            <MudIcon Icon="@Icons.Material.Filled.LibraryMusic" Size="Size.Small"/>
+                            Audio — @_activeLang
+                        </div>
+
+                        @if (_loadingAudio)
+                        {
+                            <MudProgressLinear Color="Color.Primary" Indeterminate="true"/>
+                        }
+                        else if (_audios.Count == 0)
+                        {
+                            <div class="empty-state">
+                                <div class="icon">🎵</div>
+                                Chưa có audio cho <b>@_activeLang</b>.<br/>
+                                Tạo bằng TTS hoặc upload file bên dưới.
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var a in _audios)
+                            {
+                                <div class="audio-row">
+                                    <span class="@(a.IsTts ? "badge-tts" : "badge-upload")">
+                                        @(a.IsTts ? "TTS" : "Upload")
+                                    </span>
+                                    <audio controls src="@(BaseApi + a.Url)" style="flex:1;height:36px;"></audio>
+                                    <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline"
+                                                   Color="Color.Error" Size="Size.Small"
+                                                   OnClick="@(() => DeleteAudio(a))"/>
+                                </div>
+                            }
+                        }
+
+                        <!-- UPLOAD THỦ CÔNG -->
+                        <div class="section-label mt-2">Upload file audio</div>
+
+                        <MudFileUpload T="IReadOnlyList<IBrowserFile>"
+                                       FilesChanged="OnFilesSelected" Accept=".mp3,.wav,.ogg,.m4a">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Outlined" FullWidth="true"
+                                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                                           Style="border-radius:8px; border-style:dashed;">
+                                    Chọn file MP3 / WAV
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+
+                        @if (_selectedFiles.Count > 0)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Success" Class="mt-1">
+                                Đã chọn @_selectedFiles.Count file
+                            </MudText>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                       Class="mt-2" StartIcon="@Icons.Material.Filled.Upload"
+                                       OnClick="UploadAudioFiles" Disabled="_uploadingFiles"
+                                       Style="border-radius:8px;">
+                                @if (_uploadingFiles) { <span class="ldots">Đang upload</span> }
+                                else { <span>Upload @_selectedFiles.Count file</span> }
+                            </MudButton>
+                        }
+
+                        <MudDivider Class="my-3"/>
+                        <MudText Typo="Typo.caption" Style="opacity:.65; line-height:1.8;">
+                            <b>💡 Mẹo:</b><br/>
+                            • Tab có <span style="color:#4ade80;">●</span> đã có bản dịch văn bản<br/>
+                            • TTS: tạo nhanh miễn phí. Upload: chất lượng cao hơn<br/>
+                            • App Mobile ưu tiên phát file Upload, fallback TTS thiết bị
+                        </MudText>
+                    </div>
+                </MudItem>
+
+            </MudGrid>
+        }
+    }
+
+</div>
+
+@code {
+    [Parameter] public int? PoiId { get; set; }
+
+    private const string BaseApi = "http://localhost:5277";
+
+    private readonly List<LangOption> _langs = new()
+    {
+        new("vi-VN", "Tiếng Việt", "🇻🇳"),
+        new("en-US", "English",    "🇺🇸"),
+        new("ja-JP", "日本語",      "🇯🇵"),
+        new("ko-KR", "한국어",      "🇰🇷"),
+        new("zh-CN", "中文",        "🇨🇳"),
+        new("fr-FR", "Français",   "🇫🇷"),
+    };
+
+    // State
+    private List<PoiDto>  _pois = new();
+    private PoiDto?       _poi;
+    private int           _poiId;
+    private string        _activeLang = "vi-VN";
+
+    private Dictionary<string, PoiTranslationDto> _translationCache = new();
+    private PoiTranslationDto _draft = EmptyDraft("vi-VN");
+
+    private List<AudioItem>    _audios        = new();
+    private List<IBrowserFile> _selectedFiles = new();
+    private string             _ttsText       = "";
+    private string             _previewUrl    = "";
+
+    private bool _loadingPois    = true;
+    private bool _loadingLang    = false;
+    private bool _loadingAudio   = false;
+    private bool _previewing     = false;
+    private bool _savingText     = false;
+    private bool _savingTts      = false;
+    private bool _uploadingFiles = false;
+
+    // ── INIT ───────────────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPois();
+        if (PoiId is > 0)
+        {
+            _poiId = PoiId.Value;
+            await OnPoiSelected();
+        }
+    }
+
+    private async Task LoadPois()
+    {
+        _loadingPois = true;
+        try
+        {
+            var role   = await LocalStorage.GetItemAsync<string>("userRole");
+            var userId = await LocalStorage.GetItemAsync<int>("userId");
+            _pois = role == "Admin"
+                ? await Http.GetFromJsonAsync<List<PoiDto>>("api/pois") ?? new()
+                : await Http.GetFromJsonAsync<List<PoiDto>>($"api/pois/owner/{userId}") ?? new();
+        }
+        catch (Exception ex) { Snackbar.Add("Lỗi tải POI: " + ex.Message, Severity.Error); }
+        finally { _loadingPois = false; }
+    }
+
+    private async Task OnPoiSelected()
+    {
+        _poi              = _pois.FirstOrDefault(p => p.Id == _poiId);
+        _translationCache = new();
+        _audios           = new();
+        _previewUrl       = "";
+        _ttsText          = "";
+        _activeLang       = "vi-VN";
+        if (_poi != null) await LoadLangData("vi-VN");
+    }
+
+    private async Task SwitchLang(string lang)
+    {
+        if (_activeLang == lang) return;
+        _activeLang = lang;
+        _previewUrl = "";
+        _ttsText    = "";
+        await LoadLangData(lang);
+    }
+
+    // ── LOAD DATA ──────────────────────────────────────────────────────────
+    private async Task LoadLangData(string lang)
+    {
+        _loadingLang = true;
+        StateHasChanged();
+        try
+        {
+            // Cache translation text
+            if (!_translationCache.ContainsKey(lang))
+            {
+                var t = await Http.GetFromJsonAsync<PoiTranslationDto>(
+                    $"api/translations/{_poiId}/{lang}");
+                _translationCache[lang] = t ?? EmptyDraft(lang);
+                _translationCache[lang].PoiId        = _poiId;
+                _translationCache[lang].LanguageCode = lang;
+            }
+            _draft = Clone(_translationCache[lang]);
+
+            await LoadAudios(lang);
+        }
+        catch (Exception ex) { Snackbar.Add("Lỗi: " + ex.Message, Severity.Error); }
+        finally { _loadingLang = false; }
+    }
+
+    private async Task LoadAudios(string lang)
+    {
+        _loadingAudio = true;
+        _audios = new List<AudioItem>(); // Xóa sạch list cũ
+        
+        try
+        {
+             if (lang == "vi-VN")
+            {
+                // 1. NẾU LÀ TIẾNG VIỆT -> Lấy từ thông tin POI gốc (Admin hoặc Owner)
+                PoiDto? detail = null;
+                try { detail = await Http.GetFromJsonAsync<PoiDto>($"api/pois/admin/{_poiId}"); } catch { }
+                if (detail == null)
+                    try { detail = await Http.GetFromJsonAsync<PoiDto>($"api/pois/{_poiId}"); } catch { }
+
+                if (detail?.ExistingAudios != null)
+                {
+                    foreach (var a in detail.ExistingAudios)
+                    {
+                        _audios.Add(new AudioItem { Id = a.Id, Url = a.Url ?? "", LanguageCode = lang, IsTts = false });
+                    }
+                }
+            }
+            else
+            {
+                // 2. NẾU LÀ NGÔN NGỮ KHÁC -> Lấy từ bảng Dịch (Translations API)
+                var trans = await Http.GetFromJsonAsync<PoiTranslationDto>($"api/translations/{_poiId}/{lang}");
+                
+                if (trans?.Audios != null)
+                {
+                    foreach (var a in trans.Audios)
+                    {
+                        // Có thể nhận diện file TTS nếu tên file chứa chữ "tts", hoặc mặc định là Upload
+                        bool isTtsFile = a.Url != null && a.Url.Contains("tts", StringComparison.OrdinalIgnoreCase);
+                        _audios.Add(new AudioItem { Id = a.Id, Url = a.Url ?? "", LanguageCode = lang, IsTts = isTtsFile });
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi load audio: {ex.Message}");
+        }
+        finally 
+        { 
+            _loadingAudio = false; 
+            StateHasChanged(); // Đảm bảo giao diện vẽ lại
+        }
+    }
+
+    // ── LƯU TEXT ──────────────────────────────────────────────────────────
+    private async Task SaveTranslationText()
+    {
+        _savingText = true;
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            content.Add(new StringContent(_poiId.ToString()),        "PoiId");
+            content.Add(new StringContent(_activeLang),              "LanguageCode");
+            content.Add(new StringContent(_draft.Name ?? ""),        "Name");
+            content.Add(new StringContent(_draft.Description ?? ""), "Description");
+            content.Add(new StringContent(_draft.Address ?? ""),     "Address");
+
+            var res = await Http.PostAsync("api/translations", content);
+            if (res.IsSuccessStatusCode)
+            {
+                _translationCache[_activeLang] = Clone(_draft);
+                Snackbar.Add("✅ Đã lưu bản dịch!", Severity.Success);
+            }
+            else
+                Snackbar.Add("Lỗi lưu: " + await res.Content.ReadAsStringAsync(), Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add("Lỗi: " + ex.Message, Severity.Error); }
+        finally { _savingText = false; }
+    }
+
+    // ── TTS PREVIEW ───────────────────────────────────────────────────────
+    private async Task PreviewTts()
+    {
+        if (string.IsNullOrWhiteSpace(_ttsText)) return;
+        _previewing = true;
+        _previewUrl = "";
+        try
+        {
+            var res = await Http.PostAsJsonAsync("api/tts/preview",
+                new { Text = _ttsText, LanguageCode = _activeLang });
+            if (res.IsSuccessStatusCode)
+            {
+                var bytes = await res.Content.ReadAsByteArrayAsync();
+                _previewUrl = $"data:audio/mpeg;base64,{Convert.ToBase64String(bytes)}";
+            }
+            else
+                Snackbar.Add("Lỗi tạo audio: " + await res.Content.ReadAsStringAsync(), Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add("Lỗi: " + ex.Message, Severity.Error); }
+        finally { _previewing = false; }
+    }
+
+    // ── TTS SAVE ──────────────────────────────────────────────────────────
+    private async Task SaveTtsAudio()
+    {
+        if (string.IsNullOrWhiteSpace(_ttsText)) return;
+        _savingTts = true;
+        try
+        {
+            var res = await Http.PostAsJsonAsync("api/tts/save",
+                new { Text = _ttsText, LanguageCode = _activeLang, PoiId = _poiId });
+            if (res.IsSuccessStatusCode)
+            {
+                Snackbar.Add("✅ Đã lưu audio TTS!", Severity.Success);
+                _ttsText    = "";
+                _previewUrl = "";
+                await LoadAudios(_activeLang);
+            }
+            else
+                Snackbar.Add("Lỗi: " + await res.Content.ReadAsStringAsync(), Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add("Lỗi: " + ex.Message, Severity.Error); }
+        finally { _savingTts = false; }
+    }
+
+    // ── UPLOAD FILE ───────────────────────────────────────────────────────
+    private void OnFilesSelected(IReadOnlyList<IBrowserFile> files)
+        => _selectedFiles = files.ToList();
+
+    private async Task UploadAudioFiles()
+    {
+        if (_selectedFiles.Count == 0) return;
+        _uploadingFiles = true;
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            content.Add(new StringContent(_poiId.ToString()),        "PoiId");
+            content.Add(new StringContent(_activeLang),              "LanguageCode");
+            content.Add(new StringContent(_draft.Name ?? ""),        "Name");
+            content.Add(new StringContent(_draft.Description ?? ""), "Description");
+            content.Add(new StringContent(_draft.Address ?? ""),     "Address");
+
+            foreach (var file in _selectedFiles)
+            {
+                var sc = new StreamContent(file.OpenReadStream(20 * 1024 * 1024));
+                sc.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+                content.Add(sc, "audioFiles", file.Name);
+            }
+
+            var res = await Http.PostAsync("api/translations", content);
+            if (res.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"✅ Upload {_selectedFiles.Count} file thành công!", Severity.Success);
+                _selectedFiles = new();
+                await LoadAudios(_activeLang);
+            }
+            else
+                Snackbar.Add("Lỗi upload: " + await res.Content.ReadAsStringAsync(), Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add("Lỗi: " + ex.Message, Severity.Error); }
+        finally { _uploadingFiles = false; }
+    }
+
+    // ── XÓA AUDIO ─────────────────────────────────────────────────────────
+    private async Task DeleteAudio(AudioItem audio)
+    {
+        var res = await Http.DeleteAsync($"api/assets/{audio.Id}");
+        if (res.IsSuccessStatusCode)
+        {
+            _audios.Remove(audio);
+            Snackbar.Add("Đã xóa audio.", Severity.Success);
+        }
+        else Snackbar.Add("Xóa thất bại.", Severity.Error);
+    }
+
+    // ── HELPERS ────────────────────────────────────────────────────────────
+    private void FillText()
+    {
+        if (_activeLang != "vi-VN"
+            && _translationCache.TryGetValue(_activeLang, out var t)
+            && !string.IsNullOrEmpty(t.Description))
+            _ttsText = t.Description;
+        else if (_poi != null)
+            _ttsText = _poi.Description;
+    }
+
+    private string GetCharClass() => _ttsText.Length switch
+    {
+        < 400 => "char-ok", < 700 => "char-warn", _ => "char-over"
+    };
+
+    private static PoiTranslationDto EmptyDraft(string lang) => new()
+    {
+        LanguageCode = lang, Name = "", Description = "", Address = ""
+    };
+
+    private static PoiTranslationDto Clone(PoiTranslationDto s) => new()
+    {
+        PoiId = s.PoiId, LanguageCode = s.LanguageCode,
+        Name = s.Name, Description = s.Description, Address = s.Address,
+        Audios = s.Audios
+    };
+
+    private record LangOption(string Code, string Name, string Flag);
+
+    private class AudioItem
+    {
+        public int    Id           { get; set; }
+        public string Url          { get; set; } = "";
+        public string LanguageCode { get; set; } = "vi-VN";
+        public bool   IsTts        { get; set; } = false;
+    }
+}
