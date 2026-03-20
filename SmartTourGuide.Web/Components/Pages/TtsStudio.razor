@@ -95,6 +95,19 @@
 
     .empty-state { text-align:center; padding:28px 16px; color:var(--mud-palette-text-secondary); font-size:.9rem; }
     .empty-state .icon { font-size:2.4rem; margin-bottom:8px; }
+
+    .mud-input-label-outlined {
+        background-color: var(--mud-palette-surface);
+        padding: 0 6px;
+        margin-left: -4px;
+        border-radius: 4px;
+    }
+
+    /* Làm sáng nút bị vô hiệu hóa (Disabled) trong Dark Mode */
+    .mud-theme-dark .mud-button-filled.mud-disabled {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+    }
 </style>
 
 <div class="studio-root">
@@ -190,17 +203,37 @@
                         }
                         else
                         {
-                            <MudTextField @bind-Value="_draft.Name"        Label="Tên (đã dịch)"   Variant="Variant.Outlined" Class="mb-2"/>
-                            <MudTextField @bind-Value="_draft.Description" Label="Mô tả (đã dịch)" Variant="Variant.Outlined" Lines="3" Class="mb-2"/>
-                            <MudTextField @bind-Value="_draft.Address"     Label="Địa chỉ (đã dịch)" Variant="Variant.Outlined" Class="mb-3"/>
+                            <MudForm @ref="_translationForm">
+                                <MudTextField @bind-Value="_draft.Name" 
+                                              Label="Tên (đã dịch)" 
+                                              Variant="Variant.Outlined" 
+                                              Class="mb-3"
+                                              Required="true" 
+                                              RequiredError="Vui lòng nhập tên địa điểm." />
 
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Filled.Save"
-                                       OnClick="SaveTranslationText" Disabled="_savingText"
-                                       Size="Size.Small" Style="border-radius:8px;">
-                                @if (_savingText) { <span class="ldots">Đang lưu</span> }
-                                else { <span>💾 Lưu bản dịch</span> }
-                            </MudButton>
+                                <MudTextField @bind-Value="_draft.Description" 
+                                              Label="Mô tả (đã dịch)" 
+                                              Variant="Variant.Outlined" 
+                                              Lines="3" 
+                                              Class="mb-3"
+                                              Required="true" 
+                                              RequiredError="Vui lòng nhập nội dung mô tả." />
+
+                                <MudTextField @bind-Value="_draft.Address" 
+                                              Label="Địa chỉ (đã dịch)" 
+                                              Variant="Variant.Outlined" 
+                                              Class="mb-4"
+                                              Required="true" 
+                                              RequiredError="Vui lòng nhập địa chỉ." />
+
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Save"
+                                           OnClick="SaveTranslationText" Disabled="_savingText"
+                                           Size="Size.Small" Style="border-radius:8px;">
+                                    @if (_savingText) { <span class="ldots">Đang lưu</span> }
+                                    else { <span>💾 Lưu bản dịch</span> }
+                                </MudButton>
+                            </MudForm>
                         }
                     </div>
 
@@ -225,21 +258,21 @@
 
                         <div class="btn-row">
                             <MudButton Variant="Variant.Filled" Color="Color.Info"
-                                       StartIcon="@Icons.Material.Filled.PlayArrow"
-                                       OnClick="PreviewTts"
-                                       Disabled="@(_previewing || string.IsNullOrWhiteSpace(_ttsText))"
-                                       Style="border-radius:8px; font-weight:700;">
-                                @if (_previewing) { <span class="ldots">Đang tạo</span> }
-                                else { <span>▶ Nghe thử</span> }
+                                    StartIcon="@Icons.Material.Filled.PlayArrow"
+                                    OnClick="PreviewTts"
+                                    Disabled="@(_previewing || string.IsNullOrWhiteSpace(_ttsText))"
+                                    Style="border-radius:8px; font-weight:700; letter-spacing: 0.5px;">
+                                    @if (_previewing) { <span class="ldots">Đang tạo</span> }
+                                    else { <span>Nghe thử</span> }
                             </MudButton>
 
                             <MudButton Variant="Variant.Filled" Color="Color.Success"
-                                       StartIcon="@Icons.Material.Filled.SaveAlt"
-                                       OnClick="SaveTtsAudio"
-                                       Disabled="@(_savingTts || string.IsNullOrWhiteSpace(_ttsText))"
-                                       Style="border-radius:8px; font-weight:700;">
-                                @if (_savingTts) { <span class="ldots">Đang lưu</span> }
-                                else { <span>💾 Lưu audio vào POI</span> }
+                                    StartIcon="@Icons.Material.Filled.SaveAlt"
+                                    OnClick="SaveTtsAudio"
+                                    Disabled="@(_savingTts || string.IsNullOrWhiteSpace(_ttsText))"
+                                    Style="border-radius:8px; font-weight:700; letter-spacing: 0.5px;">
+                                    @if (_savingTts) { <span class="ldots">Đang lưu</span> }
+                                    else { <span>Lưu audio vào POI</span> }
                             </MudButton>
                         </div>
 
@@ -323,7 +356,7 @@
                         }
 
                         <MudDivider Class="my-3"/>
-                        <MudText Typo="Typo.caption" Style="opacity:.65; line-height:1.8;">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary" Style="line-height:1.8; font-weight: 500;">
                             <b>💡 Mẹo:</b><br/>
                             • Tab có <span style="color:#4ade80;">●</span> đã có bản dịch văn bản<br/>
                             • TTS: tạo nhanh miễn phí. Upload: chất lượng cao hơn<br/>
@@ -496,13 +529,25 @@
         }
     }
 
+    private MudForm _translationForm;
     // ── LƯU TEXT ──────────────────────────────────────────────────────────
     private async Task SaveTranslationText()
     {
+        // 1. Kích hoạt kiểm tra lỗi các ô input
+        await _translationForm.Validate();
+        
+        // 2. Nếu có ô trống -> Dừng lại không lưu
+        if (!_translationForm.IsValid)
+        {
+            Snackbar.Add("Vui lòng điền đầy đủ thông tin trước khi lưu!", Severity.Warning);
+            return;
+        }
+
         _savingText = true;
         try
         {
             using var content = new MultipartFormDataContent();
+            // ... (Đoạn code bên dưới giữ nguyên y hệt của bạn)
             content.Add(new StringContent(_poiId.ToString()),        "PoiId");
             content.Add(new StringContent(_activeLang),              "LanguageCode");
             content.Add(new StringContent(_draft.Name ?? ""),        "Name");
