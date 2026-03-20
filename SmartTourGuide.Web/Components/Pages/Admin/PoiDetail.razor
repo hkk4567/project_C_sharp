@@ -5,18 +5,35 @@
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
-@inject IJSRuntime JS
 @attribute [Authorize(Roles = "Admin")]
+
+<style>
+    .lang-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+    .lb-btn {
+        padding: 5px 16px; border-radius: 99px; cursor: pointer;
+        font-size: .8rem; font-weight: 600;
+        border: 1.5px solid var(--mud-palette-divider);
+        background: var(--mud-palette-background);
+        color: var(--mud-palette-text-secondary);
+        transition: all .15s; display:flex; align-items:center; gap:5px;
+    }
+    .lb-btn:hover  { border-color: var(--mud-palette-primary); color: var(--mud-palette-primary); }
+    .lb-btn.active {
+        background: var(--mud-palette-primary); border-color: var(--mud-palette-primary);
+        color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    .lb-btn .dot { width:7px; height:7px; border-radius:50%; background:#4ade80; display:none; }
+    .lb-btn.has-audio .dot { display:block; }
+</style>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 mb-8">
 
-    <!-- 1. Header & Nút Quay lại -->
+    <!-- HEADER -->
     <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Inherit"
                        OnClick="@(() => Nav.NavigateTo("/admin/approvals"))" />
         <MudText Typo="Typo.h4">Chi tiết địa điểm #@Id</MudText>
         <MudSpacer />
-        <!-- Hiển thị trạng thái hiện tại -->
         @if (poi != null)
         {
             <MudChip T="string" Color="@GetStatusColor(poi.Status)" Size="Size.Large">@poi.Status</MudChip>
@@ -40,14 +57,28 @@
                         </CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
-                        <MudTextField Value="@poi.Name" Label="Tên địa điểm" ReadOnly="true" Variant="Variant.Outlined"
-                                      Class="mb-3" />
-                        <MudTextField Value="@poi.Address" Label="Địa chỉ" ReadOnly="true" Variant="Variant.Outlined"
-                                      Class="mb-3" />
+                        <MudTextField Value="@GetDisplayName()" Label="Tên địa điểm" ReadOnly="true"
+                                      Variant="Variant.Outlined" Class="mb-3" />
+                        <MudTextField Value="@GetDisplayAddress()" Label="Địa chỉ" ReadOnly="true"
+                                      Variant="Variant.Outlined" Class="mb-3" />
 
-                        <MudText Typo="Typo.subtitle2" Class="mt-2">Mô tả chi tiết:</MudText>
+                        <MudText Typo="Typo.subtitle2" Class="mt-2">
+                            Mô tả chi tiết:
+                            @if (_selectedLang != "vi-VN" && _transCache.ContainsKey(_selectedLang))
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Info"
+                                         Icon="@Icons.Material.Filled.Translate" Class="ml-2">
+                                    Bản dịch @_selectedLang
+                                </MudChip>
+                            }
+                            else if (_selectedLang != "vi-VN" && _loadingTrans)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ml-2" />
+                            }
+                        </MudText>
+
                         <MudPaper Class="pa-3 mt-1 description-box">
-                            <MudText Typo="Typo.body1" Style="white-space: pre-wrap;">@poi.Description</MudText>
+                            <MudText Typo="Typo.body1" Style="white-space: pre-wrap;">@GetDisplayDescription()</MudText>
                         </MudPaper>
 
                         <MudGrid Class="mt-3">
@@ -58,11 +89,19 @@
                                 <MudTextField Value="@poi.Longitude" Label="Kinh độ (Long)" ReadOnly="true" />
                             </MudItem>
                         </MudGrid>
+
+                        @if (_selectedLang != "vi-VN" && _checkedLangs.Contains(_selectedLang) && !_transCache.ContainsKey(_selectedLang))
+                        {
+                            <MudText Typo="Typo.caption" Class="mt-2"
+                                     Style="color: var(--mud-palette-warning); font-style:italic;">
+                                ⚠ Hiện chưa có bản dịch nên sẽ in tạm ra tiếng Việt.
+                            </MudText>
+                        }
                     </MudCardContent>
                 </MudCard>
             </MudItem>
 
-            <!-- CỘT PHẢI: MEDIA (AUDIO & ẢNH) -->
+            <!-- CỘT PHẢI: MEDIA -->
             <MudItem xs="12" md="6">
                 <MudCard Elevation="3" Class="pa-4 h-100">
                     <MudCardHeader>
@@ -72,16 +111,16 @@
                     </MudCardHeader>
                     <MudCardContent>
 
-                        <!-- 1. SLIDE ẢNH -->
+                        <!-- ẢNH -->
                         <MudText Class="mb-2"><b>Hình ảnh (@poi.ImageUrls?.Count):</b></MudText>
                         @if (poi.ImageUrls != null && poi.ImageUrls.Count > 0)
                         {
-                            <MudCarousel Class="mud-width-full rounded-lg" Style="height:250px;" ShowArrows="true"
-                                         ShowBullets="true" AutoCycle="false" TData="object">
+                            <MudCarousel Class="mud-width-full rounded-lg" Style="height:250px;"
+                                         ShowArrows="true" ShowBullets="true" AutoCycle="false" TData="object">
                                 @foreach (var img in poi.ImageUrls)
                                 {
                                     <MudCarouselItem Transition="Transition.Slide">
-                                        <div class="d-flex justify-center align-center" style="height:100%; bg-color:black;">
+                                        <div class="d-flex justify-center align-center" style="height:100%;">
                                             <MudImage Src="@($"{ApiUrl}{img}")" ObjectFit="ObjectFit.Contain"
                                                       Style="max-height:100%; max-width:100%;" />
                                         </div>
@@ -96,29 +135,45 @@
 
                         <MudDivider Class="my-4" />
 
-                        <!-- 2. TRÌNH PHÁT AUDIO -->
+                        <!-- AUDIO -->
                         <MudText Class="mb-2"><b>Âm thanh thuyết minh:</b></MudText>
-                        @if (poi.AudioUrls != null && poi.AudioUrls.Count > 0)
-                        {
-                            @foreach (var audio in poi.AudioUrls)
+
+                        <!-- LANG BAR — luôn hiển thị -->
+                        <div class="lang-bar">
+                            @foreach (var lang in _langs)
                             {
-                                <div class="pa-2 mb-2 border rounded d-flex align-center bg-gray-100">
-                                    <MudIcon Icon="@Icons.Material.Filled.MusicNote" Color="Color.Primary" Class="mr-2" />
-                                    <audio controls style="width: 100%;">
-                                        <source src="@($"{ApiUrl}{audio}")" type="audio/mpeg">
-                                        Trình duyệt không hỗ trợ.
-                                    </audio>
+                                var hasAudio = _audioLangs.Contains(lang.Code);
+                                <div class="lb-btn @(_selectedLang == lang.Code ? "active" : "") @(hasAudio ? "has-audio" : "")"
+                                     @onclick="() => SwitchLang(lang.Code)">
+                                    <span class="dot"></span>
+                                    <span>@lang.Flag</span>
+                                    <span>@lang.Name</span>
                                 </div>
                             }
+                        </div>
+
+                        @if (GetAudiosForSelectedLang().Any())
+                        {
+                            @* @key buộc Blazor xóa và tạo lại toàn bộ DOM audio khi đổi ngôn ngữ *@
+                            <div @key="_selectedLang">
+                                @foreach (var audio in GetAudiosForSelectedLang())
+                                {
+                                    <div class="pa-2 mb-2 border rounded d-flex align-center">
+                                        <MudIcon Icon="@Icons.Material.Filled.MusicNote"
+                                                 Color="Color.Primary" Class="mr-2" />
+                                        <audio controls style="width:100%;">
+                                            <source src="@($"{ApiUrl}{audio.Url}")" type="audio/mpeg">
+                                            Trình duyệt không hỗ trợ.
+                                        </audio>
+                                    </div>
+                                }
+                            </div>
                         }
                         else
                         {
-                            <!-- NÚT NGHE TTS NẾU KHÔNG CÓ AUDIO -->
-                            <MudAlert Severity="Severity.Info" Class="mb-2">Sử dụng giọng đọc máy (TTS).</MudAlert>
-                            <MudButton Variant="Variant.Outlined"             Color="Color.Info"                                    StartIcon="@Icons.Material.Filled.VolumeUp"
-                                       OnClick="ReadDescription"                                    Class="tts-btn">
-                                Nghe thử giọng đọc mô tả
-                            </MudButton>
+                            <MudText Typo="Typo.body2" Style="opacity:.6; font-style:italic;">
+                                Không có audio cho ngôn ngữ này.
+                            </MudText>
                         }
 
                     </MudCardContent>
@@ -126,7 +181,7 @@
             </MudItem>
         </MudGrid>
 
-        <!-- THANH HÀNH ĐỘNG (FIXED BOTTOM HOẶC DƯỚI CÙNG) -->
+        <!-- THANH HÀNH ĐỘNG -->
         <MudPaper Elevation="10" Class="pa-4 mt-6 d-flex justify-end gap-4 sticky-bottom"
                   Style="border-top: 2px solid var(--mud-palette-primary);">
             <MudButton Variant="Variant.Outlined" Color="Color.Default"
@@ -134,9 +189,10 @@
 
             @if (poi.Status == "Pending")
             {
-                <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Close">Từ Chối
-                </MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Check"
+                <MudButton Variant="Variant.Filled" Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.Close">Từ Chối</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.Check"
                            OnClick="ApprovePoi">Duyệt Ngay</MudButton>
             }
         </MudPaper>
@@ -152,13 +208,49 @@
 
     private PoiDto? poi;
     private bool _loading = true;
-    private string ApiUrl = "http://localhost:5277"; // Thay đúng PORT API của bạn
+    private string ApiUrl = "http://localhost:5277";
+
+    // Ngôn ngữ đang chọn trong lang bar
+    private string _selectedLang = "vi-VN";
+
+    // Danh sách ngôn ngữ có audio
+    private HashSet<string> _audioLangs = new();
+
+    // Cache bản dịch: langCode -> PoiTranslationDto (chỉ lưu khi có nội dung thật)
+    private Dictionary<string, PoiTranslationDto> _transCache = new();
+    // Track ngôn ngữ đã gọi API rồi (dù có hay không có bản dịch)
+    private HashSet<string> _checkedLangs = new();
+    private bool _loadingTrans = false;
+
+    private readonly List<(string Code, string Name, string Flag)> _langs = new()
+    {
+        ("vi-VN", "Tiếng Việt", "🇻🇳"),
+        ("en-US", "English",    "🇺🇸"),
+        ("ja-JP", "日本語",      "🇯🇵"),
+        ("ko-KR", "한국어",      "🇰🇷"),
+        ("zh-CN", "中文",        "🇨🇳"),
+        ("fr-FR", "Français",   "🇫🇷"),
+    };
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             poi = await Http.GetFromJsonAsync<PoiDto>($"api/pois/admin/{Id}");
+
+            if (poi?.ExistingAudios != null)
+            {
+                // Tập hợp các ngôn ngữ thực sự có audio
+                _audioLangs = poi.ExistingAudios
+                    .Where(a => !string.IsNullOrEmpty(a.Url))
+                    .Select(a => a.LanguageCode ?? "vi-VN")
+                    .ToHashSet();
+
+                // Chọn tab đầu tiên có audio (ưu tiên vi-VN, sau đó theo thứ tự _langs)
+                var firstWithAudio = _langs.FirstOrDefault(l => _audioLangs.Contains(l.Code));
+                if (firstWithAudio != default)
+                    _selectedLang = firstWithAudio.Code;
+            }
         }
         catch (Exception ex)
         {
@@ -170,12 +262,73 @@
         }
     }
 
+    // ── SWITCH NGÔN NGỮ ───────────────────────────────────────────────────
+    private async Task SwitchLang(string lang)
+    {
+        _selectedLang = lang;
+        StateHasChanged(); // force re-render ngay lập tức khi đổi tab
+
+        if (lang == "vi-VN" || _checkedLangs.Contains(lang)) return;
+
+        _loadingTrans = true;
+        StateHasChanged();
+        try
+        {
+            var t = await Http.GetFromJsonAsync<PoiTranslationDto>(
+                $"api/translations/{Id}/{lang}");
+
+            if (t != null && !string.IsNullOrEmpty(t.Name))
+                _transCache[lang] = t;
+        }
+        catch { }
+        finally
+        {
+            _checkedLangs.Add(lang);
+            _loadingTrans = false;
+        }
+    }
+
+    // Trả về danh sách audio theo ngôn ngữ đang chọn
+    // Dùng method thay vì filter trực tiếp trong HTML để Blazor re-render đúng
+    private List<MediaAssetDto> GetAudiosForSelectedLang()
+    {
+        if (poi?.ExistingAudios == null) return new();
+        return poi.ExistingAudios
+            .Where(a => a.LanguageCode == _selectedLang)
+            .ToList();
+    }
+
+    // ── HELPERS HIỂN THỊ TEXT ─────────────────────────────────────────────
+    private string GetDisplayName()
+    {
+        if (_selectedLang != "vi-VN" && _transCache.TryGetValue(_selectedLang, out var t)
+            && !string.IsNullOrEmpty(t.Name))
+            return t.Name;
+        return poi?.Name ?? "";
+    }
+
+    private string GetDisplayAddress()
+    {
+        if (_selectedLang != "vi-VN" && _transCache.TryGetValue(_selectedLang, out var t)
+            && !string.IsNullOrEmpty(t.Address))
+            return t.Address;
+        return poi?.Address ?? "";
+    }
+
+    private string GetDisplayDescription()
+    {
+        if (_selectedLang != "vi-VN" && _transCache.TryGetValue(_selectedLang, out var t)
+            && !string.IsNullOrEmpty(t.Description))
+            return t.Description;
+        return poi?.Description ?? "";
+    }
+
     private Color GetStatusColor(string status) => status switch
     {
-        "Active" => Color.Success,
-        "Pending" => Color.Warning,
+        "Active"   => Color.Success,
+        "Pending"  => Color.Warning,
         "Rejected" => Color.Error,
-        _ => Color.Default
+        _          => Color.Default
     };
 
     private async Task ApprovePoi()
@@ -189,14 +342,6 @@
         else
         {
             Snackbar.Add("Có lỗi xảy ra.", Severity.Error);
-        }
-    }
-
-    private async Task ReadDescription()
-    {
-        if (poi != null && !string.IsNullOrEmpty(poi.Description))
-        {
-            await JS.InvokeVoidAsync("window.blazorTts.speak", poi.Description);
         }
     }
 }

@@ -380,9 +380,13 @@ public class PoisController : ControllerBase
                 .Select(m => m.UrlOrContent).ToList(),
 
             ExistingAudios = p.MediaAssets
-                .Where(m => m.Type == MediaType.AudioFile && (m.LanguageCode == "vi-VN" || string.IsNullOrEmpty(m.LanguageCode)))
-                .Select(m => new MediaAssetDto { Id = m.Id, Url = m.UrlOrContent })
-                .ToList()
+                .Where(m => m.Type == MediaType.AudioFile)
+                .Select(m => new MediaAssetDto
+                {
+                    Id = m.Id,
+                    Url = m.UrlOrContent,
+                    LanguageCode = string.IsNullOrEmpty(m.LanguageCode) ? "vi-VN" : m.LanguageCode
+                }).ToList()
         });
     }
 }

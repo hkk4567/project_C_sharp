@@ -2,9 +2,7 @@
 @using MudBlazor
 @inject ISnackbar Snackbar
 @inject HttpClient Http
-@inject IJSRuntime JS
 @inject IDialogService MudDialogService
-@implements IDisposable
 
 <MudDialog>
     <TitleContent>
@@ -84,41 +82,20 @@
             }
             else
             {
-                <!-- PHẦN 3: TTS -->
-                <MudPaper Class="pa-4" Elevation="0" Outlined="true" Style="background-color: #f9f9f9; border-radius: 8px;">
-                    <div class="d-flex justify-space-between align-center mb-3">
-                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">Tự động thuyết minh (AI):</MudText>
-
-                        <div class="d-flex gap-2">
-                            @if (_isReading)
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Stop"
-                                           OnClick="StopSpeaking" Size="Size.Small">Dừng đọc</MudButton>
-                            }
-                            else
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Info"
-                                           StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="ReadDescription" Size="Size.Small">
-                                    Nghe thử</MudButton>
-                                }
-                            </div>
-                        </div>
-
-                        <MudText Typo="Typo.body2" Style="line-height: 1.7; color: #444;">
-                            @(string.IsNullOrWhiteSpace(Poi.Description) ? "Địa điểm này chưa có nội dung mô tả." :
-                        Poi.Description)
-                        </MudText>
-                    </MudPaper>
-                }
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    Chưa có audio cho địa điểm này. Vào
+                    <strong>🎙️ TTS Studio</strong> để tạo thuyết minh.
+                </MudAlert>
+            }
 
 
-            </MudContainer>
-        </DialogContent>
-        <DialogActions>
-            <MudButton OnClick="Close">Đóng</MudButton>
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="GoToEdit">Chỉnh sửa</MudButton>
-        </DialogActions>
-    </MudDialog>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close">Đóng</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="GoToEdit">Chỉnh sửa</MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialogRef { get; set; } = default!;
@@ -127,7 +104,6 @@
     [Parameter] public EventCallback OnEditClicked { get; set; }
     [Parameter] public bool IsReadOnly { get; set; } = false;
     [Parameter] public string ViewLangLabel { get; set; } = ""; // VD: " (en-US)"
-    private bool _isReading = false;
 
     private async Task DeleteAudioAsync(MediaAssetDto audio)
     {
@@ -171,25 +147,6 @@
             }
         }
     }
-    private async Task ReadDescription()
-    {
-        if (string.IsNullOrWhiteSpace(Poi.Description))
-        {
-            Snackbar.Add("Không có nội dung để thuyết minh!", Severity.Warning);
-            return;
-        }
-
-        _isReading = true;
-        // Gọi JS đã tối ưu ở bước trước
-        await JS.InvokeVoidAsync("blazorTts.speak", Poi.Description);
-    }
-
-    private async Task StopSpeaking()
-    {
-        _isReading = false;
-        await JS.InvokeVoidAsync("blazorTts.stop");
-    }
-
     private string CombineUrl(string baseUri, string? relativePath)
     {
         if (string.IsNullOrEmpty(relativePath)) return "";
@@ -201,14 +158,7 @@
 
     void GoToEdit()
     {
-        _ = StopSpeaking();
         MudDialogRef.Close();
         OnEditClicked.InvokeAsync();
-    }
-
-    public void Dispose()
-    {
-        // Fire and forget để đảm bảo tắt tiếng khi đóng dialog
-        _ = JS.InvokeVoidAsync("blazorTts.stop");
     }
 }

@@ -31,9 +31,15 @@ public class TranslationsController : ControllerBase
         // B. Lấy Audio thuộc ngôn ngữ này
         var audios = await _context.MediaAssets
             .Where(m => m.PoiId == poiId
-                     && m.LanguageCode == langCode
-                     && m.Type == MediaType.AudioFile)
-            .Select(m => new MediaAssetDto { Id = m.Id, Url = m.UrlOrContent })
+                     && m.Type == MediaType.AudioFile
+                     && (m.LanguageCode == langCode
+                         || (langCode == "vi-VN" && string.IsNullOrEmpty(m.LanguageCode))))
+            .Select(m => new MediaAssetDto
+            {
+                Id = m.Id,
+                Url = m.UrlOrContent,
+                LanguageCode = string.IsNullOrEmpty(m.LanguageCode) ? "vi-VN" : m.LanguageCode
+            })
             .ToListAsync();
 
         if (trans == null)
