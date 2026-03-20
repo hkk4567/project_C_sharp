@@ -123,15 +123,11 @@
 </MudContainer>
 
 @code {
-   MudForm? form;
-bool success;
-
 string _adminAvatarUrl = "/img/icon.jpg";
 string _currentUsername = "";
 
 // Hai biến quản lý trạng thái Edit độc lập
 bool _isEditingSocial = false;
-bool _isEditingPersonal = false;
 
 UserProfileModel _profile = new();
 
@@ -170,17 +166,6 @@ async Task SaveSocialLinks()
     Snackbar.Add("Cập nhật mạng xã hội thành công!", Severity.Success);
     _isEditingSocial = false;
 }
-
-// --- PERSONAL ---
-void ToggleEditPersonal() => _isEditingPersonal = true;
-void CancelEditPersonal() => _isEditingPersonal = false;
-
-async Task SavePersonalInfo()
-{
-    Snackbar.Add("Cập nhật thông tin thành công!", Severity.Success);
-    _isEditingPersonal = false;
-}
-
 public class UserProfileModel
 {
     public string FullName { get; set; } = string.Empty;

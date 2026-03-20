@@ -64,7 +64,7 @@
                                     Hồ sơ của tôi
                                 </MudListItem>
                                 <MudDivider />
-                                <MudListItem T="string" Icon="@Icons.Material.Outlined.Logout" Color="Color.Error" OnClick="Logout">
+                                <MudListItem T="string" Icon="@Icons.Material.Outlined.Logout" IconColor="Color.Error" OnClick="Logout">
                                     Đăng xuất
                                 </MudListItem>
                             </div>
@@ -91,10 +91,6 @@
                     <MudNavLink Href="/admin/approvals" Icon="@Icons.Material.Filled.CheckCircle">Duyệt bài đăng</MudNavLink>
                     <MudNavLink Href="/admin/tours" Icon="@Icons.Material.Filled.Map">Quản lý Tour</MudNavLink>
                     <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">Quản lý User</MudNavLink>
-                    <MudNavLink Href="/tts-studio" Icon="@Icons.Material.Filled.RecordVoiceOver"
-                                Style="color: var(--mud-palette-secondary);">
-                        🎙️ TTS Studio
-                    </MudNavLink>
                 </AuthorizeView>
 
                 <AuthorizeView Roles="BoothOwner">

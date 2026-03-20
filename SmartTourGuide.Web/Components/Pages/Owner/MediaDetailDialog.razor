@@ -61,8 +61,10 @@
                         @* MỚI: Nút Xóa Audio (Chỉ hiện khi Chủ quán xem, ẩn nếu Admin xem) *@
                         @if (!IsReadOnly)
                         {
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
-                                           OnClick="@(() => DeleteAudioAsync(audio))" Title="Xóa file này" />
+                            <MudTooltip Text="Xóa file này">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                               OnClick="@(() => DeleteAudioAsync(audio))" />
+                            </MudTooltip>
                         }
                     </div>
                 }
