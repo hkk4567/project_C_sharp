@@ -462,7 +462,8 @@
 
                 if (detail?.ExistingAudios != null)
                 {
-                    foreach (var a in detail.ExistingAudios)
+                    foreach (var a in detail.ExistingAudios
+                            .Where(x => x.LanguageCode == lang || (lang == "vi-VN" && string.IsNullOrEmpty(x.LanguageCode))))
                     {
                         _audios.Add(new AudioItem { Id = a.Id, Url = a.Url ?? "", LanguageCode = lang, IsTts = false });
                     }
