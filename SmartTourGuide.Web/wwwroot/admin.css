@@ -14,7 +14,9 @@ body {
   background-color: var(--mud-palette-background) !important;
   border-right: none !important;
 }
-
+.argon-drawer .mud-drawer-content {
+  overflow-x: hidden !important;
+}
 /* Khối nội dung bên trong nổi lên */
 .sidebar-content {
   background-color: var(--mud-palette-surface) !important;

@@ -121,4 +121,21 @@ public class UsersController : ControllerBase
         await _context.SaveChangesAsync();
         return Ok(new { message = user.IsLocked ? "Đã khóa tài khoản" : "Đã mở khóa tài khoản" });
     }
+    
+    [HttpGet("by-username/{username}")]
+    public async Task<IActionResult> GetByUsername(string username)
+    {
+        var user = await _context.Users
+            .Where(u => u.Username == username)
+            .FirstOrDefaultAsync();
+
+        if (user == null)
+            return NotFound();
+
+        return Ok(new
+        {
+            fullName = user.FullName ?? string.Empty,
+            email = user.Email ?? string.Empty
+        });
+    }
 }

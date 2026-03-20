@@ -10,7 +10,41 @@
 <MudPopoverProvider />
 
 <PageTitle>Admin</PageTitle>
+<style>
+.profile-container {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* 👉 khoảng cách icon - chữ */
+}
 
+/* Profile */
+.profile-icon {
+    color: #6b7280;
+}
+
+.profile-text {
+    font-weight: 500;
+}
+
+/* Logout */
+.logout-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 8px;
+    transition: 0.2s;
+}
+
+.logout-item:hover {
+    background: #fef2f2;
+}
+
+
+
+.logout-text {
+    font-weight: 500;
+}
+</style>
 <MudLayout>
 
     <MudAppBar Elevation="1" Color="Color.Surface" Dense="true" Class="px-3 py-1" Style="min-height:56px;">
@@ -63,13 +97,20 @@
                                 </div>
 
                                 <MudList T="string" Class="py-2">
-                                    <MudListItem Icon="@Icons.Material.Outlined.PersonOutline">
-                                        <div class="d-flex justify-space-between align-center w-100">
-                                            <MudText Typo="Typo.body2" Style="font-weight: 500;">Hồ sơ cá nhân</MudText>
-                                            <MudChip T="string" Color="Color.Warning" Size="Size.Small" Style="font-weight: bold; border-radius: 50%;">02</MudChip>
+                                    <MudNavLink Href="/admin/userProfile" Class="profile-link">
+                                        <div class="d-flex align-center w-100">
+                                            
+                                            <MudIcon Icon="@Icons.Material.Filled.Person" Class="profile-icon mr-2" />
+
+                                            <MudText Typo="Typo.body2" Class="profile-text">
+                                                Hồ sơ cá nhân
+                                            </MudText>
+
                                         </div>
-                                    </MudListItem>
+                                    </MudNavLink>
+
                                     <MudDivider Class="my-2" />
+
                                     <MudListItem Icon="@Icons.Material.Outlined.Logout" OnClick="Logout">
                                         <MudText Typo="Typo.body2" Style="font-weight: 500;">Đăng xuất</MudText>
                                     </MudListItem>
@@ -95,7 +136,11 @@
                 <MudNavLink Href="/admin/approvals" Icon="@Icons.Material.Filled.CheckCircle">Duyệt bài đăng</MudNavLink>
                 <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">Quản lý User</MudNavLink>
                 <MudNavLink Href="/admin/tours" Icon="@Icons.Material.Filled.DirectionsBus">Quản lý Tours</MudNavLink>
-
+                <MudNavLink 
+                    Href="/admin/userProfile" 
+                    Icon="@Icons.Material.Filled.AccountCircle">
+                    Thông tin cá nhân
+                </MudNavLink>
                 <MudText Typo="Typo.caption" Class="menu-group-title mt-6">CÀI ĐẶT HỆ THỐNG</MudText>
                 <MudNavLink Href="/admin/settings" Icon="@Icons.Material.Filled.Settings">Cấu hình chung</MudNavLink>
             </MudNavMenu>

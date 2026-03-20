@@ -1,0 +1,194 @@
+@using SmartTourGuide.Web.Services
+@page "/admin/userProfile"
+@using SmartTourGuide.Web.Components.Shared
+@using System.Security.Claims
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider 
+@inject IUserService UserService
+@layout AdminLayout
+@attribute [Authorize(Roles = "Admin")]
+<style>
+    .mud-input-label {
+    background-color: var(--mud-palette-background);
+    padding: 0 6px;
+}
+</style>
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+    
+    <div class="d-flex justify-space-between align-center mb-6">
+        <MudText Typo="Typo.h5" Style="font-weight: 700;">Profile</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">Home > Profile</MudText>
+    </div>
+
+    <MudPaper Elevation="0" Class="pa-6 mb-6" Style="border: 1px solid var(--mud-palette-divider); border-radius: 12px;">
+        @if (!_isEditingSocial)
+        {
+            <div class="d-flex justify-space-between align-center flex-wrap gap-4">
+                <div class="d-flex align-center gap-4">
+                    <MudAvatar Style="height: 80px; width: 80px;">
+                        <MudImage Src="@_adminAvatarUrl" />
+                    </MudAvatar>
+                    <div>
+                        <MudText Typo="Typo.h6" Style="font-weight: 700;">@_profile.FullName</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary mt-1">
+                            @_currentUsername <span class="mx-2">|</span> Quản trị viên hệ thống
+                        </MudText>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 align-center">
+                    <MudIconButton Href="@_profile.FacebookUrl" Target="_blank" Icon="@Icons.Custom.Brands.Facebook" Variant="Variant.Outlined" Size="Size.Small" Color="Color.Default" />
+                    <MudIconButton Href="@_profile.XUrl" Target="_blank" Icon="@Icons.Custom.Brands.Twitter" Variant="Variant.Outlined" Size="Size.Small" Color="Color.Default" />
+                    <MudIconButton Href="@_profile.LinkedInUrl" Target="_blank" Icon="@Icons.Custom.Brands.LinkedIn" Variant="Variant.Outlined" Size="Size.Small" Color="Color.Default" />
+                    <MudIconButton Href="@_profile.InstagramUrl" Target="_blank" Icon="@Icons.Custom.Brands.Instagram" Variant="Variant.Outlined" Size="Size.Small" Color="Color.Default" />
+                    
+                    <MudButton Variant="Variant.Outlined" 
+                               StartIcon="@Icons.Material.Filled.Edit" 
+                               Class="ml-4" Style="border-radius: 20px; text-transform: none;"
+                               OnClick="ToggleEditSocial">
+                        Edit
+                    </MudButton>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="mb-6">
+                <MudText Typo="Typo.h6" Style="font-weight: 700;">Edit Social Links</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Update your details to keep your profile up-to-date.</MudText>
+            </div>
+            
+            <MudForm>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Facebook" Variant="Variant.Outlined" 
+                                    @bind-Value="@_profile.FacebookUrl" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="X.com" Variant="Variant.Outlined" 
+                                    @bind-Value="@_profile.XUrl" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="LinkedIn" Variant="Variant.Outlined" 
+                                    @bind-Value="@_profile.LinkedInUrl" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Label="Instagram" Variant="Variant.Outlined" 
+                                    @bind-Value="@_profile.InstagramUrl" />
+                    </MudItem>
+                </MudGrid>
+
+                <div class="d-flex gap-3 mt-6">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSocialLinks" Style="border-radius: 8px;">
+                        Lưu thay đổi
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="CancelEditSocial" Style="border-radius: 8px;">
+                        Hủy
+                    </MudButton>
+                </div>
+            </MudForm>
+        }
+    </MudPaper>
+
+    <MudPaper Elevation="0" Class="pa-6" Style="border: 1px solid var(--mud-palette-divider); border-radius: 12px;">
+        
+        <div class="d-flex justify-space-between align-center mb-6">
+            <MudText Typo="Typo.h6" Style="font-weight: 700;">
+                Thông tin cá nhân
+            </MudText>
+        </div>
+
+        <MudGrid>
+            <MudItem xs="12" sm="6" Class="mb-4">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Tên đầy đủ</MudText>
+                <MudTextField Value="@_profile.FullName" Variant="Variant.Outlined" ReadOnly="true" />
+            </MudItem>
+
+            <MudItem xs="12" sm="6" Class="mb-4">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Username</MudText>
+                <MudTextField Value="@_currentUsername" Variant="Variant.Outlined" ReadOnly="true" />
+            </MudItem>
+
+            <MudItem xs="12" sm="6" Class="mb-4">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Email address</MudText>
+                <MudTextField Value="@_profile.Email" Variant="Variant.Outlined" ReadOnly="true" />
+            </MudItem>
+        </MudGrid>
+
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4">
+            Bạn không thể chỉnh sửa thông tin cá nhân.
+        </MudAlert>
+    </MudPaper>
+</MudContainer>
+
+@code {
+   MudForm? form;
+bool success;
+
+string _adminAvatarUrl = "/img/icon.jpg";
+string _currentUsername = "";
+
+// Hai biến quản lý trạng thái Edit độc lập
+bool _isEditingSocial = false;
+bool _isEditingPersonal = false;
+
+UserProfileModel _profile = new();
+
+protected override async Task OnInitializedAsync()
+{
+    var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+    var user = authState.User;
+
+    if (user.Identity is not null && user.Identity.IsAuthenticated)
+    {
+        _currentUsername = user.FindFirst(ClaimTypes.Name)?.Value ?? "";
+        var dbUser = await UserService.GetUserByUsernameAsync(_currentUsername);
+
+        if (dbUser != null)
+        {
+            _profile.FullName = dbUser.FullName;
+            _profile.Email = dbUser.Email;
+
+            // map thêm nếu có
+            // _profile.FacebookUrl = dbUser.FacebookUrl;
+        }
+        else
+        {
+            _profile.FullName = "Người dùng không xác định";
+            _profile.Email = "N/A";
+        }
+    }
+}
+
+// --- SOCIAL ---
+void ToggleEditSocial() => _isEditingSocial = true;
+void CancelEditSocial() => _isEditingSocial = false;
+
+async Task SaveSocialLinks()
+{
+    Snackbar.Add("Cập nhật mạng xã hội thành công!", Severity.Success);
+    _isEditingSocial = false;
+}
+
+// --- PERSONAL ---
+void ToggleEditPersonal() => _isEditingPersonal = true;
+void CancelEditPersonal() => _isEditingPersonal = false;
+
+async Task SavePersonalInfo()
+{
+    Snackbar.Add("Cập nhật thông tin thành công!", Severity.Success);
+    _isEditingPersonal = false;
+}
+
+public class UserProfileModel
+{
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+
+    public string FacebookUrl { get; set; } = string.Empty;
+    public string XUrl { get; set; } = string.Empty;
+    public string LinkedInUrl { get; set; } = string.Empty;
+    public string InstagramUrl { get; set; } = string.Empty;
+}
+}
