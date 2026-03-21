@@ -631,20 +631,38 @@ public partial class MainPage : ContentPage
             return;
         }
 
-        // 3. Lọc ra địa điểm có ƯU TIÊN CAO NHẤT trong số các vùng đang đứng
-        // Giả sử số càng to thì ưu tiên càng cao (2 > 1)
+        // 3. KỊCH BẢN C (MỚI THÊM): Người dùng có vừa bước ra khỏi vùng ĐANG PHÁT không?
+        if (_currentlyPlayingGeofencePoi != null)
+        {
+            // Kiểm tra xem danh sách các vùng đang đứng có chứa vùng đang phát hay không
+            bool isStillInActiveZone = poisInRange.Any(p => p.Id == _currentlyPlayingGeofencePoi.Id);
+
+            if (!isStillInActiveZone)
+            {
+                // Đã đi ra khỏi phạm vi của địa điểm đang phát -> Tắt nhạc ngay lập tức!
+                Console.WriteLine($"Đã ra khỏi phạm vi của: {_currentlyPlayingGeofencePoi.Name}");
+                StopAudio();
+                _currentlyPlayingGeofencePoi = null;
+
+                // LƯU Ý: Không dùng lệnh "return;" ở đây. 
+                // Vì user có thể vừa bước ra khỏi vùng A, nhưng lại đang nằm trong vùng B.
+                // Ta để code chạy tiếp xuống dưới để nó tự động phát audio của vùng B.
+            }
+        }
+
+        // 4. Lọc ra địa điểm có ƯU TIÊN CAO NHẤT trong số các vùng đang đứng hiện tại
         var highestPriorityPoi = poisInRange.OrderByDescending(p => p.Priority).First();
 
-        // 4. KỊCH BẢN B: Xử lý luật phát âm thanh
+        // 5. KỊCH BẢN B: Xử lý luật phát âm thanh
         if (_currentlyPlayingGeofencePoi == null)
         {
-            // 4.1. Đang không có gì phát -> Phát ngay vùng ưu tiên cao nhất vừa vào
+            // 5.1. Đang không có gì phát -> Phát ngay vùng ưu tiên cao nhất vừa vào
             _currentlyPlayingGeofencePoi = highestPriorityPoi;
             await TriggerAutoAudio(highestPriorityPoi);
         }
         else if (_currentlyPlayingGeofencePoi.Id != highestPriorityPoi.Id)
         {
-            // 4.2. Đang phát vùng A, nhưng lại đi vào vùng B
+            // 5.2. Đang phát vùng A, nhưng lại đi vào vùng B (Vẫn đang đứng trong A)
 
             // LUẬT: Nếu vùng mới (B) có ưu tiên CAO HƠN vùng đang phát (A)
             if (highestPriorityPoi.Priority > _currentlyPlayingGeofencePoi.Priority)
@@ -652,14 +670,14 @@ public partial class MainPage : ContentPage
                 MainThread.BeginInvokeOnMainThread(() =>
                     statusLabel.Text = $"Chuyển sang: {highestPriorityPoi.Name} (Ưu tiên {highestPriorityPoi.Priority})");
 
-                StopAudio(); // Tắt vùng 1
+                StopAudio(); // Tắt vùng cũ
                 _currentlyPlayingGeofencePoi = highestPriorityPoi;
-                await TriggerAutoAudio(highestPriorityPoi); // Phát vùng 2
+                await TriggerAutoAudio(highestPriorityPoi); // Phát vùng mới
             }
             else
             {
-                // LUẬT: Nếu vùng mới (B) bằng hoặc thấp hơn vùng đang phát (A)
-                // -> BỎ QUA. Tiếp tục phát vùng A (Ai đến trước phục vụ trước).
+                // LUẬT: Vùng mới (B) bằng hoặc thấp hơn vùng (A)
+                // -> Tiếp tục phát vùng A (Ai đến trước phục vụ trước).
                 Console.WriteLine($"Đang ở trong {highestPriorityPoi.Name} nhưng ưu tiên thấp hơn/bằng -> Bỏ qua.");
             }
         }
