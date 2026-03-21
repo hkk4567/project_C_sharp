@@ -60,12 +60,12 @@ public class UsersController : ControllerBase
 
         // Lưu ý: Trong thực tế bạn phải dùng thư viện BCrypt hoặc Identity để Verify mật khẩu
         // Ở đây mình ví dụ logic kiểm tra cơ bản
-        if (user.PasswordHash != dto.OldPassword)
+        if (!BC.Verify(dto.OldPassword, user.PasswordHash))
         {
             return BadRequest("Mật khẩu cũ không chính xác.");
         }
 
-        user.PasswordHash = dto.NewPassword; // Nhớ Hash mật khẩu trước khi lưu!
+        user.PasswordHash = BC.HashPassword(dto.NewPassword); // Nhớ Hash mật khẩu trước khi lưu!
         await _context.SaveChangesAsync();
 
         return Ok(new { message = "Đổi mật khẩu thành công!" });
@@ -121,7 +121,7 @@ public class UsersController : ControllerBase
         await _context.SaveChangesAsync();
         return Ok(new { message = user.IsLocked ? "Đã khóa tài khoản" : "Đã mở khóa tài khoản" });
     }
-    
+
     [HttpGet("by-username/{username}")]
     public async Task<IActionResult> GetByUsername(string username)
     {
