@@ -35,6 +35,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 
 // 4. Cấu hình HttpClient gọi API
+// Header X-User-Name được set thẳng trong Login.razor sau khi đăng nhập
 builder.Services.AddScoped(sp => new HttpClient
 {
     BaseAddress = new Uri("http://localhost:5277/")

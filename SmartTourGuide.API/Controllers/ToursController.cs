@@ -21,6 +21,18 @@ public class ToursController : ControllerBase
         _fileService = fileService;
     }
 
+    // 👉 HÀM HELPER LẤY USERNAME CỦA NGƯỜI ĐANG THỰC HIỆN
+    private string GetCurrentUsername()
+    {
+        var name = User.Identity?.Name;
+        if (!string.IsNullOrEmpty(name)) return name;
+
+        var headerName = HttpContext.Request.Headers["X-User-Name"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(headerName)) return headerName;
+
+        return "Unknown";
+    }
+
     // 1. Lấy danh sách TẤT CẢ Tour (Dùng cho cả Admin và Mobile App)
     // GET: api/tours
     [HttpGet]
@@ -110,7 +122,7 @@ public class ToursController : ControllerBase
         {
             Name = dto.Name,
             Description = dto.Description,
-            ThumbnailUrl = thumbnailUrl 
+            ThumbnailUrl = thumbnailUrl
         };
 
         _context.Tours.Add(tour);
@@ -140,8 +152,8 @@ public class ToursController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
-        // 4. 🔥 BỔ SUNG GHI LOG TẠI ĐÂY 🔥
-        var username = User.Identity?.Name ?? "Admin";
+        // 4. 🔥 GHI LOG - dùng GetCurrentUsername() thay vì chuỗi cứng "Admin"
+        var username = GetCurrentUsername();
         var log = new ActivityLog
         {
             ActivityType = "CreateTour",
@@ -150,7 +162,7 @@ public class ToursController : ControllerBase
             Timestamp = DateTime.Now,
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown"
         };
-        
+
         _context.ActivityLogs.Add(log);
         await _context.SaveChangesAsync();
 
@@ -165,13 +177,13 @@ public class ToursController : ControllerBase
         if (tour == null) return NotFound();
 
         // 🔥 Lưu lại tên tour trước khi xóa để đưa vào câu log
-        var tourName = tour.Name; 
+        var tourName = tour.Name;
 
         _context.Tours.Remove(tour);
         await _context.SaveChangesAsync(); // Cascade delete sẽ tự xóa các TourDetail
 
-        // 🔥 BỔ SUNG GHI LOG TẠI ĐÂY 🔥
-        var username = User.Identity?.Name ?? "Admin";
+        // 🔥 GHI LOG - dùng GetCurrentUsername() thay vì chuỗi cứng "Admin"
+        var username = GetCurrentUsername();
         var log = new ActivityLog
         {
             ActivityType = "DeleteTour",

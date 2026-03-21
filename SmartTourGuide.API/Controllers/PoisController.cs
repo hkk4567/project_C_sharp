@@ -20,6 +20,18 @@ public class PoisController : ControllerBase
         _fileService = fileService;
     }
 
+    // 👉 HÀM HELPER LẤY USERNAME CỦA NGƯỜI ĐANG THỰC HIỆN
+    private string GetCurrentUsername()
+    {
+        var name = User.Identity?.Name;
+        if (!string.IsNullOrEmpty(name)) return name;
+
+        var headerName = HttpContext.Request.Headers["X-User-Name"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(headerName)) return headerName;
+
+        return "Unknown";
+    }
+
     // 1. API cho App Mobile
     [HttpGet]
     // 1. API cho App Mobile (Có hỗ trợ Đa ngôn ngữ)
@@ -82,7 +94,7 @@ public class PoisController : ControllerBase
         return Ok(result);
     }
 
-   [HttpPost]
+    [HttpPost]
     public async Task<ActionResult> CreatePoi([FromForm] CreatePoiDto dto, [FromForm] List<IFormFile> files)
     {
         // 1. Khởi tạo POI mới
@@ -93,15 +105,15 @@ public class PoisController : ControllerBase
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
             OwnerId = dto.OwnerId,
-            Status = PoiStatus.Pending, 
+            Status = PoiStatus.Pending,
             Address = dto.Address ?? "N/A",
             GeofenceSetting = new GeofenceSetting { TriggerRadiusInMeters = 50 }
         };
 
         _context.Pois.Add(newPoi);
-        
+
         // 🔥 BẮT BUỘC PHẢI CÓ DÒNG NÀY ĐỂ MYSQL TẠO RA ID CHO ĐỊA ĐIỂM 🔥
-        await _context.SaveChangesAsync(); 
+        await _context.SaveChangesAsync();
 
         // 2. Xử lý Upload file 
         if (files != null && files.Count > 0)
@@ -123,8 +135,9 @@ public class PoisController : ControllerBase
         }
 
         // 3. Xử lý Ghi Log
-        var currentUsername = User.Identity?.Name;
-        if (string.IsNullOrEmpty(currentUsername))
+        // Ưu tiên: JWT/Header -> OwnerId từ DB (fallback khi owner tự tạo POI của mình)
+        var currentUsername = GetCurrentUsername();
+        if (currentUsername == "Unknown")
         {
             var owner = await _context.Users.FindAsync(dto.OwnerId);
             currentUsername = owner?.Username ?? $"Owner_{dto.OwnerId}";
@@ -138,7 +151,7 @@ public class PoisController : ControllerBase
             Timestamp = DateTime.Now,
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown"
         };
-        
+
         _context.ActivityLogs.Add(log);
 
         // 4. Lưu lại toàn bộ File Media và Log
@@ -146,7 +159,7 @@ public class PoisController : ControllerBase
 
         return Ok(new { message = "Tạo thành công, vui lòng chờ Admin duyệt!", id = newPoi.Id });
     }
-    
+
 
     // 2.1. API cho Chủ gian hàng: Lấy danh sách POI của một chủ sở hữu cụ thể
     [HttpGet("owner/{ownerId}")]
@@ -240,7 +253,7 @@ public class PoisController : ControllerBase
         return Ok(new { message = "Đã xóa địa điểm thành công!" });
     }
 
-   //2.3. API cho Chủ gian hàng: sửa địa điểm 
+    //2.3. API cho Chủ gian hàng: sửa địa điểm 
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdatePoi(int id, [FromForm] CreatePoiDto dto, [FromForm] List<IFormFile> files)
     {
@@ -353,8 +366,8 @@ public class PoisController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        // 🔥 LẤY USER (admin)
-        var username = User.Identity?.Name ?? "Admin";
+        // 🔥 LẤY USERNAME NGƯỜI THỰC HIỆN (admin), không dùng chuỗi cứng "Admin"
+        var username = GetCurrentUsername();
 
         // 🔥 LOG
         _context.ActivityLogs.Add(new ActivityLog
@@ -396,7 +409,7 @@ public class PoisController : ControllerBase
 
         return Ok(result);
     }
-    
+
     // 3.1. API cho Admin: cập nhật cấu hình Geofence
     [HttpPut("{id}/geofence")]
     // [Authorize(Roles = "Admin")] // Bỏ comment dòng này khi bạn đã có JWT Token thực, test thì tạm ẩn
@@ -479,12 +492,12 @@ public class PoisController : ControllerBase
         if (poi == null) return NotFound("Không tìm thấy địa điểm.");
 
         // Chuyển trạng thái sang Rejected
-        poi.Status = PoiStatus.Rejected; 
+        poi.Status = PoiStatus.Rejected;
 
         await _context.SaveChangesAsync();
 
-        // 🔥 LẤY USER (admin) để ghi log
-        var username = User.Identity?.Name ?? "Admin";
+        // 🔥 LẤY USERNAME NGƯỜI THỰC HIỆN (admin), không dùng chuỗi cứng "Admin"
+        var username = GetCurrentUsername();
 
         // 🔥 GHI LOG
         _context.ActivityLogs.Add(new ActivityLog
@@ -500,7 +513,7 @@ public class PoisController : ControllerBase
 
         return Ok(new { message = "Đã từ chối địa điểm!" });
     }
-     // 4. API đếm số lượng địa điểm đang chờ duyệt (Dùng cho bảng thống kê ActivityLog)
+    // 4. API đếm số lượng địa điểm đang chờ duyệt (Dùng cho bảng thống kê ActivityLog)
     [HttpGet("pending-count")]
     public async Task<ActionResult<int>> GetPendingCount()
     {

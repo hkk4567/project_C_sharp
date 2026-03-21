@@ -18,11 +18,26 @@ public class UsersController : ControllerBase
         _context = context;
     }
 
+    // 👉 HÀM HELPER LẤY USERNAME CỦA NGƯỜI ĐANG THỰC HIỆN THAO TÁC
+    // Ưu tiên: JWT Claims -> Header X-User-Name -> "Unknown"
+    private string GetCurrentUsername()
+    {
+        // 1. Thử lấy từ JWT (khi có xác thực)
+        var name = User.Identity?.Name;
+        if (!string.IsNullOrEmpty(name)) return name;
+
+        // 2. Fallback: đọc header X-User-Name mà frontend gửi lên sau khi login
+        var headerName = HttpContext.Request.Headers["X-User-Name"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(headerName)) return headerName;
+
+        return "Unknown";
+    }
+
     // 👉 HÀM HELPER DÙNG CHUNG ĐỂ LƯU LOG (Đã xử lý IP an toàn)
     private void AddActivityLog(string activityType, string description, string username)
     {
         var ip = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        
+
         if (string.IsNullOrEmpty(ip))
         {
             ip = HttpContext.Connection.RemoteIpAddress?.ToString();
@@ -68,8 +83,9 @@ public class UsersController : ControllerBase
         user.Email = dto.Email;
         user.Role = dto.Role;
 
-        // 👉 GHI LOG CẬP NHẬT
-        AddActivityLog("UpdateUser", $"Cập nhật thông tin người dùng: {user.Username}", user.Username);
+        // 👉 GHI LOG: dùng GetCurrentUsername() để lấy NGƯỜI THỰC HIỆN (admin), không phải target
+        var actor = GetCurrentUsername();
+        AddActivityLog("UpdateUser", $"[{actor}] cập nhật thông tin người dùng: {user.Username}", actor);
 
         await _context.SaveChangesAsync();
         return Ok(new { message = "Cập nhật thành công" });
@@ -87,10 +103,14 @@ public class UsersController : ControllerBase
             return BadRequest("Mật khẩu cũ không chính xác.");
         }
 
-        user.PasswordHash = BC.HashPassword(dto.NewPassword); 
-        
-        // 👉 GHI LOG ĐỔI MẬT KHẨU
-        AddActivityLog("ChangePassword", $"Thay đổi mật khẩu tài khoản: {user.Username}", user.Username);
+        user.PasswordHash = BC.HashPassword(dto.NewPassword);
+
+        // 👉 GHI LOG: người dùng tự đổi mật khẩu của chính họ -> dùng user.Username là đúng
+        // Nhưng nếu admin đổi giúp thì log actor
+        var actor = GetCurrentUsername();
+        // Nếu không xác định được actor hoặc actor chính là user đó -> ghi username của họ
+        var logActor = string.IsNullOrEmpty(actor) || actor == "Unknown" ? user.Username : actor;
+        AddActivityLog("ChangePassword", $"[{logActor}] thay đổi mật khẩu tài khoản: {user.Username}", logActor);
 
         await _context.SaveChangesAsync();
 
@@ -112,7 +132,7 @@ public class UsersController : ControllerBase
             IsLocked = u.IsLocked
         }).ToList();
     }
-    
+
     // 5. Tạo User mới (Dành cho Admin)
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateUpdateUserDto dto)
@@ -132,8 +152,9 @@ public class UsersController : ControllerBase
 
         _context.Users.Add(user);
 
-        // 👉 GHI LOG TẠO USER (Dùng hàm helper, bỏ đoạn tự viết cũ đi)
-        AddActivityLog("CreateUser", $"Admin tạo user mới: {user.Username}", user.Username);
+        // 👉 GHI LOG TẠO USER: actor là admin đang thực hiện, không phải user mới tạo
+        var actor = GetCurrentUsername();
+        AddActivityLog("CreateUser", $"[{actor}] tạo user mới: {user.Username}", actor);
 
         // 👉 Chỉ gọi SaveChanges 1 LẦN DUY NHẤT ở cuối cùng
         await _context.SaveChangesAsync();
@@ -151,9 +172,10 @@ public class UsersController : ControllerBase
         // Đảo ngược trạng thái
         user.IsLocked = !user.IsLocked;
 
-        // 👉 GHI LOG KHÓA / MỞ KHÓA
+        // 👉 GHI LOG KHÓA / MỞ KHÓA: actor là admin, target là user bị khóa/mở
         string actionText = user.IsLocked ? "Khóa" : "Mở khóa";
-        AddActivityLog("ToggleLock", $"{actionText} tài khoản: {user.Username}", user.Username);
+        var actor = GetCurrentUsername();
+        AddActivityLog("ToggleLock", $"[{actor}] {actionText.ToLower()} tài khoản: {user.Username}", actor);
 
         await _context.SaveChangesAsync();
         return Ok(new { message = user.IsLocked ? "Đã khóa tài khoản" : "Đã mở khóa tài khoản" });

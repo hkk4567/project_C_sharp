@@ -3,6 +3,7 @@
 @using SmartTourGuide.Web.Services
 @inject AuthenticationStateProvider AuthStateProvider
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject HttpClient Http
 
 <MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="@_customTheme" />
 <MudDialogProvider />
@@ -356,5 +357,23 @@
         if (hour >= 0 && hour < 12) return "Chào buổi sáng";
         else if (hour >= 12 && hour < 18) return "Chào buổi chiều";
         else return "Chào buổi tối";
+    }
+
+    // ✅ Set X-User-Name header mỗi khi layout load (kể cả sau F5)
+    private bool _headerSet = false;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _headerSet) return;
+        _headerSet = true;
+        try
+        {
+            var username = await LocalStorage.GetItemAsync<string>("username");
+            if (!string.IsNullOrEmpty(username))
+            {
+                Http.DefaultRequestHeaders.Remove("X-User-Name");
+                Http.DefaultRequestHeaders.Add("X-User-Name", username);
+            }
+        }
+        catch { }
     }
 }
