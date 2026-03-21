@@ -1,0 +1,407 @@
+@page "/admin/activity-log"
+@using SmartTourGuide.Web.Components.Shared
+@using SmartTourGuide.Shared.DTOs
+@using System.Globalization
+@layout AdminLayout
+@attribute [Authorize(Roles = "Admin")]
+@using System.Text.Json;
+@using System.Net.Http.Json;
+@inject HttpClient Http
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-clock-history"></i> Lịch Sử Hoạt Động Hệ Thống
+        </h2>
+    </div>
+
+    <!-- Thống Kê Tổng Quan -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-left-primary shadow h-100">
+                <div class="card-body">
+                    <div class="text-primary font-weight-bold text-uppercase mb-1">Tổng Đăng Nhập Hôm Nay</div>
+                    <div class="h3 mb-0">@todayLogins</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-left-success shadow h-100">
+                <div class="card-body">
+                    <div class="text-success font-weight-bold text-uppercase mb-1">Thay Đổi POI/Tour</div>
+                    <div class="h3 mb-0">@totalChanges</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-left-warning shadow h-100">
+                <div class="card-body">
+                    <div class="text-warning font-weight-bold text-uppercase mb-1">Chờ Phê Duyệt</div>
+                    <div class="h3 mb-0">@pendingApprovals</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-left-info shadow h-100">
+                <div class="card-body">
+                    <div class="text-info font-weight-bold text-uppercase mb-1">Tổng Hoạt Động</div>
+                    <div class="h3 mb-0">@totalActivities</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bộ Lọc -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Bộ Lọc</h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Loại Hoạt Động</label>
+                    <select class="form-select" @onchange="OnActivityTypeChanged">
+                        <option value="">-- Tất Cả --</option>
+                        <option value="UserLogin">Đăng Nhập</option>
+                        <option value="PoiCreated">Tạo POI</option>
+                        <option value="PoiUpdated">Cập Nhật POI</option>
+                        <option value="PoiDeleted">Xóa POI</option>
+                        <option value="PoiApproved">Phê Duyệt POI</option>
+                        <option value="PoiRejected">Từ Chối POI</option>
+                        <option value="TourCreated">Tạo Tour</option>
+                        <option value="TourUpdated">Cập Nhật Tour</option>
+                        <option value="TourDeleted">Xóa Tour</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Người Dùng</label>
+                    <input type="text" class="form-control" placeholder="Tên người dùng" 
+                           @onchange="OnUserFilterChanged" />
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Từ Ngày</label>
+                    <input type="date" class="form-control" @onchange="OnFromDateChanged" />
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label">Đến Ngày</label>
+                    <input type="date" class="form-control" @onchange="OnToDateChanged" />
+                </div>
+
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" @onclick="SearchActivities">
+                        <i class="bi bi-search"></i> Tìm Kiếm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bảng Hoạt Động -->
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Danh Sách Hoạt Động</h6>
+        </div>
+        <div class="card-body">
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Đang tải...</span>
+                    </div>
+                </div>
+            }
+            else if (activityLogs == null || activityLogs.Count == 0)
+            {
+                <div class="alert alert-info">Không tìm thấy hoạt động nào.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Loại Hoạt Động</th>
+                                <th>Mô Tả</th>
+                                <th>Người Thực Hiện</th>
+                                <th>Thời Gian</th>
+                                <th>IP Address</th>
+                                <th>Hành Động</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var log in activityLogs)
+                            {
+                                <tr>
+                                    <td>#@log.Id</td>
+                                    <td>
+                                        <span class="badge bg-@GetActivityBadgeColor(log.ActivityType)">
+                                            @GetActivityTypeName(log.ActivityType)
+                                        </span>
+                                    </td>
+                                    <td>@log.Description</td>
+                                    <td>@(log.UserName ?? "Không xác định")</td>
+                                    <td>@log.Timestamp.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                                    <td><small class="text-muted">@log.IpAddress</small></td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(log.ChangeDetails))
+                                        {
+                                            <button class="btn btn-sm btn-info" 
+                                                    @onclick="() => ShowChangeDetails(log)">
+                                                <i class="bi bi-eye"></i> Chi Tiết
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Phân Trang -->
+                <nav aria-label="Page navigation" class="mt-3">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
+                            <button class="page-link" @onclick="PreviousPage">Trước</button>
+                        </li>
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            int pageNum = i;
+                            <li class="page-item @(currentPage == pageNum ? "active" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(pageNum)">@pageNum</button>
+                            </li>
+                        }
+                        <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
+                            <button class="page-link" @onclick="NextPage">Tiếp Theo</button>
+                        </li>
+                    </ul>
+                </nav>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal Chi Tiết Thay Đổi -->
+<div class="modal fade" id="changeDetailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Chi Tiết Thay Đổi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                @if (selectedLog != null && !string.IsNullOrEmpty(selectedLog.ChangeDetails))
+                {
+                    <pre class="bg-light p-3 rounded">@selectedLog.ChangeDetails</pre>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<ActivityLogDto>? activityLogs = new();
+    private ActivityLogDto? selectedLog;
+    private bool isLoading = false;
+
+    // Filters
+    private string? activityTypeFilter = "";
+    private string? userFilter = "";
+    private DateTime? fromDateFilter = null;
+    private DateTime? toDateFilter = null;
+
+    // Pagination
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private int totalPages = 1;
+    private int totalActivities = 0;
+
+    // Statistics
+    private int todayLogins = 0;
+    private int totalChanges = 0;
+    private int pendingApprovals = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadActivityLogs();
+        await LoadStatistics();
+    }
+
+    private async Task LoadActivityLogs()
+    {
+        isLoading = true;
+        try
+        {
+            var skip = (currentPage - 1) * pageSize;
+            var url = $"api/activitylog/list?skip={skip}&take={pageSize}";
+
+            if (!string.IsNullOrEmpty(activityTypeFilter))
+                url += $"&activityType={Uri.EscapeDataString(activityTypeFilter)}";
+
+            if (fromDateFilter.HasValue)
+                url += $"&fromDate={fromDateFilter:yyyy-MM-dd}";
+
+            if (toDateFilter.HasValue)
+                url += $"&toDate={toDateFilter:yyyy-MM-dd}";
+
+            var response = await Http.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+                if (json.TryGetProperty("data", out var data))
+                {
+                    activityLogs = data.Deserialize<List<ActivityLogDto>>() ?? new();
+                }
+
+                if (json.TryGetProperty("total", out var total))
+                {
+                    totalActivities = total.GetInt32();
+                    totalPages = (totalActivities + pageSize - 1) / pageSize;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+   private async Task LoadStatistics()
+    {
+        try
+        {
+            var today = DateTime.Now.Date;
+            var url = $"api/activitylog/statistics?fromDate={today:yyyy-MM-dd}";
+            var response = await Http.GetAsync(url);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+
+                if (json.TryGetProperty("data", out var data))
+                {
+                    var stats = data.Deserialize<Dictionary<string, int>>() ?? new();
+
+                    todayLogins = stats.ContainsKey("UserLogin") ? stats["UserLogin"] : 0;
+
+                    totalChanges =
+                        (stats.ContainsKey("PoiUpdated") ? stats["PoiUpdated"] : 0) +
+                        (stats.ContainsKey("TourUpdated") ? stats["TourUpdated"] : 0);
+
+                    pendingApprovals =
+                        (stats.ContainsKey("PoiApproved") ? stats["PoiApproved"] : 0) +
+                        (stats.ContainsKey("PostApproved") ? stats["PostApproved"] : 0);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+    }
+
+    private async Task SearchActivities()
+    {
+        currentPage = 1;
+        await LoadActivityLogs();
+    }
+
+    private void OnActivityTypeChanged(ChangeEventArgs e)
+    {
+        activityTypeFilter = e.Value?.ToString();
+    }
+
+    private void OnUserFilterChanged(ChangeEventArgs e)
+    {
+        userFilter = e.Value?.ToString();
+    }
+
+    private void OnFromDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var date))
+            fromDateFilter = date;
+    }
+
+    private void OnToDateChanged(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var date))
+            toDateFilter = date;
+    }
+
+    private void ShowChangeDetails(ActivityLogDto log)
+    {
+        selectedLog = log;
+        // Trigger modal
+        Task.Run(async () => await InvokeAsync(() => 
+        {
+            // Modal trigger code here
+        }));
+    }
+
+    private async Task NextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            await LoadActivityLogs();
+        }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            await LoadActivityLogs();
+        }
+    }
+
+    private async Task GoToPage(int page)
+    {
+        currentPage = page;
+        await LoadActivityLogs();
+    }
+
+    private string GetActivityBadgeColor(string activityType)
+    {
+        return activityType switch
+        {
+            "UserLogin" => "info",
+            "PoiCreated" or "TourCreated" => "success",
+            "PoiUpdated" or "TourUpdated" => "warning",
+            "PoiDeleted" or "TourDeleted" => "danger",
+            "PoiApproved" or "PostApproved" => "primary",
+            "PoiRejected" or "PostRejected" => "danger",
+            _ => "secondary"
+        };
+    }
+
+    private string GetActivityTypeName(string activityType)
+    {
+        return activityType switch
+        {
+            "UserLogin" => "Đăng Nhập",
+            "PoiCreated" => "Tạo POI",
+            "PoiUpdated" => "Cập Nhật POI",
+            "PoiDeleted" => "Xóa POI",
+            "PoiApproved" => "Phê Duyệt POI",
+            "PoiRejected" => "Từ Chối POI",
+            "TourCreated" => "Tạo Tour",
+            "TourUpdated" => "Cập Nhật Tour",
+            "TourDeleted" => "Xóa Tour",
+            _ => activityType
+        };
+    }
+}
