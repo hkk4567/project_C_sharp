@@ -18,7 +18,7 @@ namespace SmartTourGuide.API.Data
         public DbSet<Tour> Tours { get; set; }
         public DbSet<TourDetail> TourDetails { get; set; }
         public DbSet<PoiTranslation> PoiTranslations { get; set; }
-
+        public DbSet<ActivityLog> ActivityLogs { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

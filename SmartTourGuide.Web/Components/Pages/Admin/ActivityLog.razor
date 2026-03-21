@@ -1,0 +1,453 @@
+@page "/admin/activity-log"
+@using SmartTourGuide.Shared.DTOs
+@using Microsoft.AspNetCore.WebUtilities
+@layout AdminLayout
+@inject HttpClient Http
+<style>
+    /* ===== GLOBAL ===== */
+body {
+    background-color: #f5f7fb;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* ===== HEADER ===== */
+h2 {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+/* ===== CARD ===== */
+.card {
+    border: none;
+    border-radius: 14px;
+    transition: all 0.25s ease;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+/* ===== STATS CARD ===== */
+.card .card-body h4 {
+    font-weight: 700;
+    margin-top: 6px;
+}
+
+/* border trái đẹp hơn */
+.border-4 {
+    border-width: 6px !important;
+}
+
+/* ===== FILTER ===== */
+.form-control,
+.form-select {
+    border-radius: 10px;
+    border: 1px solid #e0e6ed;
+    transition: all 0.2s;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.15rem rgba(78,115,223,.25);
+}
+
+/* ===== BUTTON ===== */
+.btn-primary {
+    border-radius: 10px;
+    font-weight: 500;
+    background: linear-gradient(135deg, #4e73df, #224abe);
+    border: none;
+    transition: 0.25s;
+}
+
+.btn-primary:hover {
+    transform: scale(1.03);
+    box-shadow: 0 6px 15px rgba(78,115,223,0.4);
+}
+
+/* ===== TABLE ===== */
+.table {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.table thead {
+    background: #f1f3f9;
+    font-weight: 600;
+}
+
+.table-hover tbody tr {
+    transition: 0.2s;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f9fbff;
+    transform: scale(1.002);
+}
+
+/* ===== BADGE ===== */
+.badge {
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* ===== PAGINATION ===== */
+.pagination .page-link {
+    border-radius: 8px;
+    margin: 0 3px;
+    border: none;
+    color: #4e73df;
+    transition: 0.2s;
+}
+
+.pagination .page-link:hover {
+    background-color: #e9ecf5;
+}
+
+.pagination .active .page-link {
+    background: #4e73df;
+    color: white;
+    box-shadow: 0 4px 10px rgba(78,115,223,0.4);
+}
+
+/* ===== ALERT ===== */
+.alert {
+    border-radius: 10px;
+    border: none;
+}
+
+/* ===== LOADING ===== */
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* ===== EMPTY STATE ===== */
+.text-muted {
+    font-size: 0.95rem;
+}
+
+/* ===== SCROLL TABLE ===== */
+.table-responsive {
+    border-radius: 12px;
+}
+
+.activity-title {
+        color: var(--mud-palette-text-primary) !important;
+        font-weight: 700;
+    }
+</style>
+<div class="container-fluid py-4">
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="activity-title"><i class="bi bi-clock-history"></i> Lịch Sử Hoạt Động</h2>    
+    </div>
+
+    <!-- Thông báo lỗi nếu có -->
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger shadow-sm">
+            <i class="bi bi-exclamation-triangle-fill"></i> @errorMessage
+        </div>
+    }
+
+    <!-- STATS -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card shadow border-start border-primary border-4">
+                <div class="card-body">
+                    <div class="text-primary">Đăng nhập hôm nay</div>
+                    <h4>@todayLogins</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow border-start border-success border-4">
+                <div class="card-body">
+                    <div class="text-success">Thay đổi (Log)</div>
+                    <h4>@totalChanges</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow border-start border-warning border-4">
+                <div class="card-body">
+                    <div class="text-warning">POI chờ duyệt</div>
+                    <h4>@pendingApprovals</h4>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow border-start border-info border-4">
+                <div class="card-body">
+                    <div class="text-info">Tổng POI</div>
+                    <h4>@totalActivities</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTER -->
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <select class="form-select" @bind="activityTypeFilter">
+                        <option value="">-- Tất cả --</option>
+                        <option value="Login">Đăng nhập</option>
+                        <option value="POI">POI</option>
+                        <option value="Tour">Tour</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <input class="form-control" placeholder="Tên User..." @bind="userFilter" />
+                </div>
+
+                <div class="col-md-2">
+                    <input type="date" class="form-control" @bind="fromDate" />
+                </div>
+
+                <div class="col-md-2">
+                    <input type="date" class="form-control" @bind="toDate" />
+                </div>
+
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" @onclick="HandleSearch" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Tìm kiếm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-body">
+            @if (isLoading)
+            {
+                <div class="text-center py-4 text-muted">
+                    <div class="spinner-border mb-2" role="status"></div>
+                    <div>Đang tải dữ liệu...</div>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Loại</th>
+                                <th>Mô tả</th>
+                                <th>User</th>
+                                <th>Thời gian</th>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @if (paginatedLogs != null && paginatedLogs.Any())
+                            {
+                                @foreach (var log in paginatedLogs)
+                                {
+                                    <tr>
+                                        <td>@log.Id</td>
+                                        <td>
+                                            <span class="badge 
+                                                @(log.ActivityType == "Login" ? "bg-info" :
+                                                log.ActivityType?.Contains("Create") == true ? "bg-success" :
+                                                log.ActivityType?.Contains("Update") == true ? "bg-warning" :
+                                                log.ActivityType?.Contains("Delete") == true ? "bg-danger" :
+                                                "bg-secondary")">
+                                                @log.ActivityType
+                                            </span>
+                                        </td>
+                                        <td>@log.Description</td>
+                                        <td>@log.UserName</td>
+                                        <td>@log.Timestamp.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td>@log.IpAddress</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center py-3 text-muted">
+                                        Không tìm thấy lịch sử hoạt động nào.
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (totalPages > 1)
+                {
+                    <nav aria-label="Page navigation" class="mt-4 d-flex justify-content-end">
+                        <ul class="pagination mb-0">
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="PreviousPage">Trước</button>
+                            </li>
+                            
+                            @for (int i = 1; i <= totalPages; i++)
+                            {
+                                var pageNumber = i; // Bắt buộc phải gán vào biến local trong vòng lặp Blazor
+                                <li class="page-item @(currentPage == pageNumber ? "active" : "")">
+                                    <button class="page-link" @onclick="() => GoToPage(pageNumber)">@pageNumber</button>
+                                </li>
+                            }
+
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="NextPage">Sau</button>
+                            </li>
+                        </ul>
+                    </nav>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    // 1. CÁC BIẾN DỮ LIỆU & TRẠNG THÁI
+    private List<ActivityLogDto> activityLogs = new();
+    private bool isLoading;
+    private string? errorMessage;
+
+    // 2. CÁC BIẾN BỘ LỌC (FILTER)
+    private string? activityTypeFilter;
+    private string? userFilter;
+    private DateTime? fromDate;
+    private DateTime? toDate;
+
+    // 3. CÁC BIẾN THỐNG KÊ (4 Ô TRÊN CÙNG)
+    private int todayLogins = 0;
+    private int totalChanges = 0;
+    private int pendingApprovals = 0;
+    private int totalActivities = 0;
+
+    // 4. CÁC BIẾN DÀNH CHO PHÂN TRANG
+    private int currentPage = 1;
+    private int pageSize = 10; // Đổi số này nếu bạn muốn hiển thị nhiều/ít dòng hơn trên 1 trang
+
+    // Tính tổng số trang
+    private int totalPages => (int)Math.Ceiling((double)(activityLogs?.Count ?? 0) / pageSize);
+
+    // Lọc dữ liệu hiển thị cho trang hiện tại
+    private IEnumerable<ActivityLogDto> paginatedLogs => 
+        activityLogs?.Skip((currentPage - 1) * pageSize).Take(pageSize) ?? Array.Empty<ActivityLogDto>();
+
+    // ==========================================
+    // CÁC HÀM XỬ LÝ (METHODS)
+    // ==========================================
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogs();
+        await LoadStats(); 
+    }
+
+    private async Task LoadLogs()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var query = new Dictionary<string, string?>();
+            
+            if (!string.IsNullOrWhiteSpace(activityTypeFilter))
+                query["type"] = activityTypeFilter;
+                
+            if (!string.IsNullOrWhiteSpace(userFilter))
+                query["user"] = userFilter;
+                
+            if (fromDate.HasValue)
+                query["from"] = fromDate.Value.ToString("yyyy-MM-dd");
+                
+            if (toDate.HasValue)
+                query["to"] = toDate.Value.ToString("yyyy-MM-dd");
+
+            var url = QueryHelpers.AddQueryString("api/activitylogs", query);
+
+            activityLogs = await Http.GetFromJsonAsync<List<ActivityLogDto>>(url) 
+                         ?? new List<ActivityLogDto>();
+
+            // Tính toán Đăng nhập hôm nay
+            todayLogins = activityLogs.Count(x => 
+                x.ActivityType == "Login" && 
+                x.Timestamp.Date == DateTime.Today);
+
+            // Đếm tổng Thay đổi (Log) (Mọi thứ trừ Login)
+            totalChanges = activityLogs.Count(x => x.ActivityType != "Login");
+
+            // Đặt lại trang 1 mỗi khi tải dữ liệu mới
+            currentPage = 1;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Đã xảy ra lỗi khi tải dữ liệu: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadStats()
+    {
+        try
+        {
+            var pendingList = await Http.GetFromJsonAsync<List<PoiDto>>("api/pois/pending");
+            pendingApprovals = pendingList?.Count ?? 0;
+
+            var allPois = await Http.GetFromJsonAsync<List<PoiDto>>("api/pois");
+            totalActivities = allPois?.Count ?? 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Lỗi tải thông số: " + ex.Message);
+        }
+    }
+
+    private async Task HandleSearch()
+    {
+        await LoadLogs();
+        await LoadStats(); 
+    }
+
+    // ==========================================
+    // CÁC HÀM ĐIỀU KHIỂN NÚT BẤM PHÂN TRANG
+    // ==========================================
+    private void PreviousPage()
+    {
+        if (currentPage > 1) 
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < totalPages) 
+        {
+            currentPage++;
+        }
+    }
+
+    private void GoToPage(int page)
+    {
+        currentPage = page;
+    }
+}

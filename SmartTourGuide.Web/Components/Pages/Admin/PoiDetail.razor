@@ -190,7 +190,8 @@
             @if (poi.Status == "Pending")
             {
                 <MudButton Variant="Variant.Filled" Color="Color.Error"
-                           StartIcon="@Icons.Material.Filled.Close">Từ Chối</MudButton>
+                    StartIcon="@Icons.Material.Filled.Close"
+                    OnClick="RejectPoi">Từ Chối</MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Success"
                            StartIcon="@Icons.Material.Filled.Check"
                            OnClick="ApprovePoi">Duyệt Ngay</MudButton>
@@ -342,6 +343,23 @@
         else
         {
             Snackbar.Add("Có lỗi xảy ra.", Severity.Error);
+        }
+    }
+
+
+    private async Task RejectPoi()
+    {
+        // Giả sử API của bạn là PUT api/pois/{Id}/reject
+        var response = await Http.PutAsync($"api/pois/{Id}/reject", null);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Đã từ chối địa điểm!", Severity.Warning);
+            Nav.NavigateTo("/admin/approvals");
+        }
+        else
+        {
+            Snackbar.Add("Có lỗi xảy ra khi từ chối.", Severity.Error);
         }
     }
 }

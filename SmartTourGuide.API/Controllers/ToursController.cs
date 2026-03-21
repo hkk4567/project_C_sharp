@@ -91,12 +91,10 @@ public class ToursController : ControllerBase
 
         if (thumbnailFile != null)
         {
-            // Nếu Admin có upload ảnh riêng -> Lưu ảnh đó
             thumbnailUrl = await _fileService.SaveFileAsync(thumbnailFile, "tours");
         }
         else if (dto.PoiIds != null && dto.PoiIds.Count > 0)
         {
-            // Nếu KHÔNG upload ảnh -> Lấy trộm ảnh của POI đầu tiên làm ảnh bìa
             var firstPoiId = dto.PoiIds[0];
             var firstPoiImage = await _context.MediaAssets
                 .FirstOrDefaultAsync(m => m.PoiId == firstPoiId && m.Type == MediaType.Image);
@@ -112,7 +110,7 @@ public class ToursController : ControllerBase
         {
             Name = dto.Name,
             Description = dto.Description,
-            ThumbnailUrl = thumbnailUrl // <-- Lưu link ảnh vào đây
+            ThumbnailUrl = thumbnailUrl 
         };
 
         _context.Tours.Add(tour);
@@ -122,7 +120,6 @@ public class ToursController : ControllerBase
         if (dto.PoiIds != null && dto.PoiIds.Count > 0)
         {
             int order = 1;
-            // Xóa trùng lặp ID phòng trường hợp admin chọn nhầm
             var distinctIds = dto.PoiIds.Distinct().ToList();
 
             foreach (var poiId in distinctIds)
@@ -143,6 +140,20 @@ public class ToursController : ControllerBase
             await _context.SaveChangesAsync();
         }
 
+        // 4. 🔥 BỔ SUNG GHI LOG TẠI ĐÂY 🔥
+        var username = User.Identity?.Name ?? "Admin";
+        var log = new ActivityLog
+        {
+            ActivityType = "CreateTour",
+            Description = $"Admin {username} đã tạo Tour mới: '{tour.Name}'",
+            UserName = username,
+            Timestamp = DateTime.Now,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown"
+        };
+        
+        _context.ActivityLogs.Add(log);
+        await _context.SaveChangesAsync();
+
         return Ok(new { message = "Tạo tour thành công", tourId = tour.Id });
     }
 
@@ -153,8 +164,25 @@ public class ToursController : ControllerBase
         var tour = await _context.Tours.FindAsync(id);
         if (tour == null) return NotFound();
 
+        // 🔥 Lưu lại tên tour trước khi xóa để đưa vào câu log
+        var tourName = tour.Name; 
+
         _context.Tours.Remove(tour);
         await _context.SaveChangesAsync(); // Cascade delete sẽ tự xóa các TourDetail
+
+        // 🔥 BỔ SUNG GHI LOG TẠI ĐÂY 🔥
+        var username = User.Identity?.Name ?? "Admin";
+        var log = new ActivityLog
+        {
+            ActivityType = "DeleteTour",
+            Description = $"Admin {username} đã xóa Tour: '{tourName}'",
+            UserName = username,
+            Timestamp = DateTime.Now,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown"
+        };
+
+        _context.ActivityLogs.Add(log);
+        await _context.SaveChangesAsync();
 
         return Ok(new { message = "Đã xóa tour." });
     }
