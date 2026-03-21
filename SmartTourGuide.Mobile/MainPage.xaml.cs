@@ -37,6 +37,7 @@ public partial class MainPage : ContentPage
     private IDispatcherTimer? _geofenceTimer; // Bộ đếm giờ chạy ngầm
     private List<PoiModel> _allPoisCache = new(); // Lưu cache danh sách địa điểm
     private PoiModel? _currentlyPlayingGeofencePoi; // Lưu địa điểm ĐANG PHÁT audio
+    private PoiModel? _nearestHighlightedPoi = null; // POI gần nhất đang được highlight trên bản đồ
     private MauiLocation.Location _currentUserLocation = new MauiLocation.Location(DefaultLat, DefaultLon);// Vị trí hiện tại
 
     private readonly SemaphoreSlim _mapLock = new SemaphoreSlim(1, 1);
@@ -130,7 +131,11 @@ public partial class MainPage : ContentPage
         {
             _geofenceTimer = Application.Current!.Dispatcher.CreateTimer();
             _geofenceTimer.Interval = TimeSpan.FromSeconds(3); // Cứ 3s quét 1 lần
-            _geofenceTimer.Tick += (s, e) => CheckGeofences(); // Gọi hàm Engine
+            _geofenceTimer.Tick += (s, e) =>
+            {
+                CheckGeofences();
+                UpdateNearestPoiHighlight();
+            };
             _geofenceTimer.Start();
         }
     }
@@ -353,29 +358,74 @@ public partial class MainPage : ContentPage
             StopAudio();
         }
     }
+    // HÀM HỖ TRỢ: Tải file audio về máy và trả về đường dẫn local (Nếu có lỗi sẽ trả về null để dùng Stream trực tiếp)
+    private async Task<string?> GetLocalAudioPathAsync(string url)
+    {
+        try
+        {
+            // 1. Tạo tên file duy nhất dựa trên URL (loại bỏ ký tự đặc biệt)
+            string fileName = Path.GetFileName(url.Split('?')[0]);
+            string localPath = Path.Combine(FileSystem.CacheDirectory, fileName);
+
+            // 2. Nếu file đã tồn tại trên máy, trả về đường dẫn luôn
+            if (File.Exists(localPath))
+            {
+                return localPath;
+            }
+
+            // 3. Nếu chưa có, tiến hành tải về
+            using var client = new HttpClient();
+            var data = await client.GetByteArrayAsync(url);
+            await File.WriteAllBytesAsync(localPath, data);
+
+            return localPath;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Lỗi tải file: {ex.Message}");
+            return null; // Trả về null nếu tải lỗi để quay lại dùng Stream trực tiếp
+        }
+    }
 
     // --- PHÁT FILE AUDIO TỪ URL ---
     private async Task PlayRemoteAudio(string url)
     {
         try
         {
-            // 1. Xử lý URL (Thay thế dấu gạch chéo ngược nếu có)
-            string fixedUrl = url.Replace("\\", "/");
+            // 1. Sửa URL cho chuẩn (thay \ thành /)
+            string fixedUrl = url.Replace("\\", "/");
 
-            using var client = new HttpClient();
+            // 2. GỌI HÀM CACHE: Kiểm tra xem file đã tải về máy chưa
+            string? localPath = await GetLocalAudioPathAsync(fixedUrl);
 
-            // 2. Tải luồng dữ liệu từ mạng
-            var networkStream = await client.GetStreamAsync(fixedUrl);
+            Stream audioStream;
 
-            // 3. Copy sang MemoryStream (RAM) để hỗ trợ Seeking (Sửa lỗi ảnh 1)
-            var memoryStream = new MemoryStream();
-            await networkStream.CopyToAsync(memoryStream);
+            if (!string.IsNullOrEmpty(localPath) && File.Exists(localPath))
+            {
+                // Trường hợp A: Đã có file trong máy -> Mở trực tiếp (Cực nhanh, không tốn data)
+                audioStream = File.OpenRead(localPath);
+                System.Diagnostics.Debug.WriteLine($"---> Đang phát từ CACHE: {localPath}");
+            }
+            else
+            {
+                // Trường hợp B: Chưa có hoặc lỗi tải -> Tải tạm vào RAM (như cũ)
+                using var client = new HttpClient();
+                var networkStream = await client.GetStreamAsync(fixedUrl);
+                var memoryStream = new MemoryStream();
+                await networkStream.CopyToAsync(memoryStream);
+                memoryStream.Position = 0;
+                audioStream = memoryStream;
+                System.Diagnostics.Debug.WriteLine("---> Đang phát từ MẠNG (Download trực tiếp)");
+            }
 
-            // QUAN TRỌNG: Phải tua băng về đầu sau khi ghi xong
-            memoryStream.Position = 0;
+            // 3. Khởi tạo và phát
+            if (_audioPlayer != null)
+            {
+                _audioPlayer.Stop();
+                _audioPlayer.Dispose();
+            }
 
-            // 4. Tạo player từ MemoryStream
-            _audioPlayer = AudioManager.Current.CreatePlayer(memoryStream);
+            _audioPlayer = AudioManager.Current.CreatePlayer(audioStream);
 
             _audioPlayer.PlaybackEnded += (s, e) =>
             {
@@ -384,16 +434,14 @@ public partial class MainPage : ContentPage
                 {
                     if (btnPlayAudio != null) btnPlayAudio.Text = "🔊 Nghe lại";
                 });
-
-                // Giải phóng RAM sau khi nghe xong
-                memoryStream.Dispose();
+                audioStream.Dispose(); // Giải phóng stream khi kết thúc
             };
 
             _audioPlayer.Play();
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("Lỗi", $"Không thể phát: {ex.Message}", "OK");
+            await DisplayAlertAsync("Lỗi", $"Không thể phát audio: {ex.Message}", "OK");
             StopAudio();
         }
     }
@@ -707,6 +755,71 @@ public partial class MainPage : ContentPage
         }
     }
 
+    // ── HIGHLIGHT POI GẦN NHẤT ──────────────────────────────────────────────
+    private void UpdateNearestPoiHighlight()
+    {
+        if (_allPoisCache.Count == 0 || mapView?.Pins == null || mapView.Pins.Count == 0) return;
+
+        // 1. Duyệt tất cả POI, tính khoảng cách, tìm cái gần nhất
+        PoiModel? nearestPoi = null;
+        double minDistanceM = double.MaxValue;
+
+        foreach (var poi in _allPoisCache)
+        {
+            var poiLocation = new MauiLocation.Location(poi.Latitude, poi.Longitude);
+            double distanceM = MauiLocation.Location.CalculateDistance(
+                _currentUserLocation, poiLocation, DistanceUnits.Kilometers) * 1000;
+
+            if (distanceM < minDistanceM)
+            {
+                minDistanceM = distanceM;
+                nearestPoi = poi;
+            }
+        }
+
+        if (nearestPoi == null) return;
+
+        // 2. Không làm gì nếu kết quả không đổi → tránh refresh bản đồ thừa
+        if (_nearestHighlightedPoi?.Id == nearestPoi.Id) return;
+
+        _nearestHighlightedPoi = nearestPoi;
+
+        // 3. Snapshot để dùng trong lambda (tránh closure bắt biến thay đổi)
+        var capturedNearest = nearestPoi;
+        var capturedDistance = minDistanceM;
+        var distanceText = capturedDistance >= 1000
+            ? $"{capturedDistance / 1000:F1} km"
+            : $"{capturedDistance:F0} m";
+
+        // 4. Cập nhật màu + kích thước pin trên UI Thread
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            foreach (var pin in mapView.Pins)
+            {
+                bool isNearest = pin.Tag is PoiModel p && p.Id == capturedNearest.Id;
+
+                if (isNearest)
+                {
+                    // POI gần nhất: xanh lam, to hơn
+                    pin.Color = Microsoft.Maui.Graphics.Colors.DeepSkyBlue;
+                    pin.Scale = 0.85f;
+                }
+                else
+                {
+                    // Các POI khác: về mặc định
+                    pin.Color = Microsoft.Maui.Graphics.Colors.Red;
+                    pin.Scale = 0.5f;
+                }
+            }
+
+            mapView.RefreshGraphics();
+
+            // Cập nhật label (chỉ khi không có audio đang phát để không đè thông báo geofence)
+            if (!_isPlaying)
+                statusLabel.Text = $"📍 Gần nhất: {capturedNearest.Name} · {distanceText}";
+        });
+    }
+
     // HÀM GIẢ LẬP ĐI BỘ
     private void OnMapClicked_SimulateWalk(object? sender, MapClickedEventArgs e)
     {
@@ -722,6 +835,9 @@ public partial class MainPage : ContentPage
             mapView.MyLocationLayer.UpdateMyLocation(new Mapsui.UI.Maui.Position(lat, lon));
             mapView.RefreshGraphics();
         });
+
+        // Cập nhật highlight POI gần nhất ngay lập tức (không chờ timer 3s)
+        UpdateNearestPoiHighlight();
 
         // Đánh dấu sự kiện đã xử lý
         e.Handled = true;
