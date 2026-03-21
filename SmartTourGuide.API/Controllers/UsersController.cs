@@ -4,6 +4,7 @@ using SmartTourGuide.API.Data;
 using SmartTourGuide.API.Data.Entities;
 using SmartTourGuide.Shared.DTOs;
 using BC = BCrypt.Net.BCrypt;
+
 namespace SmartTourGuide.API.Controllers;
 
 [Route("api/[controller]")]
@@ -17,19 +18,39 @@ public class UsersController : ControllerBase
         _context = context;
     }
 
+    // 👉 HÀM HELPER DÙNG CHUNG ĐỂ LƯU LOG (Đã xử lý IP an toàn)
+    private void AddActivityLog(string activityType, string description, string username)
+    {
+        var ip = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        
+        if (string.IsNullOrEmpty(ip))
+        {
+            ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        }
+        else
+        {
+            ip = ip.Split(',')[0].Trim(); // Lấy IP đầu tiên nếu qua proxy
+        }
+
+        ip ??= "Unknown";
+        if (ip.Length > 50) ip = ip.Substring(0, 50); // Tránh lỗi vượt quá số ký tự của Cột DB
+
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            ActivityType = activityType,
+            Description = description,
+            UserName = username,
+            Timestamp = DateTime.Now,
+            IpAddress = ip
+        });
+    }
+
     // 1. Lấy thông tin chi tiết User
     [HttpGet("{id}")]
     public async Task<IActionResult> GetProfile(int id)
     {
         var user = await _context.Users
-            .Select(u => new
-            {
-                u.Id,
-                u.Username,
-                u.FullName,
-                u.Email,
-                u.Role
-            })
+            .Select(u => new { u.Id, u.Username, u.FullName, u.Email, u.Role })
             .FirstOrDefaultAsync(u => u.Id == id);
 
         if (user == null) return NotFound("Người dùng không tồn tại.");
@@ -47,6 +68,9 @@ public class UsersController : ControllerBase
         user.Email = dto.Email;
         user.Role = dto.Role;
 
+        // 👉 GHI LOG CẬP NHẬT
+        AddActivityLog("UpdateUser", $"Cập nhật thông tin người dùng: {user.Username}", user.Username);
+
         await _context.SaveChangesAsync();
         return Ok(new { message = "Cập nhật thành công" });
     }
@@ -58,14 +82,16 @@ public class UsersController : ControllerBase
         var user = await _context.Users.FindAsync(id);
         if (user == null) return NotFound();
 
-        // Lưu ý: Trong thực tế bạn phải dùng thư viện BCrypt hoặc Identity để Verify mật khẩu
-        // Ở đây mình ví dụ logic kiểm tra cơ bản
         if (!BC.Verify(dto.OldPassword, user.PasswordHash))
         {
             return BadRequest("Mật khẩu cũ không chính xác.");
         }
 
-        user.PasswordHash = BC.HashPassword(dto.NewPassword); // Nhớ Hash mật khẩu trước khi lưu!
+        user.PasswordHash = BC.HashPassword(dto.NewPassword); 
+        
+        // 👉 GHI LOG ĐỔI MẬT KHẨU
+        AddActivityLog("ChangePassword", $"Thay đổi mật khẩu tài khoản: {user.Username}", user.Username);
+
         await _context.SaveChangesAsync();
 
         return Ok(new { message = "Đổi mật khẩu thành công!" });
@@ -86,7 +112,8 @@ public class UsersController : ControllerBase
             IsLocked = u.IsLocked
         }).ToList();
     }
-    // 5. Tạo User mới
+    
+    // 5. Tạo User mới (Dành cho Admin)
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateUpdateUserDto dto)
     {
@@ -99,12 +126,18 @@ public class UsersController : ControllerBase
             FullName = dto.FullName,
             Email = dto.Email,
             Role = dto.Role,
-            PasswordHash = BC.HashPassword(dto.Password), // Mã hóa pass
+            PasswordHash = BC.HashPassword(dto.Password),
             IsLocked = false
         };
 
         _context.Users.Add(user);
+
+        // 👉 GHI LOG TẠO USER (Dùng hàm helper, bỏ đoạn tự viết cũ đi)
+        AddActivityLog("CreateUser", $"Admin tạo user mới: {user.Username}", user.Username);
+
+        // 👉 Chỉ gọi SaveChanges 1 LẦN DUY NHẤT ở cuối cùng
         await _context.SaveChangesAsync();
+
         return Ok(new { message = "Tạo user thành công" });
     }
 
@@ -115,13 +148,18 @@ public class UsersController : ControllerBase
         var user = await _context.Users.FindAsync(id);
         if (user == null) return NotFound();
 
-        // Đảo ngược trạng thái (Đang khóa -> Mở, Đang mở -> Khóa)
+        // Đảo ngược trạng thái
         user.IsLocked = !user.IsLocked;
+
+        // 👉 GHI LOG KHÓA / MỞ KHÓA
+        string actionText = user.IsLocked ? "Khóa" : "Mở khóa";
+        AddActivityLog("ToggleLock", $"{actionText} tài khoản: {user.Username}", user.Username);
 
         await _context.SaveChangesAsync();
         return Ok(new { message = user.IsLocked ? "Đã khóa tài khoản" : "Đã mở khóa tài khoản" });
     }
 
+    // 7. Lấy user theo Username
     [HttpGet("by-username/{username}")]
     public async Task<IActionResult> GetByUsername(string username)
     {

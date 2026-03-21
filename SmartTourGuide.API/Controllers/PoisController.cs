@@ -82,10 +82,10 @@ public class PoisController : ControllerBase
         return Ok(result);
     }
 
-    // 2. API cho Chủ gian hàng: Tạo địa điểm mới
-    [HttpPost]
+   [HttpPost]
     public async Task<ActionResult> CreatePoi([FromForm] CreatePoiDto dto, [FromForm] List<IFormFile> files)
     {
+        // 1. Khởi tạo POI mới
         var newPoi = new Poi
         {
             Name = dto.Name,
@@ -93,14 +93,17 @@ public class PoisController : ControllerBase
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
             OwnerId = dto.OwnerId,
-            Status = PoiStatus.Pending,
+            Status = PoiStatus.Pending, 
             Address = dto.Address ?? "N/A",
             GeofenceSetting = new GeofenceSetting { TriggerRadiusInMeters = 50 }
         };
 
         _context.Pois.Add(newPoi);
-        await _context.SaveChangesAsync();
+        
+        // 🔥 BẮT BUỘC PHẢI CÓ DÒNG NÀY ĐỂ MYSQL TẠO RA ID CHO ĐỊA ĐIỂM 🔥
+        await _context.SaveChangesAsync(); 
 
+        // 2. Xử lý Upload file 
         if (files != null && files.Count > 0)
         {
             foreach (var file in files)
@@ -111,17 +114,39 @@ public class PoisController : ControllerBase
 
                 _context.MediaAssets.Add(new MediaAsset
                 {
-                    PoiId = newPoi.Id,
+                    PoiId = newPoi.Id, // Lúc này newPoi.Id mới có giá trị hợp lệ (vd: 5, 6, 7)
                     Type = isAudio ? MediaType.AudioFile : MediaType.Image,
                     UrlOrContent = url,
                     LanguageCode = "vi-VN"
                 });
             }
-            await _context.SaveChangesAsync();
         }
+
+        // 3. Xử lý Ghi Log
+        var currentUsername = User.Identity?.Name;
+        if (string.IsNullOrEmpty(currentUsername))
+        {
+            var owner = await _context.Users.FindAsync(dto.OwnerId);
+            currentUsername = owner?.Username ?? $"Owner_{dto.OwnerId}";
+        }
+
+        var log = new ActivityLog
+        {
+            ActivityType = "CreatePOI",
+            Description = $"Chủ gian hàng [{currentUsername}] đã tạo địa điểm mới: '{dto.Name}' (Chờ duyệt)",
+            UserName = currentUsername,
+            Timestamp = DateTime.Now,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown"
+        };
+        
+        _context.ActivityLogs.Add(log);
+
+        // 4. Lưu lại toàn bộ File Media và Log
+        await _context.SaveChangesAsync();
 
         return Ok(new { message = "Tạo thành công, vui lòng chờ Admin duyệt!", id = newPoi.Id });
     }
+    
 
     // 2.1. API cho Chủ gian hàng: Lấy danh sách POI của một chủ sở hữu cụ thể
     [HttpGet("owner/{ownerId}")]
@@ -159,67 +184,90 @@ public class PoisController : ControllerBase
 
         return Ok(result);
     }
-
     //2.2. API cho Chủ gian hàng: xóa địa điểm 
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeletePoi(int id)
     {
         var poi = await _context.Pois.FindAsync(id);
         if (poi == null) return NotFound("Không tìm thấy địa điểm.");
 
-        // --- MỚI: KIỂM TRA RÀNG BUỘC VỚI BẢNG TOUR ---
-        // Kiểm tra xem ID của địa điểm này có đang nằm trong bất kỳ chi tiết Tour nào không
+        // --- CHECK TOUR ---
         bool isInAnyTour = await _context.TourDetails.AnyAsync(td => td.PoiId == id);
 
         if (isInAnyTour)
         {
-            // Trả về lỗi 400 (BadRequest) kèm câu thông báo cho chủ gian hàng
             return BadRequest("Địa điểm này đang nằm trong một Tuyến Du Lịch (Tour). Vui lòng liên hệ Admin để gỡ địa điểm ra khỏi Tour trước khi xóa!");
         }
 
-        // --- MỚI: XÓA CÁC BẢN DỊCH (Nếu có) ---
-        // Lấy tất cả bản dịch của địa điểm này và xóa
-        var translations = await _context.PoiTranslations.Where(t => t.PoiId == id).ToListAsync();
+        // --- XÓA TRANSLATIONS ---
+        var translations = await _context.PoiTranslations
+            .Where(t => t.PoiId == id)
+            .ToListAsync();
+
         if (translations.Any())
         {
             _context.PoiTranslations.RemoveRange(translations);
         }
 
-        // Xóa địa điểm gốc (EF Core sẽ tự động Cascade xóa MediaAssets và GeofenceSetting đi kèm)
+        // 🔥 LẤY THÔNG TIN TRƯỚC KHI XÓA
+        var poiName = poi.Name;
+
+        // 👉 Lấy username từ bảng Users (theo OwnerId)
+        var user = await _context.Users.FindAsync(poi.OwnerId);
+        var username = user?.Username ?? "Unknown";
+
+        // 👉 Lấy IP
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+
         _context.Pois.Remove(poi);
 
         await _context.SaveChangesAsync();
 
+        // 🔥 GHI LOG ĐÚNG FORMAT DB CỦA BẠN
+        var log = new ActivityLog
+        {
+            ActivityType = "DeletePOI",
+            Description = $"User {username} đã xóa POI: {poiName}",
+            UserName = username,
+            Timestamp = DateTime.Now,
+            IpAddress = ip ?? ""
+        };
+
+        _context.ActivityLogs.Add(log);
+        await _context.SaveChangesAsync();
+
         return Ok(new { message = "Đã xóa địa điểm thành công!" });
     }
-    //2.3. API cho Chủ gian hàng: sửa địa điểm 
+
+   //2.3. API cho Chủ gian hàng: sửa địa điểm 
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdatePoi(int id, [FromForm] CreatePoiDto dto, [FromForm] List<IFormFile> files)
     {
         var poi = await _context.Pois.FindAsync(id);
         if (poi == null) return NotFound("Không tìm thấy địa điểm.");
 
-        // 1. Cập nhật thông tin cơ bản
+        // 🔥 LẤY THÔNG TIN CŨ
+        var oldName = poi.Name;
+
+        // 👉 Lấy username thật từ DB
+        var user = await _context.Users.FindAsync(poi.OwnerId);
+        var username = user?.Username ?? "Unknown";
+
+        // 1. Cập nhật thông tin
         poi.Name = dto.Name;
         poi.Description = dto.Description;
         poi.Address = dto.Address ?? "N/A";
         poi.Latitude = dto.Latitude;
         poi.Longitude = dto.Longitude;
 
-        // 2. Logic nghiệp vụ: Nếu đang Active (Đã duyệt) mà sửa -> Chuyển về Pending (Chờ duyệt)
-        if (poi.Status == PoiStatus.Active)
-        {
-            poi.Status = PoiStatus.Pending;
-        }
-        // Nếu đang Rejected (Bị từ chối) -> Cũng chuyển về Pending để Admin xem lại
-        else if (poi.Status == PoiStatus.Rejected)
+        // 2. Logic nghiệp vụ
+        if (poi.Status == PoiStatus.Active || poi.Status == PoiStatus.Rejected)
         {
             poi.Status = PoiStatus.Pending;
         }
 
-        // 3. Xử lý file mới (nếu có upload thêm)
-        // Lưu ý: Logic này chỉ thêm file mới, không xóa file cũ.
-        // Muốn xóa file cũ thì phải dùng API Delete Asset riêng ở AssetsController
+        // 3. Upload file
         if (files != null && files.Count > 0)
         {
             foreach (var file in files)
@@ -238,9 +286,25 @@ public class PoisController : ControllerBase
             }
         }
 
+        // ✅ SAVE TRƯỚC
         await _context.SaveChangesAsync();
+
+        // 🔥 GHI LOG SAU KHI THÀNH CÔNG
+        var log = new ActivityLog
+        {
+            ActivityType = "UpdatePOI",
+            Description = $"User {username} cập nhật POI: {oldName} → {poi.Name}",
+            UserName = username,
+            Timestamp = DateTime.Now,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown"
+        };
+
+        _context.ActivityLogs.Add(log);
+        await _context.SaveChangesAsync();
+
         return Ok(new { message = "Cập nhật thành công!", newStatus = poi.Status.ToString() });
     }
+
     //2.4. API cho Chủ gian hàng: lấy id của 1 địa điểm
     [HttpGet("{id}")]
     public async Task<ActionResult<PoiDto>> GetPoi(int id)
@@ -286,6 +350,22 @@ public class PoisController : ControllerBase
         if (poi == null) return NotFound();
 
         poi.Status = PoiStatus.Active;
+
+        await _context.SaveChangesAsync();
+
+        // 🔥 LẤY USER (admin)
+        var username = User.Identity?.Name ?? "Admin";
+
+        // 🔥 LOG
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            ActivityType = "ApprovePOI",
+            Description = $"{username} đã duyệt POI: {poi.Name} (ID: {id})",
+            UserName = username,
+            Timestamp = DateTime.Now,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown"
+        });
+
         await _context.SaveChangesAsync();
 
         return Ok(new { message = "Đã duyệt địa điểm!" });
@@ -316,6 +396,7 @@ public class PoisController : ControllerBase
 
         return Ok(result);
     }
+    
     // 3.1. API cho Admin: cập nhật cấu hình Geofence
     [HttpPut("{id}/geofence")]
     // [Authorize(Roles = "Admin")] // Bỏ comment dòng này khi bạn đã có JWT Token thực, test thì tạm ẩn
@@ -388,5 +469,43 @@ public class PoisController : ControllerBase
                     LanguageCode = string.IsNullOrEmpty(m.LanguageCode) ? "vi-VN" : m.LanguageCode
                 }).ToList()
         });
+    }
+    //3.3 Từ chối
+    // 3. API cho Admin: Từ chối bài
+    [HttpPut("{id}/reject")]
+    public async Task<IActionResult> RejectPoi(int id)
+    {
+        var poi = await _context.Pois.FindAsync(id);
+        if (poi == null) return NotFound("Không tìm thấy địa điểm.");
+
+        // Chuyển trạng thái sang Rejected
+        poi.Status = PoiStatus.Rejected; 
+
+        await _context.SaveChangesAsync();
+
+        // 🔥 LẤY USER (admin) để ghi log
+        var username = User.Identity?.Name ?? "Admin";
+
+        // 🔥 GHI LOG
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            ActivityType = "RejectPOI",
+            Description = $"{username} đã từ chối POI: {poi.Name} (ID: {id})",
+            UserName = username,
+            Timestamp = DateTime.Now,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown"
+        });
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Đã từ chối địa điểm!" });
+    }
+     // 4. API đếm số lượng địa điểm đang chờ duyệt (Dùng cho bảng thống kê ActivityLog)
+    [HttpGet("pending-count")]
+    public async Task<ActionResult<int>> GetPendingCount()
+    {
+        // Sử dụng đúng Enum PoiStatus.Pending của bạn
+        var count = await _context.Pois.CountAsync(p => p.Status == PoiStatus.Pending);
+        return Ok(count);
     }
 }
