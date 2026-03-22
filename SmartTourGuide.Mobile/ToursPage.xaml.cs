@@ -7,6 +7,8 @@ using Microsoft.Maui.Controls.Shapes;
 using SmartTourGuide.Mobile.Models;
 using SmartTourGuide.Mobile.Resources.Strings;
 
+using MauiColor = Microsoft.Maui.Graphics.Color;
+using MapsuiColor = Mapsui.Styles.Color;
 public partial class ToursPage : ContentPage
 {
     private readonly PoiApiService _apiService;
@@ -146,9 +148,9 @@ public partial class ToursPage : ContentPage
             // Circle với số thứ tự
             var circle = new Border
             {
-                BackgroundColor = isFirst ? Color.FromArgb("#4CAF50")
-                                : isLast ? Color.FromArgb("#F44336")
-                                : Color.FromArgb("#FF9800"),
+                BackgroundColor = isFirst ? MauiColor.FromArgb("#4CAF50")
+                                : isLast ? MauiColor.FromArgb("#F44336")
+                                : MauiColor.FromArgb("#FF9800"),
                 StrokeShape = new Microsoft.Maui.Controls.Shapes.Ellipse(),
                 WidthRequest = 28,
                 HeightRequest = 28,
@@ -173,7 +175,7 @@ public partial class ToursPage : ContentPage
             {
                 var line = new BoxView
                 {
-                    Color = Color.FromArgb("#E0E0E0"),
+                    Color = MauiColor.FromArgb("#E0E0E0"),
                     WidthRequest = 2,
                     HorizontalOptions = LayoutOptions.Center,
                     Margin = new Thickness(0, 2, 0, 0)
@@ -197,7 +199,7 @@ public partial class ToursPage : ContentPage
                 Text = poi.PoiName ?? "",
                 FontSize = 15,
                 FontAttributes = FontAttributes.Bold,
-                TextColor = Color.FromArgb("#212121"),
+                TextColor = MauiColor.FromArgb("#212121"),
                 LineBreakMode = LineBreakMode.TailTruncation
             };
 
@@ -205,7 +207,7 @@ public partial class ToursPage : ContentPage
             {
                 Text = poi.Address ?? "",
                 FontSize = 13,
-                TextColor = Color.FromArgb("#757575"),
+                TextColor = MauiColor.FromArgb("#757575"),
                 LineBreakMode = LineBreakMode.TailTruncation,
                 IsVisible = !string.IsNullOrEmpty(poi.Address)
             };
@@ -215,8 +217,8 @@ public partial class ToursPage : ContentPage
             {
                 var badge = new Border
                 {
-                    BackgroundColor = isFirst ? Color.FromArgb("#E8F5E9") : Color.FromArgb("#FFEBEE"),
-                    Stroke = isFirst ? Color.FromArgb("#A5D6A7") : Color.FromArgb("#FFCDD2"),
+                    BackgroundColor = isFirst ? MauiColor.FromArgb("#E8F5E9") : MauiColor.FromArgb("#FFEBEE"),
+                    Stroke = isFirst ? MauiColor.FromArgb("#A5D6A7") : MauiColor.FromArgb("#FFCDD2"),
                     StrokeThickness = 1,
                     StrokeShape = new RoundRectangle { CornerRadius = 8 },
                     Padding = new Thickness(8, 3),
@@ -225,7 +227,7 @@ public partial class ToursPage : ContentPage
                     {
                         Text = isFirst ? "🚩 Xuất phát" : "🏁 Kết thúc",
                         FontSize = 11,
-                        TextColor = isFirst ? Color.FromArgb("#388E3C") : Color.FromArgb("#D32F2F"),
+                        TextColor = isFirst ? MauiColor.FromArgb("#388E3C") : MauiColor.FromArgb("#D32F2F"),
                         FontAttributes = FontAttributes.Bold
                     }
                 };
