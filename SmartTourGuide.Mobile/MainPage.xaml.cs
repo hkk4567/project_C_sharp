@@ -44,6 +44,7 @@ public partial class MainPage : ContentPage
         mapView.PinClicked += OnPinClicked;
         mapView.MapClicked += OnMapClicked_SimulateWalk;
         mapView.MyLocationLayer.Enabled = true;
+        RegisterConnectivityChanged();
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -55,7 +56,12 @@ public partial class MainPage : ContentPage
         await CheckPermissions();
         await PreWarmAudioAsync();
         await LoadCurrentLocation();
-        await LoadPoisOnMap();
+
+        // ← SỬA: dùng hàm mới thay LoadPoisOnMap()
+        await LoadPoisWithOfflineFallbackAsync();
+
+        // ← THÊM: lắng nghe thay đổi mạng
+        RegisterConnectivityChanged();
 
         if (_geofenceTimer == null)
         {
@@ -157,7 +163,8 @@ public partial class MainPage : ContentPage
             if (layer != null) mapView.Map.Layers.Remove(layer);
         }
     }
-    private async void OnReloadClicked(object? sender, EventArgs e) => await LoadPoisOnMap();
+    private async void OnReloadClicked(object? sender, EventArgs e)
+         => await LoadPoisWithOfflineFallbackAsync();
 
     private void OnPinClicked(object? sender, PinClickedEventArgs e)
     {

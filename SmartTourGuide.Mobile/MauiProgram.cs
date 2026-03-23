@@ -7,6 +7,7 @@ public static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
     {
+        CacheService.ConfigureMapTileCache();
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()

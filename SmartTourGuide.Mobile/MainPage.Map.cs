@@ -80,15 +80,7 @@ public partial class MainPage
         lblAddress.Text = poi.Address;
         lblDescription.Text = string.IsNullOrEmpty(poi.Description) ? "Chưa có mô tả." : poi.Description;
 
-        if (poi.ImageUrls?.Count > 0)
-        {
-            imgPoi.Source = ImageSource.FromUri(new Uri($"{BaseApiUrl}{poi.ImageUrls[0]}"));
-            ImageContainer.IsVisible = true;
-        }
-        else
-        {
-            ImageContainer.IsVisible = false;
-        }
+        _ = LoadPoiImageAsync(poi);
 
         StopAudio();
 

@@ -97,7 +97,7 @@ public partial class MainPage
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         string fixedUrl = url.Replace("\\", "/");
-        string? localPath = await GetLocalAudioPathAsync(fixedUrl);
+        string? localPath = await GetCachedAudioPathAsync(fixedUrl);
 
         Stream audioStream;
         if (!string.IsNullOrEmpty(localPath) && File.Exists(localPath))

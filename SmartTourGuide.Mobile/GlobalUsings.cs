@@ -14,3 +14,4 @@ global using Plugin.Maui.Audio;
 global using SmartTourGuide.Mobile.Models;
 global using SmartTourGuide.Mobile.Services;
 global using System.Globalization;
+global using SQLite;
