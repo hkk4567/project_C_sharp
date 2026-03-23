@@ -96,6 +96,7 @@ public partial class MainPage : ContentPage
 
     private async void OnChangeLanguageClicked(object? sender, EventArgs e)
     {
+        StopAudio();
         string action = await DisplayActionSheetAsync(
             "Chọn ngôn ngữ / Select Language", "Hủy/Cancel", null,
             "🇻🇳 Tiếng Việt", "🇺🇸 English");
@@ -164,7 +165,17 @@ public partial class MainPage : ContentPage
         }
     }
     private async void OnReloadClicked(object? sender, EventArgs e)
-         => await LoadPoisWithOfflineFallbackAsync();
+    {
+        // ── THÊM: đóng tour panel nếu đang mở ────────────────────────
+        if (TourInfoPanel.IsVisible)
+        {
+            TourInfoPanel.IsVisible = false;
+            _currentTour = null;
+        }
+        // ─────────────────────────────────────────────────────────────
+
+        await LoadPoisWithOfflineFallbackAsync();
+    }
 
     private void OnPinClicked(object? sender, PinClickedEventArgs e)
     {

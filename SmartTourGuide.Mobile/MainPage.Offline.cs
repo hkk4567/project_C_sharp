@@ -257,6 +257,11 @@ public partial class MainPage
     /// </summary>
     private void UpdateOfflineBanner(bool isOffline, bool hasNoData = false)
     {
+        // ── THÊM: disable nút khi offline ────────────────────────
+        btnLanguage.IsEnabled = !isOffline;
+        btnShowTours.IsEnabled = !isOffline;
+        btnLanguage.Opacity = isOffline ? 0.4 : 1.0;
+        btnShowTours.Opacity = isOffline ? 0.4 : 1.0;
         MainThread.BeginInvokeOnMainThread(async () =>
         {
             if (!isOffline)
