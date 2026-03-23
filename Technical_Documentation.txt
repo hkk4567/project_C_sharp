@@ -1,0 +1,97 @@
+TÀI LIỆU KỸ THUẬT - SMART TOUR GUIDE
+1. TỔNG QUAN KIẾN TRÚC (SYSTEM ARCHITECTURE)
+Hệ thống được thiết kế theo mô hình Client-Server với kiến trúc Monorepo (.NET Solution), bao gồm 4 dự án con (Projects) giao tiếp với nhau qua RESTful API.
+    -Database: MySQL (Lưu trữ dữ liệu relational).
+    -Backend (API): ASP.NET Core Web API (Xử lý logic, kết nối DB, quản lý file vật lý).
+    -Frontend (Web): Blazor WebAssembly (Dành cho Admin & Chủ gian hàng).
+    -Frontend (Mobile): .NET MAUI (Dành cho Du khách tham quan).
+Luồng dữ liệu: 
+    -Mobile / Web <---> Shared DTOs <---> API <---> MySQL.
+2. CÔNG NGHỆ SỬ DỤNG (TECH STACK)
+-Framework chính: .NET 8.0
+-Backend: Entity Framework Core (EF Core), BCrypt.Net (Mã hóa mật khẩu).
+-Web Portal: MudBlazor (UI Component Framework), Blazored.LocalStorage.
+-Mobile App:
+    +Mapsui.Maui: Bản đồ OpenStreetMap (OSM) miễn phí.
+    +Plugin.Maui.Audio: Phát file ghi âm (.mp3).
+    +Microsoft.Maui.Media.TextToSpeech: Đọc văn bản tự động (TTS).
+    +CommunityToolkit.Mvvm: Quản lý luồng sự kiện (WeakReferenceMessenger).
+3. CẤU TRÚC THƯ MỤC (SOLUTION STRUCTURE)
+Dự án được chia thành 4 thư mục chính trong SmartTourGuide.sln:
+
+SmartTourGuide/
+├── 1. SmartTourGuide.Shared/       # (Class Library) Dùng chung cho cả 3 project kia
+│   ├── DTOs/                       # Các object truyền tải dữ liệu (PoiDto, TourDto...)
+│   └── Enums/                      # UserRole, PoiStatus, MediaType
+│
+├── 2. SmartTourGuide.API/          # (Backend API)
+│   ├── Controllers/                # Xử lý các Endpoint (PoisController, UsersController...)
+│   ├── Data/Entities/              # Cấu trúc các bảng Database (Models)
+│   ├── Services/                   # FileStorageService (Xử lý upload ảnh/nhạc)
+│   └── wwwroot/                    # Nơi lưu trữ file vật lý thực tế (/uploads/images, /audio)
+│
+├── 3. SmartTourGuide.Web/          # (Blazor WebAssembly)
+│   ├── Components/
+│   │   ├── Layout/                 # MainLayout (Owner), AdminLayout (Admin)
+│   │   ├── Pages/Admin/            # Duyệt bài, Quản lý Tour, Quản lý User...
+│   │   └── Pages/Owner/            # Tạo POI, Quản lý bản dịch, Upload Media...
+│   └── Resources/Strings/          # File .resx xử lý Đa ngôn ngữ (i18n)
+│
+└── 4. SmartTourGuide.Mobile/       # (.NET MAUI)
+    ├── MainPage.xaml(.cs)          # Màn hình bản đồ & Engine Geofence
+    ├── ToursPage.xaml(.cs)         # Màn hình danh sách Tour
+    ├── Services/                   # PoiApiService (Gọi API từ Backend)
+    └── Platforms/                  # Cấu hình quyền GPS, Network cho Android/iOS
+
+4. SƠ ĐỒ CƠ SỞ DỮ LIỆU (DATABASE SCHEMA)
+Hệ thống sử dụng EF Core Code-First. Các bảng chính bao gồm:
+    -Users: Chứa thông tin đăng nhập, cờ IsLocked, và Role (0=Tourist, 1=Owner, 2=Admin).
+    -Pois (Point of Interest): Chứa thông tin gốc của địa điểm, tọa độ (Lat/Lon), và Status (Pending/Active/Rejected).
+    -PoiTranslations: Lưu bản dịch đa ngôn ngữ (Tên, Mô tả) theo LanguageCode của POI.
+    -GeofenceSettings: Quan hệ 1-1 với POI. Chứa cấu hình: Bán kính (TriggerRadius), Thời gian hồi (Cooldown), Độ ưu tiên (Priority).
+    -MediaAssets: Lưu đường dẫn URL của Ảnh (Image) và Âm thanh (AudioFile). Có gắn cờ LanguageCode để phát đúng ngôn ngữ.
+    -Tours & TourDetails: Quan hệ N-N. Tour chứa thông tin chung. TourDetail nối TourId với PoiId và có cột OrderIndex để sắp xếp thứ tự đi.
+5. LUỒNG NGHIỆP VỤ CỐT LÕI (CORE BUSINESS LOGIC)
+    5.1. Quy trình Kiểm duyệt Nội dung
+        Owner tạo/sửa POI -> Trạng thái tự động thành Pending. POI này sẽ bị "ẩn" khỏi Mobile App.
+        Admin vào xem chi tiết (nghe thử audio, xem ảnh) -> Bấm Duyệt -> Trạng thái thành Active -> Mobile App nhìn thấy.
+        Lưu ý: Khi POI đang nằm trong 1 Tour bị đưa về Pending, Mobile App sẽ tự động bỏ qua điểm đó khi vẽ lộ trình Tour.
+    5.2. Động cơ Geofence (The Geofence Engine) trên Mobile
+        Đây là trái tim của Mobile App, nằm trong MainPage.xaml.cs:
+        Timer: Chạy ngầm 3 giây/lần. Quét khoảng cách từ GPS hiện tại đến tất cả các POI xung quanh.
+        Lọc: Tính khoảng cách (Haversine/SphericalMercator). Điểm nào có khoảng cách <= TriggerRadius sẽ được đưa vào danh sách "Đang đứng trong vùng".
+        Xử lý chồng lấn (Overlap): Nếu user đứng giữa 2 vùng giao nhau, Engine lấy ra POI có Priority cao nhất.
+        Chuyển đổi âm thanh: Nếu vùng mới có Priority cao hơn vùng đang phát, Engine tự động tắt nhạc vùng cũ và bật nhạc vùng mới.
+        Fallback TTS: Nếu POI không có file Mp3, Engine tự động gọi TextToSpeech đọc phần mô tả.
+6. HƯỚNG DẪN CÀI ĐẶT & CHẠY DỰ ÁN (SETUP GUIDE)
+Yêu cầu môi trường
+Visual Studio 2022 (Cài đặt workload: ASP.NET Core, .NET MAUI).
+MySQL Server (XAMPP hoặc MySQL Workbench).
+Android Emulator (API 33+).
+    Bước 1: Setup Database & API
+        Mở SmartTourGuide.API/appsettings.json, sửa lại DefaultConnection cho đúng với mật khẩu MySQL của máy bạn.
+        Mở Terminal tại thư mục SmartTourGuide.API:
+        code
+        Bash
+        dotnet ef database update
+        Chạy project API. Ghi nhớ Port đang chạy (Ví dụ: http://localhost:5277).
+    Bước 2: Setup Web Portal
+        Chạy project SmartTourGuide.Web.
+        Vào đăng ký tài khoản -> Dùng tool Database sửa cột Role của tài khoản đó thành 2 (để làm Admin).
+        Đăng nhập bằng tài khoản Admin để trải nghiệm.
+    Bước 3: Setup Mobile App
+        Mở file SmartTourGuide.Mobile/Services/PoiApiService.cs.
+        Đổi hằng số BaseApiUrl:
+        Nếu chạy máy ảo (Emulator): Dùng http://10.0.2.2:PORT
+        Nếu chạy máy thật (Cắm cáp): Dùng IP mạng LAN (VD: http://192.168.1.x:PORT).
+        Click chuột phải project Mobile -> Set as Startup Project. Chọn thiết bị Android và bấm Run.
+7. QUY ƯỚC CODE DÀNH CHO TEAM (CODING CONVENTIONS)
+Đường dẫn File (Paths):
+API luôn trả về đường dẫn tương đối (VD: /uploads/images/123.jpg).
+Tránh lưu dấu gạch ngược \ của Windows vào DB. Hàm CombineUrl ở Frontend sẽ đảm nhiệm việc ghép với BaseApiUrl và đổi \ thành /.
+Đa ngôn ngữ (i18n):
+Tuyệt đối không gõ cứng (hardcode) text Tiếng Việt vào file XAML. Mọi text giao diện phải đưa vào file AppResources.resx.
+UI Thread trên MAUI:
+Khi thay đổi giao diện (Label, Add Pin, Show Alert) từ một luồng chạy ngầm (Timer, Geofence, HTTP Request), bắt buộc phải bọc trong MainThread.BeginInvokeOnMainThread(() => { ... }); để tránh Crash App.
+Bản đồ Mapsui:
+Luôn nhớ Mapsui dùng hệ tọa độ SphericalMercator (mét). Cần dùng SphericalMercator.FromLonLat và ToLonLat khi giao tiếp giữa GPS (Độ) và Bản đồ.

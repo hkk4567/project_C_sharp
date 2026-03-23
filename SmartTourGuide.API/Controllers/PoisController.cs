@@ -32,8 +32,6 @@ public class PoisController : ControllerBase
         return "Unknown";
     }
 
-    // 1. API cho App Mobile
-    [HttpGet]
     // 1. API cho App Mobile (Có hỗ trợ Đa ngôn ngữ)
     [HttpGet]
     public async Task<ActionResult<IEnumerable<PoiDto>>> GetPois([FromQuery] string langCode = "vi-VN")
