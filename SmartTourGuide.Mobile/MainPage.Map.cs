@@ -391,4 +391,23 @@ public partial class MainPage
 
         e.Handled = true;
     }
+
+    private void UpdatePopupContentOnly(PoiModel poi)
+    {
+        if (poi == null) return;
+
+        // Kiểm tra null cho từng control XAML để an toàn tuyệt đối
+        if (lblPoiName != null) lblPoiName.Text = poi.Name;
+        if (lblAddress != null) lblAddress.Text = poi.Address;
+        if (lblDescription != null)
+            lblDescription.Text = string.IsNullOrEmpty(poi.Description) ? "Chưa có mô tả." : poi.Description;
+
+        _ = LoadPoiImageAsync(poi);
+
+        // Cập nhật text nút bấm mà không dừng audio hiện tại
+        if (btnPlayAudio != null)
+        {
+            btnPlayAudio.Text = "⏹️ Dừng phát";
+        }
+    }
 }

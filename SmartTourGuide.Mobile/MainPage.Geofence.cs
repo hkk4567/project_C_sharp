@@ -87,6 +87,12 @@ public partial class MainPage
         MainThread.BeginInvokeOnMainThread(() =>
         {
             if (btnPlayAudio != null) btnPlayAudio.Text = "⏹️ Dừng phát";
+            if (DetailPopup != null && DetailPopup.IsVisible)
+            {
+                // Thay vì gọi ShowPoiDetail(poi) - vốn sẽ gọi StopAudio() gây lỗi,
+                // chúng ta chỉ cập nhật nội dung hiển thị.
+                UpdatePopupContentOnly(poi);
+            }
         });
 
         _ = PlayAudioQueueAsync(poi, _queueCts.Token).ContinueWith(t =>
