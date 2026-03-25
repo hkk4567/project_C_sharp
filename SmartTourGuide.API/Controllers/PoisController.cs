@@ -7,6 +7,18 @@ using SmartTourGuide.Shared.DTOs;
 
 namespace SmartTourGuide.API.Controllers;
 
+/// <summary>
+/// Controller quản lý toàn bộ nghiệp vụ liên quan đến Địa điểm (POI - Point of Interest).
+///
+/// Phân quyền sử dụng:
+///   - Mobile App  → GET api/pois/mobile          (lấy danh sách Active, hỗ trợ đa ngôn ngữ)
+///   - Admin       → GET api/pois                 (danh sách Active dùng cho Web Admin)
+///   - Admin       → GET api/pois/pending         (danh sách chờ duyệt)
+///   - Admin       → GET/PUT api/pois/admin/{id}  (xem chi tiết + duyệt/từ chối)
+///   - Owner       → GET api/pois/owner/{id}      (danh sách POI của chủ sở hữu)
+///   - Owner       → POST / PUT / DELETE          (tạo, sửa, xóa POI của mình)
+/// </summary>
+/// 
 [ApiController]
 [Route("api/[controller]")]
 public class PoisController : ControllerBase
@@ -20,7 +32,14 @@ public class PoisController : ControllerBase
         _fileService = fileService;
     }
 
-    // 👉 HÀM HELPER LẤY USERNAME CỦA NGƯỜI ĐANG THỰC HIỆN
+    // ═══════════════════════════════════════════════════════════════════════
+    //  HELPER
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Lấy username của người đang thực hiện thao tác.
+    /// Thứ tự ưu tiên: JWT Token → Header "X-User-Name" → "Unknown".
+    /// </summary>
     private string GetCurrentUsername()
     {
         var name = User.Identity?.Name;
@@ -32,7 +51,86 @@ public class PoisController : ControllerBase
         return "Unknown";
     }
 
-    // 1. API cho App Mobile (Có hỗ trợ Đa ngôn ngữ)
+    // ═══════════════════════════════════════════════════════════════════════
+    //  MOBILE APP
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// [MOBILE] Lấy danh sách địa điểm đang hoạt động (Status = Active) cho ứng dụng di động.
+    ///
+    /// Endpoint này được tách riêng khỏi GET api/pois để tránh ảnh hưởng đến Web Admin.
+    /// Mọi thay đổi dành riêng cho Mobile (ẩn danh hóa, filter ngôn ngữ, v.v.)
+    /// chỉ cần thực hiện ở đây.
+    ///
+    /// Logic ngôn ngữ:
+    ///   - Tiếng Việt (vi-VN): trả về tất cả POI Active, dùng tên/mô tả gốc làm fallback.
+    ///   - Ngôn ngữ khác     : chỉ trả về POI đã có bản dịch cho ngôn ngữ đó.
+    ///
+    /// Audio trả về được lọc theo đúng ngôn ngữ yêu cầu.
+    /// </summary>
+    /// <param name="langCode">Mã ngôn ngữ theo chuẩn IETF BCP 47 (mặc định: "vi-VN").</param>
+    // GET api/pois/mobile?langCode=en-US
+
+    [HttpGet("mobile")]
+    public async Task<ActionResult<IEnumerable<PoiDto>>> GetMobilePois([FromQuery] string langCode = "vi-VN")
+    {
+        // 1. Lấy Query các địa điểm đang Active
+        var query = _context.Pois
+            .Include(p => p.GeofenceSetting)
+            .Include(p => p.MediaAssets)
+            .Where(p => p.Status == PoiStatus.Active)
+            .AsQueryable();
+
+        // 2. TỐI ƯU: Vừa lọc, vừa lấy bản dịch trong 1 câu truy vấn SQL (Left Join)
+        var mobileQuery = query.Select(p => new
+        {
+            Poi = p,
+            Translation = _context.PoiTranslations
+                .FirstOrDefault(t => t.PoiId == p.Id && t.LanguageCode == langCode)
+        });
+
+        // 3. LOGIC QUAN TRỌNG: 
+        // Nếu là ngôn ngữ nước ngoài, bắt buộc phải có bản dịch mới lấy (Translation != null)
+        if (langCode != "vi-VN")
+        {
+            mobileQuery = mobileQuery.Where(x => x.Translation != null);
+        }
+
+        var data = await mobileQuery.ToListAsync();
+
+        // 4. Map sang DTO để trả về cho App
+        var result = data.Select(x =>
+        {
+            var p = x.Poi;
+            var trans = x.Translation;
+
+            // Lọc audio theo ngôn ngữ
+            var audioList = p.MediaAssets.Where(m => m.Type == MediaType.AudioFile);
+            if (langCode != "vi-VN")
+                audioList = audioList.Where(m => m.LanguageCode == langCode);
+            else
+                audioList = audioList.Where(m => m.LanguageCode == "vi-VN" || string.IsNullOrEmpty(m.LanguageCode));
+
+            return new PoiDto
+            {
+                Id = p.Id,
+                Name = trans?.TranslatedName ?? p.Name,
+                Description = trans?.TranslatedDescription ?? p.Description ?? "",
+                Address = trans?.TranslatedAddress ?? p.Address ?? "",
+                Status = p.Status.ToString(),
+                Latitude = p.Latitude,
+                Longitude = p.Longitude,
+                TriggerRadius = p.GeofenceSetting?.TriggerRadiusInMeters ?? 50,
+                Priority = p.GeofenceSetting?.Priority ?? 1,
+                AudioUrls = audioList.Select(m => m.UrlOrContent).ToList(),
+                ImageUrls = p.MediaAssets.Where(m => m.Type == MediaType.Image).Select(m => m.UrlOrContent).ToList()
+            };
+        });
+
+        return Ok(result);
+    }
+
+    // 1. API Poi (Có hỗ trợ Đa ngôn ngữ)
     [HttpGet]
     public async Task<ActionResult<IEnumerable<PoiDto>>> GetPois([FromQuery] string langCode = "vi-VN")
     {

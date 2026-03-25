@@ -2,6 +2,7 @@ using Newtonsoft.Json;
 using System.Net.Http.Json;
 
 namespace SmartTourGuide.Mobile.Services;
+
 public class PoiApiService
 {
     private readonly HttpClient _httpClient;
@@ -26,7 +27,7 @@ public class PoiApiService
         try
         {
             // Gửi kèm langCode lên Server
-            var response = await _httpClient.GetStringAsync($"api/pois?langCode={langCode}");
+            var response = await _httpClient.GetStringAsync($"api/pois/mobile?langCode={langCode}");
             return Newtonsoft.Json.JsonConvert.DeserializeObject<List<PoiModel>>(response) ?? new List<PoiModel>();
         }
         catch (Exception ex)
@@ -71,7 +72,7 @@ public class PoiModel
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public string? Address { get; set; }
-    public string? Description { get; set; } 
+    public string? Description { get; set; }
 
     // API trả về List<string> ImageUrls
     public List<string>? ImageUrls { get; set; }
