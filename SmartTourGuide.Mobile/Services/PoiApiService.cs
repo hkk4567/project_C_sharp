@@ -40,7 +40,10 @@ public class PoiApiService
     {
         try
         {
-            var response = await _httpClient.GetStringAsync("api/tours");
+            // Thêm /mobile và truyền langCode
+            var langCode = Preferences.Get("AppLanguage", "vi-VN");
+            var response = await _httpClient.GetStringAsync($"api/tours/mobile?langCode={langCode}");
+
             return Newtonsoft.Json.JsonConvert.DeserializeObject<List<TourModel>>(response) ?? new();
         }
         catch (Exception ex)
@@ -54,7 +57,8 @@ public class PoiApiService
     {
         try
         {
-            var response = await _httpClient.GetStringAsync($"api/tours/{tourId}");
+            var langCode = Preferences.Get("AppLanguage", "vi-VN");
+            var response = await _httpClient.GetStringAsync($"api/tours/mobile/{tourId}?langCode={langCode}");
             return Newtonsoft.Json.JsonConvert.DeserializeObject<TourModel>(response);
         }
         catch (Exception ex)

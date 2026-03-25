@@ -33,7 +33,83 @@ public class ToursController : ControllerBase
         return "Unknown";
     }
 
-    // 1. Lấy danh sách TẤT CẢ Tour (Dùng cho cả Admin và Mobile App)
+    // --- ENDPOINT DÀNH RIÊNG CHO MOBILE ---
+
+    // 1. Lấy danh sách Tour đã lọc theo ngôn ngữ
+    // GET: api/tours/mobile?langCode=en-US
+    [HttpGet("mobile")]
+    public async Task<ActionResult<List<TourDto>>> GetMobileTours([FromQuery] string langCode = "vi-VN")
+    {
+        var query = _context.Tours
+            .Include(t => t.TourDetails)
+            .ThenInclude(td => td.Poi)
+            .Where(t => t.TourDetails.Any()) // Chỉ lấy tour có điểm dừng
+            .AsQueryable();
+
+        // Nếu không phải Tiếng Việt, chỉ lấy Tour mà TẤT CẢ POI bên trong đã có bản dịch
+        if (langCode != "vi-VN")
+        {
+            query = query.Where(t => t.TourDetails.All(td =>
+                _context.PoiTranslations.Any(trans =>
+                    trans.PoiId == td.PoiId && trans.LanguageCode == langCode)));
+        }
+
+        var tours = await query.OrderByDescending(t => t.Id).ToListAsync();
+
+        return tours.Select(t => new TourDto
+        {
+            Id = t.Id,
+            Name = t.Name, // Ở đây bạn có thể thêm logic dịch tên Tour nếu có bảng TourTranslation
+            Description = t.Description,
+            ThumbnailUrl = t.ThumbnailUrl ?? string.Empty,
+            TotalPois = t.TourDetails.Count
+        }).ToList();
+    }
+
+    // 2. Lấy chi tiết 1 Tour (Dịch tên các điểm dừng bên trong)
+    // GET: api/tours/mobile/5?langCode=en-US
+    [HttpGet("mobile/{id}")]
+    public async Task<ActionResult<TourDto>> GetMobileTourDetail(int id, [FromQuery] string langCode = "vi-VN")
+    {
+        var tour = await _context.Tours
+            .Include(t => t.TourDetails)
+            .ThenInclude(td => td.Poi)
+            .FirstOrDefaultAsync(t => t.Id == id);
+
+        if (tour == null) return NotFound();
+
+        // Lấy danh sách ID các POI trong tour để tải bản dịch 1 lần duy nhất (tối ưu performance)
+        var poiIds = tour.TourDetails.Select(td => td.PoiId).ToList();
+        var translations = await _context.PoiTranslations
+            .Where(trans => poiIds.Contains(trans.PoiId) && trans.LanguageCode == langCode)
+            .ToListAsync();
+
+        return new TourDto
+        {
+            Id = tour.Id,
+            Name = tour.Name,
+            Description = tour.Description,
+            ThumbnailUrl = tour.ThumbnailUrl ?? string.Empty,
+            TotalPois = tour.TourDetails.Count,
+            Pois = tour.TourDetails.OrderBy(td => td.OrderIndex).Select(td =>
+            {
+                var trans = translations.FirstOrDefault(tr => tr.PoiId == td.PoiId);
+                return new TourDetailDto
+                {
+                    PoiId = td.PoiId,
+                    // ƯU TIÊN LẤY TÊN ĐÃ DỊCH CHO MOBILE
+                    PoiName = trans?.TranslatedName ?? td.Poi.Name,
+                    Address = trans?.TranslatedAddress ?? td.Poi.Address,
+                    Latitude = td.Poi.Latitude,
+                    Longitude = td.Poi.Longitude,
+                    OrderIndex = td.OrderIndex
+                };
+            }).ToList()
+        };
+    }
+
+    // --- ENDPOINT DÀNH RIÊNG CHO WEB ---
+    // 1. Lấy danh sách TẤT CẢ Tour (Dùng cho Admin)
     // GET: api/tours
     [HttpGet]
     public async Task<ActionResult<List<TourDto>>> GetAllTours()
