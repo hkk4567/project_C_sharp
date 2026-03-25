@@ -120,14 +120,15 @@ public partial class MainPage
             var allPois = await _apiService.GetPoisAsync();
             var orderedPois = tour.Pois.OrderBy(p => p.OrderIndex).ToList();
             int total = orderedPois.Count;
+            var tourStart = new MauiLocation.Location(DefaultLat, DefaultLon);
 
             // ── Gọi OSRM lấy đường đi thực tế (ngoài MainThread) ────────
             // OSRM public demo — miễn phí, không cần API key, dùng dữ liệu OSM
             List<Coordinate>? roadCoords = null;
-            if (total >= 2)
+            if (total >= 1)
             {
                 SetStatus("🗺️ Đang tính lộ trình...", priority: 2, force: true);
-                roadCoords = await GetRoadRouteAsync(orderedPois);
+                roadCoords = await GetRoadRouteAsync(orderedPois, tourStart);
             }
 
             await MainThread.InvokeOnMainThreadAsync(() =>
@@ -140,6 +141,12 @@ public partial class MainPage
                 double minX = double.MaxValue, minY = double.MaxValue,
                        maxX = double.MinValue, maxY = double.MinValue;
                 bool hasPoints = false;
+
+                var tourStartSmc = SphericalMercator.FromLonLat(tourStart.Longitude, tourStart.Latitude);
+                var tourStartCoord = new Coordinate(tourStartSmc.x, tourStartSmc.y);
+                minX = Math.Min(minX, tourStartSmc.x); minY = Math.Min(minY, tourStartSmc.y);
+                maxX = Math.Max(maxX, tourStartSmc.x); maxY = Math.Max(maxY, tourStartSmc.y);
+                hasPoints = true;
 
                 // ── Pins có số thứ tự + màu phân cấp ─────────────────────
                 for (int idx = 0; idx < orderedPois.Count; idx++)
@@ -167,14 +174,16 @@ public partial class MainPage
                 }
 
                 // ── Vẽ lộ trình theo đường đi thực tế ────────────────────
-                if (total >= 2)
+                if (total >= 1)
                 {
                     // Nếu OSRM trả về → dùng đường thực; nếu lỗi → fallback đường thẳng
-                    var coords = roadCoords ?? orderedPois.Select(p =>
-                    {
-                        var smc = SphericalMercator.FromLonLat(p.Longitude, p.Latitude);
-                        return new Coordinate(smc.x, smc.y);
-                    }).ToList();
+                    var coords = roadCoords ?? new[] { tourStartCoord }
+                        .Concat(orderedPois.Select(p =>
+                        {
+                            var smc = SphericalMercator.FromLonLat(p.Longitude, p.Latitude);
+                            return new Coordinate(smc.x, smc.y);
+                        }))
+                        .ToList();
 
                     bool isRealRoute = roadCoords != null;
 
@@ -234,7 +243,7 @@ public partial class MainPage
     /// OSRM dùng dữ liệu OpenStreetMap — miễn phí, không cần API key.
     /// Trả về null nếu network lỗi (caller sẽ fallback về đường thẳng).
     /// </summary>
-    private async Task<List<Coordinate>?> GetRoadRouteAsync(List<TourDetailModel> orderedPois)
+    private async Task<List<Coordinate>?> GetRoadRouteAsync(List<TourDetailModel> orderedPois, MauiLocation.Location? userStart = null)
     {
         try
         {
@@ -242,9 +251,17 @@ public partial class MainPage
             // BẮT BUỘC dùng InvariantCulture — tránh dấu phẩy thập phân theo locale device
             // vd: locale vi-VN sẽ format 21,016492 thay vì 21.016492 → OSRM trả 400
             var ic = System.Globalization.CultureInfo.InvariantCulture;
-            var coords = string.Join(";",
-                orderedPois.Select(p =>
-                    $"{p.Longitude.ToString("F6", ic)},{p.Latitude.ToString("F6", ic)}"));
+            var waypoints = new List<string>();
+
+            if (userStart != null)
+            {
+                waypoints.Add($"{userStart.Longitude.ToString("F6", ic)},{userStart.Latitude.ToString("F6", ic)}");
+            }
+
+            waypoints.AddRange(orderedPois.Select(p =>
+                $"{p.Longitude.ToString("F6", ic)},{p.Latitude.ToString("F6", ic)}"));
+
+            var coords = string.Join(";", waypoints);
 
             // OSRM public demo server — driving profile, full geometry dạng polyline6
             var url = $"https://router.project-osrm.org/route/v1/driving/{coords}" +
@@ -284,6 +301,7 @@ public partial class MainPage
             return null; // Fallback về đường thẳng
         }
     }
+
     /// <summary>
     /// Giải mã Google Encoded Polyline6 (precision=6) thành list (lat, lon).
     /// OSRM dùng precision 6 thay vì 5 như Google Maps.
@@ -361,14 +379,12 @@ public partial class MainPage
 
         TourInfoPanel.IsVisible = true;
     }
-    /// <summary>Đóng TourInfoPanel và xóa route layer khỏi bản đồ.</summary>
+    /// <summary>Đóng TourInfoPanel nhưng giữ route layer để user xem tuyến đi lâu hơn.</summary>
     private async void OnCloseTourPanelClicked(object? sender, EventArgs e)
     {
         TourInfoPanel.IsVisible = false;
-        _currentTour = null;
-
-        // LoadPoisOnMap vẽ lại toàn bộ POI + Geofence circles
-        await LoadPoisOnMap();
+        // Giữ _currentTour và route layer hiển thị — user có thể xem tuyến đi lâu hơn
+        // Chỉ xóa tour khi user bấm nút "Reload" hoặc chọn tour khác
     }
     // OnMapClicked_SimulateWalk
     // ════════════════════════════════════════════════════════════════════════
@@ -377,7 +393,13 @@ public partial class MainPage
     private void OnMapClicked_SimulateWalk(object? sender, MapClickedEventArgs e)
     {
         _currentUserLocation = new MauiLocation.Location(e.Point.Latitude, e.Point.Longitude);
-
+        _isManualLocationOverride = true;
+         // Gửi vị trí lên server để lưu tuyến di chuyển ẩn danh
+        // Dùng cho heatmap và analytics
+        _ = _apiService.SendLocationAsync(
+            e.Point.Latitude,
+            e.Point.Longitude,
+            _deviceId);  // ← Device ID ẩn danh
         MainThread.BeginInvokeOnMainThread(() =>
         {
             mapView.MyLocationLayer.UpdateMyLocation(

@@ -255,25 +255,63 @@ public partial class MainPage
     {
         if (string.IsNullOrWhiteSpace(text)) return;
 
-        _ttsCancellationToken = new CancellationTokenSource();
-        var locales = await TextToSpeech.GetLocalesAsync();
-        var vnLocale = locales.FirstOrDefault(l => l.Language == "vi");
+        var ttsCancellationToken = new CancellationTokenSource();
 
-        await TextToSpeech.SpeakAsync(text, new SpeechOptions
+        try
         {
-            Locale = vnLocale,
-            Pitch = 1.0f,
-            Volume = 1.0f
-        }, _ttsCancellationToken.Token);
+            // Hủy token cũ nếu đang có
+            _ttsCancellationToken?.Cancel();
+            _ttsCancellationToken?.Dispose();
+            _ttsCancellationToken = ttsCancellationToken;
 
-        _isPlaying = false;
-        btnPlayAudio.Text = "🗣️ Đọc lại";
+            var locales = await TextToSpeech.GetLocalesAsync();
+            if (ttsCancellationToken.IsCancellationRequested) return;
+
+            // Tìm tiếng Việt, nếu không có thì dùng locale mặc định (null)
+            var vnLocale = locales?.FirstOrDefault(l => l.Language == "vi");
+
+            await TextToSpeech.SpeakAsync(text, new SpeechOptions
+            {
+                Locale = vnLocale, // null = giọng mặc định của máy
+                Pitch = 1.0f,
+                Volume = 1.0f
+            }, ttsCancellationToken.Token);
+
+            if (!ttsCancellationToken.IsCancellationRequested)
+                _isPlaying = false;
+
+            // Kiểm tra null trước khi gán Text
+            if (!ttsCancellationToken.IsCancellationRequested && btnPlayAudio != null)
+                btnPlayAudio.Text = "🗣️ Đọc lại";
+        }
+        catch (OperationCanceledException)
+        {
+            // Bị hủy bình thường — không cần làm gì
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TTS] Lỗi: {ex.Message}");
+            _isPlaying = false;
+            if (btnPlayAudio != null)
+                btnPlayAudio.Text = "🗣️ Đọc lại";
+        }
+        finally
+        {
+            if (ReferenceEquals(_ttsCancellationToken, ttsCancellationToken))
+            {
+                _ttsCancellationToken = null;
+            }
+            ttsCancellationToken.Dispose();
+        }
     }
     // ════════════════════════════════════════════════════════════════════════
     //  DỪNG TẤT CẢ
     // ════════════════════════════════════════════════════════════════════════
     private void StopAudio()
     {
+        var wasPlaying = _isPlaying;
+        var selectedPoi = _currentSelectedPoi;
+
         _queueCts?.Cancel();
         _queueCts = null;
         _isPausedByInterruption = false;
@@ -297,27 +335,27 @@ public partial class MainPage
         _isPlaying = false;
 
         // Ghi log thời gian nghe vào database khi user bấm dừng
-        // Chỉ ghi nếu đang thực sự phát (_isPlaying = true)
+        // Chỉ ghi nếu trước đó đang thực sự phát
         // Chỉ ghi nếu nghe trên 2 giây — lọc bấm nhầm
-        if (_isPlaying && _currentSelectedPoi != null)
+        if (wasPlaying && selectedPoi != null)
         {
-            var durationSec = (int)(DateTime.Now - _playStartTime).TotalSeconds;
+            var durationSec = Math.Max(0, (int)(DateTime.Now - _playStartTime).TotalSeconds);
             if (durationSec >= 2)
             {
                 // Fire and forget — không chờ, không block UI
             _ = _apiService.LogPoiListenAsync(
-                _currentSelectedPoi.Id,  // POI nào đang nghe
+                selectedPoi.Id,          // POI nào đang nghe
                 durationSec,             // Nghe bao nhiêu giây
                 _deviceId);              // Thiết bị nào
             }
         }
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            if (_currentSelectedPoi?.AudioUrls?.Count > 0)
+            if (selectedPoi?.AudioUrls?.Count > 0)
             {
-                _poiAudioIndex.TryGetValue(_currentSelectedPoi.Id, out int idx);
-                int next = (idx < _currentSelectedPoi.AudioUrls.Count) ? idx + 1 : 1;
-                int total = _currentSelectedPoi.AudioUrls.Count;
+                _poiAudioIndex.TryGetValue(selectedPoi.Id, out int idx);
+                int next = (idx < selectedPoi.AudioUrls.Count) ? idx + 1 : 1;
+                int total = selectedPoi.AudioUrls.Count;
                 btnPlayAudio.Text = total > 1
                     ? $"🔊 Nghe audio ({next}/{total})"
                     : "🔊 Nghe File Ghi Âm";

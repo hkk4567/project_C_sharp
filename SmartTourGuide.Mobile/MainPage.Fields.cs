@@ -27,8 +27,8 @@ public partial class MainPage : ContentPage
     private CancellationTokenSource? _statusRevertCts;
 
     // ── VỊ TRÍ & BẢN ĐỒ ────────────────────────────────────────────────────
-    private const double DefaultLat = 21.016492;
-    private const double DefaultLon = 105.834132;
+    private const double DefaultLat = 10.776889;
+    private const double DefaultLon = 106.700806;
     private string _currentLanguageCode = "vi-VN";
     private IDispatcherTimer? _geofenceTimer;
     private List<PoiModel> _allPoisCache = new();
@@ -40,6 +40,11 @@ public partial class MainPage : ContentPage
     private readonly SemaphoreSlim _mapLock = new SemaphoreSlim(1, 1);
     // Biến cờ chống spam (Re-entrancy guard)
     private bool _isCheckingGeofences = false;
+    // Chống spam trigger khi GPS rung ở rìa vùng
+    private readonly TimeSpan _geofenceTriggerCooldown = TimeSpan.FromSeconds(5);
+    private DateTime _lastGeofenceTriggerAt = DateTime.MinValue;
+    private DateTime _lastGeofenceInsideAt = DateTime.MinValue;
+    private bool _isManualLocationOverride = false;
 
     // ── TOUR ─────────────────────────────────────────────────────────────────
     // Tour đang hiển thị lộ trình (null = chế độ POI thường)

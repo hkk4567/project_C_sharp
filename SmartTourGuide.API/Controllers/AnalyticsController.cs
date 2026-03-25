@@ -24,15 +24,26 @@ public class AnalyticsController : ControllerBase
     [HttpPost("poi-listen")]
     public async Task<IActionResult> LogListen([FromBody] PoiListenLogDto dto)
     {
+         // 1 thiết bị chỉ được tính 1 lần duy nhất cho 1 POI
+        // Nghe lại 100 lần cũng không tính thêm
+        bool isDuplicate = await _context.PoiListenLogs.AnyAsync(x =>
+            x.PoiId == dto.PoiId &&
+            x.DeviceId == dto.DeviceId);
+
+        if (isDuplicate)
+            return Ok(new { message = "Đã tính lượt này rồi" });
+
+        // Lần đầu tiên nghe POI này → ghi vào DB
         _context.PoiListenLogs.Add(new PoiListenLog
         {
             PoiId = dto.PoiId,
-            DeviceId = dto.DeviceId,         // 0 = ẩn danh (không cần đăng nhập)
+            DeviceId = dto.DeviceId,
             ListenDurationSec = dto.ListenDurationSec,
             Timestamp = DateTime.UtcNow
         });
+
         await _context.SaveChangesAsync();
-        return Ok();
+        return Ok(new { message = "Đã ghi nhận" });
     }
 
     // 2. Top POI — Đếm số record theo PoiId, lấy nhiều nhất lên đầu

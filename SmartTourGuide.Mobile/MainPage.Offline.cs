@@ -81,9 +81,15 @@ public partial class MainPage
         }
     }
 
-    // ── Online path ───────────────────────────────────────────────────────────
     private async Task LoadPoisOnlineAsync()
     {
+        // Nếu tour đang hiển thị, skip update để giữ tour route
+        if (_currentTour != null)
+        {
+            System.Diagnostics.Debug.WriteLine("[Online] Skip update - Tour đang hiển thị");
+            return;
+        }
+
         try
         {
             var pois = await _apiService.GetPoisAsync(_currentLanguageCode);
@@ -115,6 +121,13 @@ public partial class MainPage
     // ── Offline path ──────────────────────────────────────────────────────────
     private async Task LoadPoisOfflineAsync(bool apiError = false)
     {
+        // Nếu tour đang hiển thị, skip update để giữ tour route
+        if (_currentTour != null)
+        {
+            System.Diagnostics.Debug.WriteLine("[Offline] Skip update - Tour đang hiển thị");
+            return;
+        }
+
         bool hasCached = await _localDb.HasCachedPoisAsync();
 
         if (!hasCached)
@@ -147,6 +160,13 @@ public partial class MainPage
     // ── Sync khi mạng trở lại ────────────────────────────────────────────────
     private async Task SyncFromServerAsync()
     {
+        // Nếu tour đang hiển thị, skip sync để giữ tour route
+        if (_currentTour != null)
+        {
+            System.Diagnostics.Debug.WriteLine("[Sync] Skip - Tour đang hiển thị");
+            return;
+        }
+
         try
         {
             SetStatus("🔄 Đang đồng bộ...", priority: 2, force: true);
@@ -182,7 +202,17 @@ public partial class MainPage
         MainThread.BeginInvokeOnMainThread(() =>
         {
             mapView.Pins.Clear();
-            ClearMapLayers("Geofences", "TourRoute");
+            
+            // Chỉ xóa TourRoute nếu không có tour đang hiển thị
+            // Nếu tour đang active, giữ route layer để user xem lâu hơn
+            if (_currentTour == null)
+            {
+                ClearMapLayers("Geofences", "TourRoute");
+            }
+            else
+            {
+                ClearMapLayers("Geofences"); // Chỉ xóa Geofences, giữ TourRoute
+            }
             mapView.Map.Layers.Insert(1, CreateGeofenceLayer(pois));
 
             foreach (var poi in pois)

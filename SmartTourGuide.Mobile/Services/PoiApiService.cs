@@ -87,6 +87,28 @@ public class PoiApiService
         }
         catch { }
     }
+
+
+    /// <summary>
+    /// Gửi vị trí GPS hiện tại lên server.
+    /// Dùng để vẽ heatmap và lưu tuyến di chuyển ẩn danh.
+    /// DeviceId thay cho UserId — không cần đăng nhập.
+    /// </summary>
+    public async Task SendLocationAsync(double lat, double lng, string deviceId)
+    {
+        try
+        {
+            await _httpClient.PostAsJsonAsync("api/tracking", new
+            {
+                UserId = 0,        // Ẩn danh
+                DeviceId = deviceId,
+                Latitude = lat,
+                Longitude = lng,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch { /* Không crash app nếu mất mạng */ }
+    }
 }
 
 public class PoiModel

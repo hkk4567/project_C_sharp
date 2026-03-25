@@ -10,8 +10,12 @@ public partial class MainPage
     {
         try
         {
+            // Đang xem tour → không trigger geofence tự động
+            if (_currentTour != null) return; // ← THÊM DÒNG NÀY
             if (_isCheckingGeofences || _allPoisCache.Count == 0) return;
             _isCheckingGeofences = true;
+
+            var now = DateTime.UtcNow;
 
             var poisInRange = new List<PoiModel>();
             foreach (var poi in _allPoisCache)
@@ -21,6 +25,11 @@ public partial class MainPage
                     _currentUserLocation, poiLoc, DistanceUnits.Kilometers) * 1000;
                 double radius = poi.TriggerRadius > 0 ? poi.TriggerRadius : 50;
                 if (dist <= radius) poisInRange.Add(poi);
+            }
+
+            if (poisInRange.Count > 0)
+            {
+                _lastGeofenceInsideAt = now;
             }
 
             // Kịch bản A: Ra khỏi tất cả vùng
@@ -53,6 +62,11 @@ public partial class MainPage
             // Kịch bản B: Bật / đổi nhạc
             if (_currentlyPlayingGeofencePoi == null)
             {
+                if (now - _lastGeofenceTriggerAt < _geofenceTriggerCooldown)
+                {
+                    return;
+                }
+
                 _currentlyPlayingGeofencePoi = highestPri;
                 TriggerAutoAudio(highestPri);
             }
@@ -78,6 +92,8 @@ public partial class MainPage
     }
     private void TriggerAutoAudio(PoiModel poi)
     {
+        _lastGeofenceTriggerAt = DateTime.UtcNow;
+
         _queueCts?.Cancel();
         _queueCts = new CancellationTokenSource();
 
@@ -118,9 +134,9 @@ public partial class MainPage
     private void UpdateNearestPoiHighlight()
     {
         if (_allPoisCache.Count == 0 || mapView?.Pins == null || mapView.Pins.Count == 0) return;
-
-        // Khi đang hiển thị Tour, không highlight nearest — tránh đổi màu pin tour
-        if (_currentTour != null) return;
+        
+        // Đang hiển thị Tour → KHÔNG làm gì cả, giữ nguyên tuyến đường
+        if (_currentTour != null) return; // ← đã có, giữ nguyên
 
         PoiModel? nearestPoi = null;
         double minDistanceM = double.MaxValue;

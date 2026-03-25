@@ -67,10 +67,39 @@ public partial class MainPage : ContentPage
         {
             _geofenceTimer = Application.Current!.Dispatcher.CreateTimer();
             _geofenceTimer.Interval = TimeSpan.FromSeconds(3);
-            _geofenceTimer.Tick += (s, e) =>
+            _geofenceTimer.Tick += async (s, e) =>
             {
-                CheckGeofences();
-                UpdateNearestPoiHighlight();
+                // Chỉ check geofence và highlight khi KHÔNG đang xem tour
+                if (_currentTour == null)
+                {
+                    CheckGeofences();
+                    UpdateNearestPoiHighlight();
+                }
+
+                // Ghi GPS thật lên server (luôn chạy dù có tour hay không)
+                try
+                {
+                    if (_isManualLocationOverride)
+                        return;
+
+                    var location = await Geolocation.GetLastKnownLocationAsync();
+                    if (location != null)
+                    {
+                        _currentUserLocation = location;
+                        MainThread.BeginInvokeOnMainThread(() =>
+                        {
+                            mapView.MyLocationLayer.UpdateMyLocation(
+                                new Mapsui.UI.Maui.Position(
+                                    location.Latitude,
+                                    location.Longitude));
+                        });
+                        _ = _apiService.SendLocationAsync(
+                            location.Latitude,
+                            location.Longitude,
+                            _deviceId);
+                    }
+                }
+                catch { }
             };
             _geofenceTimer.Start();
         }
@@ -143,8 +172,41 @@ public partial class MainPage : ContentPage
 
     private async Task LoadCurrentLocation()
     {
+        try
+        {
+            // Lấy vị trí GPS thực tế (chờ tối đa 15 giây để emulator kịp lock)
+            var location = await Geolocation.GetLocationAsync(
+                new GeolocationRequest(
+                    GeolocationAccuracy.Best, 
+                    TimeSpan.FromSeconds(15)));
+            
+            if (location != null)
+            {
+                _currentUserLocation = location;
+                
+                // Cập nhật bản đồ vào vị trí user
+                var smc = SphericalMercator.FromLonLat(location.Longitude, location.Latitude);
+                var mPoint = new MPoint(smc.x, smc.y);
+                
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    mapView.MyLocationLayer.UpdateMyLocation(
+                        new Mapsui.UI.Maui.Position(location.Latitude, location.Longitude));
+                    mapView.Map?.Navigator.CenterOnAndZoomTo(mPoint, 1.5, duration: 500);
+                });
+                
+                System.Diagnostics.Debug.WriteLine(
+                    $"✅ GPS: {location.Latitude}, {location.Longitude}");
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"❌ GPS lỗi: {ex.Message}");
+        }
+        
+        // Fallback nếu GPS lỗi
         MoveMapToDefaultLocation(resolution: 2);
-        await Task.CompletedTask;
     }
 
     private async void OnCenterMyLocationClicked(object? sender, EventArgs e)
@@ -154,7 +216,19 @@ public partial class MainPage : ContentPage
             await view.ScaleToAsync(0.9, 100, Easing.CubicOut);
             await view.ScaleToAsync(1, 100, Easing.CubicIn);
         }
-        MoveMapToDefaultLocation(resolution: 1.5);
+
+        var current = _currentUserLocation;
+        var smc = SphericalMercator.FromLonLat(current.Longitude, current.Latitude);
+        var mPoint = new MPoint(smc.x, smc.y);
+
+        _isManualLocationOverride = false;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            mapView.MyLocationLayer.UpdateMyLocation(
+                new Mapsui.UI.Maui.Position(current.Latitude, current.Longitude));
+            mapView.Map?.Navigator.CenterOnAndZoomTo(mPoint, 1.5, duration: 500);
+        });
     }
     private void ClearMapLayers(params string[] layerNames)
     {
