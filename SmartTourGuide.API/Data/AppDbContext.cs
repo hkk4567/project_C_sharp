@@ -19,6 +19,7 @@ namespace SmartTourGuide.API.Data
         public DbSet<TourDetail> TourDetails { get; set; }
         public DbSet<PoiTranslation> PoiTranslations { get; set; }
         public DbSet<ActivityLog> ActivityLogs { get; set; }
+        public DbSet<PoiListenLog> PoiListenLogs { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -86,6 +87,14 @@ namespace SmartTourGuide.API.Data
                 .WithMany() // Poi entity không cần chứa list TourDetail ngược lại
                 .HasForeignKey(td => td.PoiId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+
+            // --- Cấu hình Poi Listen Log ---
+            modelBuilder.Entity<PoiListenLog>(entity => {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.PoiId);
+                entity.HasIndex(e => e.Timestamp);
+            });
         }
     }
 }

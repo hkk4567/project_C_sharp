@@ -257,16 +257,17 @@ public partial class MainPage
     /// </summary>
     private void UpdateOfflineBanner(bool isOffline, bool hasNoData = false)
     {
-        // ── THÊM: disable nút khi offline ────────────────────────
-        btnLanguage.IsEnabled = !isOffline;
-        btnShowTours.IsEnabled = !isOffline;
-        btnLanguage.Opacity = isOffline ? 0.4 : 1.0;
-        btnShowTours.Opacity = isOffline ? 0.4 : 1.0;
+        // Gom TẤT CẢ thao tác liên quan đến UI vào MainThread
         MainThread.BeginInvokeOnMainThread(async () =>
         {
+            // Disable/Enable nút
+            btnLanguage.IsEnabled = !isOffline;
+            btnShowTours.IsEnabled = !isOffline;
+            btnLanguage.Opacity = isOffline ? 0.4 : 1.0;
+            btnShowTours.Opacity = isOffline ? 0.4 : 1.0;
+
             if (!isOffline)
             {
-                // Ẩn banner mượt
                 await OfflineBanner.FadeToAsync(0, 300);
                 OfflineBanner.IsVisible = false;
                 return;
@@ -277,7 +278,7 @@ public partial class MainPage
             if (hasNoData)
             {
                 OfflineBannerLabel.Text = "📴 Không có mạng — Chưa có dữ liệu offline";
-                OfflineBanner.BackgroundColor = MauiColor.FromArgb("#B71C1C"); // đỏ đậm
+                OfflineBanner.BackgroundColor = MauiColor.FromArgb("#B71C1C"); 
             }
             else
             {
@@ -287,7 +288,7 @@ public partial class MainPage
                     : "chưa rõ";
 
                 OfflineBannerLabel.Text = $"📴 Đang offline · Dữ liệu: {syncText}";
-                OfflineBanner.BackgroundColor = MauiColor.FromArgb("#E65100"); // cam đậm
+                OfflineBanner.BackgroundColor = MauiColor.FromArgb("#E65100"); 
             }
 
             OfflineBanner.Opacity = 0;

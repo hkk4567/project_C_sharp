@@ -67,6 +67,26 @@ public class PoiApiService
             return null;
         }
     }
+    /// <summary>
+    /// Gửi log lên server sau khi user nghe audio tại 1 POI.
+    /// Phục vụ 2 tính năng analytics:
+    ///   - Top địa điểm được nghe nhiều nhất (đếm số lần gọi hàm này)
+    ///   - Thời gian trung bình nghe 1 POI (AVG của durationSec)
+    /// Không throw exception — lỗi mạng không được crash app.
+    /// </summary>
+    public async Task LogPoiListenAsync(int poiId, int durationSec, string deviceId)
+    {
+        try
+        {
+            await _httpClient.PostAsJsonAsync("api/analytics/poi-listen", new
+            {
+                PoiId = poiId,
+                DeviceId = deviceId,   // ← thay UserId = 0
+                ListenDurationSec = durationSec
+            });
+        }
+        catch { }
+    }
 }
 
 public class PoiModel
@@ -103,3 +123,5 @@ public class TourDetailModel
     public double Longitude { get; set; }
     public int OrderIndex { get; set; }
 }
+
+

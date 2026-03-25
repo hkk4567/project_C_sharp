@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartTourGuide.API.Data;
 
@@ -11,9 +12,11 @@ using SmartTourGuide.API.Data;
 namespace SmartTourGuide.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260325055001_AddPoiListenLog")]
+    partial class AddPoiListenLog
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -162,10 +165,6 @@ namespace SmartTourGuide.API.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
 
-                    b.Property<string>("DeviceId")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
                     b.Property<int>("ListenDurationSec")
                         .HasColumnType("int");
 
@@ -174,6 +173,9 @@ namespace SmartTourGuide.API.Migrations
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 

@@ -45,6 +45,9 @@ public partial class MainPage
 
         if (!_poiAudioIndex.TryGetValue(poi.Id, out int startIndex) || startIndex >= urls.Count)
             startIndex = 0;
+        // Ghi lại thời điểm bắt đầu phát
+        // Dùng để tính tổng thời gian nghe khi dừng hoặc hết audio
+        var playStartTime = DateTime.Now;
 
         for (int i = startIndex; i < urls.Count; i++)
         {
@@ -82,8 +85,11 @@ public partial class MainPage
             }
         }
 
+
         // Phát hết toàn bộ → reset về 0
         _poiAudioIndex[poi.Id] = 0;
+        var durationSec = (int)(DateTime.Now - playStartTime).TotalSeconds;
+        await _apiService.LogPoiListenAsync(poi.Id, durationSec, _deviceId);
         _isPlaying = false;
         int played = urls.Count;
         MainThread.BeginInvokeOnMainThread(() =>
@@ -290,6 +296,21 @@ public partial class MainPage
 
         _isPlaying = false;
 
+        // Ghi log thời gian nghe vào database khi user bấm dừng
+        // Chỉ ghi nếu đang thực sự phát (_isPlaying = true)
+        // Chỉ ghi nếu nghe trên 2 giây — lọc bấm nhầm
+        if (_isPlaying && _currentSelectedPoi != null)
+        {
+            var durationSec = (int)(DateTime.Now - _playStartTime).TotalSeconds;
+            if (durationSec >= 2)
+            {
+                // Fire and forget — không chờ, không block UI
+            _ = _apiService.LogPoiListenAsync(
+                _currentSelectedPoi.Id,  // POI nào đang nghe
+                durationSec,             // Nghe bao nhiêu giây
+                _deviceId);              // Thiết bị nào
+            }
+        }
         MainThread.BeginInvokeOnMainThread(() =>
         {
             if (_currentSelectedPoi?.AudioUrls?.Count > 0)
