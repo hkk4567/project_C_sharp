@@ -43,6 +43,7 @@ builder.Services.AddScoped(sp => new HttpClient
 
 // 5. Đăng ký các Service nghiệp vụ
 builder.Services.AddScoped<PoiApiService>();
+builder.Services.AddScoped<AnalyticsApiService>();
 builder.Services.AddScoped<IUserService, UserService>();
 var app = builder.Build();
 

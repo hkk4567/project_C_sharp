@@ -121,6 +121,7 @@ public class PoisController : ControllerBase
                 Latitude = p.Latitude,
                 Longitude = p.Longitude,
                 TriggerRadius = p.GeofenceSetting?.TriggerRadiusInMeters ?? 50,
+                CooldownInSeconds = p.GeofenceSetting?.CooldownInSeconds ?? 300,
                 Priority = p.GeofenceSetting?.Priority ?? 1,
                 AudioUrls = audioList.Select(m => m.UrlOrContent).ToList(),
                 ImageUrls = p.MediaAssets.Where(m => m.Type == MediaType.Image).Select(m => m.UrlOrContent).ToList()
@@ -180,6 +181,7 @@ public class PoisController : ControllerBase
                 Latitude = p.Latitude,
                 Longitude = p.Longitude,
                 TriggerRadius = p.GeofenceSetting?.TriggerRadiusInMeters ?? 50,
+                CooldownInSeconds = p.GeofenceSetting?.CooldownInSeconds ?? 300,
                 Priority = p.GeofenceSetting?.Priority ?? 1,
 
                 AudioUrls = audioList.Select(m => m.UrlOrContent).ToList(),

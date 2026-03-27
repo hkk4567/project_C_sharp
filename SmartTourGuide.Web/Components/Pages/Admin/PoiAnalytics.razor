@@ -1,0 +1,129 @@
+@page "/admin/poi-analytics"
+@layout AdminLayout
+@attribute [Authorize(Roles = "Admin")]
+@inject SmartTourGuide.Web.Services.AnalyticsApiService AnalyticsApi
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <MudText Typo="Typo.h5" Style="font-weight: 800; color: #333;">THỐNG KÊ TOP POI ĐƯỢC NGHE NHIỀU</MudText>
+
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudSelect T="int" Label="Top" Value="_top" ValueChanged="OnTopChanged" Dense="true" Variant="Variant.Outlined" Style="min-width: 120px;">
+                <MudSelectItem Value="5">Top 5</MudSelectItem>
+                <MudSelectItem Value="10">Top 10</MudSelectItem>
+                <MudSelectItem Value="20">Top 20</MudSelectItem>
+                <MudSelectItem Value="50">Top 50</MudSelectItem>
+            </MudSelect>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadDataAsync" Disabled="_loading">
+                Làm mới
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudPaper Elevation="1" Class="pa-6 d-flex justify-center">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </MudPaper>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_error</MudAlert>
+    }
+    else if (_items.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Filled">Chưa có dữ liệu lượt nghe POI.</MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" md="7">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight: 700; color: #333;">Bảng xếp hạng</MudText>
+
+                    <MudTable Items="_items" Hover="true" Dense="true" Bordered="false" Striped="true">
+                        <HeaderContent>
+                            <MudTh style="width: 80px;">Hạng</MudTh>
+                            <MudTh>POI ID</MudTh>
+                            <MudTh>Tên địa điểm</MudTh>
+                            <MudTh style="text-align: right;">Lượt nghe</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudChip T="string" Color="@(context.ListenCount == _maxListenCount ? Color.Warning : Color.Default)" Variant="Variant.Outlined" Size="Size.Small">
+                                    #@(_items.IndexOf(context) + 1)
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>@context.PoiId</MudTd>
+                            <MudTd>@context.PoiName</MudTd>
+                            <MudTd style="text-align: right; font-weight: 700;">@context.ListenCount</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="5">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px; height: 100%;">
+                    <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight: 700; color: #333;">Biểu đồ lượt nghe</MudText>
+
+                    <MudChart ChartType="ChartType.Bar" ChartSeries="_series" XAxisLabels="_xLabels" Width="100%" Height="360px"></MudChart>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private bool _loading = true;
+    private string _error = string.Empty;
+    private int _top = 10;
+    private int _maxListenCount;
+    private List<SmartTourGuide.Shared.DTOs.TopPoiDto> _items = new();
+    private List<ChartSeries> _series = new();
+    private string[] _xLabels = Array.Empty<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task OnTopChanged(int value)
+    {
+        _top = value;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _error = string.Empty;
+
+        try
+        {
+            _items = await AnalyticsApi.GetTopPoisAsync(_top);
+            _maxListenCount = _items.Count > 0 ? _items.Max(x => x.ListenCount) : 0;
+
+            _xLabels = _items.Select(x => $"POI {x.PoiId}").ToArray();
+            _series = new List<ChartSeries>
+            {
+                new ChartSeries
+                {
+                    Name = "Lượt nghe",
+                    Data = _items.Select(x => (double)x.ListenCount).ToArray()
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _error = $"Không tải được dữ liệu thống kê: {ex.Message}";
+            _items.Clear();
+            _xLabels = Array.Empty<string>();
+            _series.Clear();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

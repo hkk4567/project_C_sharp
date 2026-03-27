@@ -24,16 +24,7 @@ public class AnalyticsController : ControllerBase
     [HttpPost("poi-listen")]
     public async Task<IActionResult> LogListen([FromBody] PoiListenLogDto dto)
     {
-         // 1 thiết bị chỉ được tính 1 lần duy nhất cho 1 POI
-        // Nghe lại 100 lần cũng không tính thêm
-        bool isDuplicate = await _context.PoiListenLogs.AnyAsync(x =>
-            x.PoiId == dto.PoiId &&
-            x.DeviceId == dto.DeviceId);
-
-        if (isDuplicate)
-            return Ok(new { message = "Đã tính lượt này rồi" });
-
-        // Lần đầu tiên nghe POI này → ghi vào DB
+        // Mỗi lần nghe hợp lệ sẽ tạo một record mới.
         _context.PoiListenLogs.Add(new PoiListenLog
         {
             PoiId = dto.PoiId,

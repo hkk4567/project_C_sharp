@@ -23,6 +23,9 @@ namespace SmartTourGuide.Shared.DTOs
         // Slide 2: Cấu hình Geofence (Bán kính tính bằng mét)
         public double TriggerRadius { get; set; }
 
+        // Slide 2: Thời gian chờ để kích hoạt lại (giây)
+        public int CooldownInSeconds { get; set; }
+
         public int Priority { get; set; }
 
         // Slide 3 & 4: Danh sách file (Khởi tạo sẵn list trống để tránh null reference)

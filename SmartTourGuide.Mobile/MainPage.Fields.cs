@@ -40,8 +40,8 @@ public partial class MainPage : ContentPage
     private readonly SemaphoreSlim _mapLock = new SemaphoreSlim(1, 1);
     // Biến cờ chống spam (Re-entrancy guard)
     private bool _isCheckingGeofences = false;
-    // Chống spam trigger khi GPS rung ở rìa vùng
-    private readonly TimeSpan _geofenceTriggerCooldown = TimeSpan.FromSeconds(5);
+    // Chống spam trigger khi GPS rung ở rìa vùng; lấy theo cooldown của POI hiện tại
+    private TimeSpan _geofenceTriggerCooldown = TimeSpan.FromSeconds(5);
     private DateTime _lastGeofenceTriggerAt = DateTime.MinValue;
     private DateTime _lastGeofenceInsideAt = DateTime.MinValue;
     private bool _isManualLocationOverride = false;

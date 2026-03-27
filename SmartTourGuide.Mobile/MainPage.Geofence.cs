@@ -58,6 +58,8 @@ public partial class MainPage
             }
 
             var highestPri = poisInRange.OrderByDescending(p => p.Priority).First();
+            var cooldownSeconds = highestPri.CooldownInSeconds > 0 ? highestPri.CooldownInSeconds : 5;
+            _geofenceTriggerCooldown = TimeSpan.FromSeconds(cooldownSeconds);
 
             // Kịch bản B: Bật / đổi nhạc
             if (_currentlyPlayingGeofencePoi == null)
@@ -93,6 +95,8 @@ public partial class MainPage
     private void TriggerAutoAudio(PoiModel poi)
     {
         _lastGeofenceTriggerAt = DateTime.UtcNow;
+        _geofenceTriggerCooldown = TimeSpan.FromSeconds(
+            poi.CooldownInSeconds > 0 ? poi.CooldownInSeconds : 5);
 
         _queueCts?.Cancel();
         _queueCts = new CancellationTokenSource();
