@@ -76,7 +76,7 @@
     }
 </MudStack>
 
-<MudTable Items="@pois" Hover="true" Loading="@_loading" Striped="true" Elevation="3">
+<MudTable Items="@pois" Hover="true" Loading="@_loading" Striped="true" Elevation="3" RowsPerPage="@_rowsPerPage">
     <HeaderContent>
         <MudTh>Media</MudTh>
         <MudTh>Tên địa điểm</MudTh>
@@ -184,6 +184,11 @@
         <NoRecordsContent>
             <MudText>Bạn chưa có địa điểm nào.</MudText>
         </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager RowsPerPageString="Số dòng mỗi trang"
+                           InfoFormat="{first_item}-{last_item} / {all_items}"
+                           PageSizeOptions="new int[] { 5, 10, 20 }" />
+        </PagerContent>
     </MudTable>
 
 @code {
@@ -192,6 +197,7 @@
     private bool _loadingTranslations = false;
     private string ApiUrl = "http://localhost:5277";
     private string _viewLang = "vi-VN";
+    private int _rowsPerPage = 5;
 
     private Dictionary<string, PoiTranslationDto> _transCache = new();
 

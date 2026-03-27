@@ -20,6 +20,8 @@ namespace SmartTourGuide.API.Data
         public DbSet<PoiTranslation> PoiTranslations { get; set; }
         public DbSet<ActivityLog> ActivityLogs { get; set; }
         public DbSet<PoiListenLog> PoiListenLogs { get; set; }
+        public DbSet<OwnerNotification> OwnerNotifications { get; set; }
+        public DbSet<AdminNotification> AdminNotifications { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -94,6 +96,44 @@ namespace SmartTourGuide.API.Data
                 entity.HasKey(e => e.Id);
                 entity.HasIndex(e => e.PoiId);
                 entity.HasIndex(e => e.Timestamp);
+            });
+
+            // --- Cấu hình Owner Notification ---
+            modelBuilder.Entity<OwnerNotification>(entity =>
+            {
+                entity.ToTable("OwnerNotifications");
+
+                entity.HasIndex(e => e.OwnerId);
+                entity.HasIndex(e => new { e.OwnerId, e.IsRead, e.CreatedAt });
+
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(e => e.OwnerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne<Poi>()
+                    .WithMany()
+                    .HasForeignKey(e => e.PoiId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // --- Cấu hình Admin Notification ---
+            modelBuilder.Entity<AdminNotification>(entity =>
+            {
+                entity.ToTable("AdminNotifications");
+
+                entity.HasIndex(e => e.AdminId);
+                entity.HasIndex(e => new { e.AdminId, e.IsRead, e.CreatedAt });
+
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(e => e.AdminId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne<Poi>()
+                    .WithMany()
+                    .HasForeignKey(e => e.PoiId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }

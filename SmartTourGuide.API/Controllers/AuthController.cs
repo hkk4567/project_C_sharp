@@ -90,6 +90,17 @@ public class AuthController : ControllerBase
             return Unauthorized("Sai tài khoản hoặc mật khẩu");
         }
 
+        if (user.IsLocked)
+        {
+            Console.WriteLine("Tài khoản đã bị khóa");
+
+            // Ghi log cho trường hợp đăng nhập bằng tài khoản đã bị khóa
+            AddActivityLog("LoginBlocked", $"Từ chối đăng nhập do tài khoản bị khóa: {user.Username}", user.Username);
+            await _context.SaveChangesAsync();
+
+            return Unauthorized("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
+        }
+
         if (!BC.Verify(dto.Password, user.PasswordHash))
         {
             Console.WriteLine("Sai mật khẩu");

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SmartTourGuide.API.Data;
 
@@ -11,9 +12,11 @@ using SmartTourGuide.API.Data;
 namespace SmartTourGuide.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260327061704_AddOwnerNotifications")]
+    partial class AddOwnerNotifications
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -52,52 +55,6 @@ namespace SmartTourGuide.API.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ActivityLogs");
-                });
-
-            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.AdminNotification", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AdminId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsRead")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<string>("OwnerUsername")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<int?>("PoiId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("varchar(150)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AdminId");
-
-                    b.HasIndex("PoiId");
-
-                    b.HasIndex("AdminId", "IsRead", "CreatedAt");
-
-                    b.ToTable("AdminNotifications", (string)null);
                 });
 
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.GeofenceSetting", b =>
@@ -436,20 +393,6 @@ namespace SmartTourGuide.API.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("UserLocationLogs");
-                });
-
-            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.AdminNotification", b =>
-                {
-                    b.HasOne("SmartTourGuide.API.Data.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("AdminId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SmartTourGuide.API.Data.Entities.Poi", null)
-                        .WithMany()
-                        .HasForeignKey("PoiId")
-                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.GeofenceSetting", b =>

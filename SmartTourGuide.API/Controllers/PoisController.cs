@@ -199,7 +199,7 @@ public class PoisController : ControllerBase
         var newPoi = new Poi
         {
             Name = dto.Name,
-            Description = dto.Description,
+            Description = dto.Description ?? string.Empty,
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
             OwnerId = dto.OwnerId,
@@ -251,6 +251,26 @@ public class PoisController : ControllerBase
         };
 
         _context.ActivityLogs.Add(log);
+
+        // 3.1. Tạo thông báo cho tất cả Admin về yêu cầu duyệt POI mới
+        var adminIds = await _context.Users
+            .Where(u => u.Role == SmartTourGuide.Shared.Enums.UserRole.Admin)
+            .Select(u => u.Id)
+            .ToListAsync();
+
+        foreach (var adminId in adminIds)
+        {
+            _context.AdminNotifications.Add(new AdminNotification
+            {
+                AdminId = adminId,
+                PoiId = newPoi.Id,
+                OwnerUsername = currentUsername,
+                Title = "Yêu cầu duyệt POI",
+                Message = $"{currentUsername} yêu cầu duyệt địa điểm '{dto.Name}'.",
+                CreatedAt = DateTime.Now,
+                IsRead = false
+            });
+        }
 
         // 4. Lưu lại toàn bộ File Media và Log
         await _context.SaveChangesAsync();
@@ -367,7 +387,7 @@ public class PoisController : ControllerBase
 
         // 1. Cập nhật thông tin
         poi.Name = dto.Name;
-        poi.Description = dto.Description;
+        poi.Description = dto.Description ?? string.Empty;
         poi.Address = dto.Address ?? "N/A";
         poi.Latitude = dto.Latitude;
         poi.Longitude = dto.Longitude;
@@ -460,12 +480,24 @@ public class PoisController : ControllerBase
         var poi = await _context.Pois.FindAsync(id);
         if (poi == null) return NotFound();
 
+        // LẤY USERNAME NGƯỜI THỰC HIỆN (admin), không dùng chuỗi cứng "Admin"
+        var username = GetCurrentUsername();
+
         poi.Status = PoiStatus.Active;
 
-        await _context.SaveChangesAsync();
+        // Tạo thông báo cho chủ gian hàng khi POI được duyệt
+        _context.OwnerNotifications.Add(new OwnerNotification
+        {
+            OwnerId = poi.OwnerId,
+            PoiId = poi.Id,
+            AdminUsername = username,
+            Title = "POI đã được duyệt",
+            Message = $"{username} đã duyệt địa điểm '{poi.Name}'.",
+            CreatedAt = DateTime.Now,
+            IsRead = false
+        });
 
-        // 🔥 LẤY USERNAME NGƯỜI THỰC HIỆN (admin), không dùng chuỗi cứng "Admin"
-        var username = GetCurrentUsername();
+        await _context.SaveChangesAsync();
 
         // 🔥 LOG
         _context.ActivityLogs.Add(new ActivityLog
@@ -589,13 +621,25 @@ public class PoisController : ControllerBase
         var poi = await _context.Pois.FindAsync(id);
         if (poi == null) return NotFound("Không tìm thấy địa điểm.");
 
+        // Lấy username người thực hiện (admin)
+        var username = GetCurrentUsername();
+
         // Chuyển trạng thái sang Rejected
         poi.Status = PoiStatus.Rejected;
 
-        await _context.SaveChangesAsync();
+        // Tạo thông báo cho chủ gian hàng: từ chối do địa chỉ không khớp
+        _context.OwnerNotifications.Add(new OwnerNotification
+        {
+            OwnerId = poi.OwnerId,
+            PoiId = poi.Id,
+            AdminUsername = username,
+            Title = "POI bị từ chối",
+            Message = $"{username} đã từ chối địa điểm '{poi.Name}' do thông tin địa chỉ không khớp.",
+            CreatedAt = DateTime.Now,
+            IsRead = false
+        });
 
-        // 🔥 LẤY USERNAME NGƯỜI THỰC HIỆN (admin), không dùng chuỗi cứng "Admin"
-        var username = GetCurrentUsername();
+        await _context.SaveChangesAsync();
 
         // 🔥 GHI LOG
         _context.ActivityLogs.Add(new ActivityLog

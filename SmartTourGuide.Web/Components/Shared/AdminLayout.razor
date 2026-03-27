@@ -1,9 +1,11 @@
 @inherits LayoutComponentBase
+@implements IAsyncDisposable
 @inject NavigationManager Nav
 @using SmartTourGuide.Web.Services
 @inject AuthenticationStateProvider AuthStateProvider
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject HttpClient Http
+@inject AdminNotificationService AdminNotificationService
 
 <MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="@_customTheme" />
 <MudDialogProvider />
@@ -159,6 +161,119 @@
     .adm-drawer a:focus {
         text-decoration: none !important;
     }
+
+    .admin-notification-menu {
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(25, 118, 210, 0.22);
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+        background: var(--mud-palette-surface);
+    }
+
+    .admin-notification-header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        padding: 14px 16px 12px 16px;
+        background: linear-gradient(135deg, rgba(25, 118, 210, 0.18), rgba(25, 118, 210, 0.05));
+        border-bottom: 1px solid var(--mud-palette-divider);
+    }
+
+    .admin-notification-header-title {
+        margin: 0;
+        font-size: 0.98rem;
+        font-weight: 800;
+        letter-spacing: 0.1px;
+    }
+
+    .admin-notification-header-sub {
+        margin: 3px 0 0 0;
+        font-size: 0.78rem;
+        opacity: 0.78;
+    }
+
+    .admin-notification-panel {
+        width: 360px;
+        height: 390px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 8px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(25, 118, 210, 0.8) rgba(0, 0, 0, 0.12);
+    }
+
+    .admin-notification-panel::-webkit-scrollbar {
+        width: 9px;
+    }
+
+    .admin-notification-panel::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.06);
+        border-radius: 999px;
+    }
+
+    .admin-notification-panel::-webkit-scrollbar-thumb {
+        background: rgba(25, 118, 210, 0.9);
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
+
+    .admin-notification-panel::-webkit-scrollbar-thumb:hover {
+        background: rgba(25, 118, 210, 1);
+        background-clip: padding-box;
+    }
+
+    .admin-notification-item {
+        display: block;
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--mud-palette-divider);
+        background: rgba(127, 127, 127, 0.04);
+        transition: all 0.18s ease;
+        margin-bottom: 8px;
+        cursor: pointer;
+    }
+
+    .admin-notification-item:hover {
+        border-color: rgba(25, 118, 210, 0.45);
+        background: rgba(25, 118, 210, 0.07);
+        transform: translateY(-1px);
+    }
+
+    .admin-notification-item.is-read {
+        opacity: 0.82;
+    }
+
+    .admin-notification-item-title {
+        font-size: 0.96rem;
+        font-weight: 800;
+        margin: 0;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .admin-notification-item-title.pending {
+        color: #ef6c00;
+    }
+
+    .admin-notification-item-message {
+        margin: 6px 0 0 0;
+        font-size: 0.86rem;
+        line-height: 1.35;
+        color: var(--mud-palette-text-secondary);
+    }
+
+    .admin-notification-item-meta {
+        margin: 7px 0 0 0;
+        font-size: 0.76rem;
+        color: var(--mud-palette-text-secondary);
+    }
+
+    .admin-notification-empty {
+        padding: 26px 10px 22px 10px;
+        text-align: center;
+        opacity: 0.82;
+    }
 </style>
 
 <MudLayout>
@@ -178,8 +293,66 @@
                     OnClick="@DarkModeToggle"
                     Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)")}; color: {(_isDarkMode ? "#ffb300" : "#333")}; border-radius: 50%; width: 40px; height: 40px; transition: all 0.3s;")" />
 
-                    <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone"
-                                   Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)")}; color: {(_isDarkMode ? "#fff" : "#333")}; border-radius: 50%; width: 40px; height: 40px;")" />
+                    <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" ListClass="pa-0" PopoverClass="admin-notification-menu mt-3">
+                        <ActivatorContent>
+                            @if (_adminUnreadNotificationCount > 0)
+                            {
+                                <MudBadge Content="@_adminUnreadNotificationCount" Color="Color.Error" Bordered="true" Overlap="true">
+                                    <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone"
+                                                   Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)")}; color: {(_isDarkMode ? "#fff" : "#333")}; border-radius: 50%; width: 40px; height: 40px;")" />
+                                </MudBadge>
+                            }
+                            else
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone"
+                                               Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)")}; color: {(_isDarkMode ? "#fff" : "#333")}; border-radius: 50%; width: 40px; height: 40px;")" />
+                            }
+                        </ActivatorContent>
+                        <ChildContent>
+                            <div>
+                                <div class="admin-notification-header d-flex justify-space-between align-center">
+                                    <div>
+                                        <p class="admin-notification-header-title">Yêu cầu duyệt POI</p>
+                                        <p class="admin-notification-header-sub">@_adminUnreadNotificationCount chưa đọc</p>
+                                    </div>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small" OnClick="RefreshNotificationsAsync" Style="background: rgba(0,0,0,0.03); border-radius: 10px;" />
+                                </div>
+
+                                <div class="admin-notification-panel">
+                                    @if (_isLoadingNotifications)
+                                    {
+                                        <div class="pa-6 d-flex justify-center" style="height: 100%; align-items: center;">
+                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                        </div>
+                                    }
+                                    else if (_adminNotifications.Count == 0)
+                                    {
+                                        <div class="admin-notification-empty">
+                                            <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" Size="Size.Medium" Color="Color.Default" />
+                                            <MudText Typo="Typo.body2" Class="mt-2 mud-text-secondary">Chưa có thông báo nào.</MudText>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var item in _adminNotifications)
+                                        {
+                                            <div class="admin-notification-item @(item.IsRead ? "is-read" : "")" @onclick="() => OnAdminNotificationClick(item)">
+                                                <div class="d-flex justify-space-between align-center">
+                                                    <p class="admin-notification-item-title @GetNotificationTitleClass(item.Title)">@item.Title</p>
+                                                    @if (!item.IsRead)
+                                                    {
+                                                        <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled">Mới</MudChip>
+                                                    }
+                                                </div>
+                                                <p class="admin-notification-item-message">@NormalizeNotificationMessage(item.Message)</p>
+                                                <p class="admin-notification-item-meta">@item.OwnerUsername | @FormatTimeAgo(item.CreatedAt)</p>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </ChildContent>
+                    </MudMenu>
 
                     <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
                              PopoverClass="rounded-xl mt-2" ListClass="pa-0" Style="border-radius: 12px;">
@@ -311,6 +484,12 @@
     bool _drawerOpen = true;
     string _adminAvatarUrl = "";
     bool _isDarkMode = false;
+    bool _isLoadingNotifications = false;
+    int _adminUnreadNotificationCount = 0;
+    List<AdminNotificationItem> _adminNotifications = new();
+    bool _notificationPollingStarted = false;
+    private PeriodicTimer? _notificationTimer;
+    private CancellationTokenSource? _notificationCts;
 
     MudTheme _customTheme = new MudTheme()
     {
@@ -376,7 +555,114 @@
                 Http.DefaultRequestHeaders.Remove("X-User-Name");
                 Http.DefaultRequestHeaders.Add("X-User-Name", username);
             }
+
+            await LoadAdminNotificationsAsync(showLoading: true);
+            StartNotificationPolling();
         }
         catch { }
+    }
+
+    private async Task LoadAdminNotificationsAsync(bool showLoading = false)
+    {
+        if (showLoading)
+        {
+            _isLoadingNotifications = true;
+            await InvokeAsync(StateHasChanged);
+        }
+
+        try
+        {
+            var response = await AdminNotificationService.GetAdminNotificationsAsync();
+            _adminUnreadNotificationCount = response?.UnreadCount ?? 0;
+            _adminNotifications = response?.Items ?? new List<AdminNotificationItem>();
+        }
+        catch
+        {
+            _adminUnreadNotificationCount = 0;
+            _adminNotifications = new List<AdminNotificationItem>();
+        }
+        finally
+        {
+            _isLoadingNotifications = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private Task RefreshNotificationsAsync()
+    {
+        return LoadAdminNotificationsAsync(showLoading: true);
+    }
+
+    private void StartNotificationPolling()
+    {
+        if (_notificationPollingStarted) return;
+        _notificationPollingStarted = true;
+
+        _notificationCts = new CancellationTokenSource();
+        _ = Task.Run(() => PollNotificationsAsync(_notificationCts.Token));
+    }
+
+    private async Task PollNotificationsAsync(CancellationToken token)
+    {
+        _notificationTimer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        try
+        {
+            while (await _notificationTimer.WaitForNextTickAsync(token))
+            {
+                await InvokeAsync(async () => await LoadAdminNotificationsAsync());
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Bỏ qua khi dispose layout.
+        }
+    }
+
+    private async Task OnAdminNotificationClick(AdminNotificationItem item)
+    {
+        if (item.IsRead) return;
+
+        var ok = await AdminNotificationService.MarkAsReadAsync(item.Id);
+        if (ok)
+        {
+            item.IsRead = true;
+            _adminUnreadNotificationCount = Math.Max(0, _adminUnreadNotificationCount - 1);
+            StateHasChanged();
+        }
+    }
+
+    private static string NormalizeNotificationMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message)) return string.Empty;
+        return message;
+    }
+
+    private static string GetNotificationTitleClass(string title)
+    {
+        if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+
+        var t = title.ToLowerInvariant();
+        if (t.Contains("yêu cầu") || t.Contains("chờ duyệt") || t.Contains("pending"))
+            return "pending";
+
+        return string.Empty;
+    }
+
+    private static string FormatTimeAgo(DateTime createdAt)
+    {
+        var span = DateTime.Now - createdAt;
+        if (span.TotalSeconds < 60) return "Vừa xong";
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes} phút trước";
+        if (span.TotalHours < 24) return $"{(int)span.TotalHours} giờ trước";
+        if (span.TotalDays < 7) return $"{(int)span.TotalDays} ngày trước";
+        return createdAt.ToString("dd/MM/yyyy HH:mm");
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _notificationCts?.Cancel();
+        _notificationTimer?.Dispose();
+        _notificationCts?.Dispose();
+        return ValueTask.CompletedTask;
     }
 }
