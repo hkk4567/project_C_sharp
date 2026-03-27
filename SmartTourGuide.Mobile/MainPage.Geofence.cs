@@ -2,6 +2,8 @@ namespace SmartTourGuide.Mobile;
 
 public partial class MainPage
 {
+    private Label? StatusLabelCtrl => this.FindByName<Label>("statusLabel");
+
     // CheckGeofences, TriggerAutoAudio
     // ════════════════════════════════════════════════════════════════════════
     //  GEOFENCE ENGINE
@@ -106,8 +108,11 @@ public partial class MainPage
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
+            var btnPlayAudio = BtnPlayAudioCtrl;
+            var detailPopup = DetailPopupCtrl;
+
             if (btnPlayAudio != null) btnPlayAudio.Text = "⏹️ Dừng phát";
-            if (DetailPopup != null && DetailPopup.IsVisible)
+            if (detailPopup != null && detailPopup.IsVisible)
             {
                 // Thay vì gọi ShowPoiDetail(poi) - vốn sẽ gọi StopAudio() gây lỗi,
                 // chúng ta chỉ cập nhật nội dung hiển thị.
@@ -124,6 +129,7 @@ public partial class MainPage
 
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
+                    var btnPlayAudio = BtnPlayAudioCtrl;
                     if (btnPlayAudio != null)
                         btnPlayAudio.Text = poi.AudioUrls?.Count > 0 ? "🔊 Nghe File Ghi Âm" : "🗣️ Đọc Tự Động (TTS)";
                     SetStatus("Lỗi phát âm thanh tự động", priority: 2, autoRevertMs: 3000);
@@ -137,6 +143,7 @@ public partial class MainPage
     // ════════════════════════════════════════════════════════════════════════
     private void UpdateNearestPoiHighlight()
     {
+        var mapView = MapViewCtrl;
         if (_allPoisCache.Count == 0 || mapView?.Pins == null || mapView.Pins.Count == 0) return;
         
         // Đang hiển thị Tour → KHÔNG làm gì cả, giữ nguyên tuyến đường
@@ -192,7 +199,11 @@ public partial class MainPage
         _statusRevertCts = null;
         _statusPriority = priority;
 
-        MainThread.BeginInvokeOnMainThread(() => statusLabel.Text = text);
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            var statusLabel = StatusLabelCtrl;
+            if (statusLabel != null) statusLabel.Text = text;
+        });
 
         if (autoRevertMs > 0)
         {
@@ -213,6 +224,9 @@ public partial class MainPage
     private void ShowIdleStatus()
     {
         if (_isPlaying || _nearestHighlightedPoi == null) return;
+        var statusLabel = StatusLabelCtrl;
+        if (statusLabel == null) return;
+
         var poiLoc = new MauiLocation.Location(
             _nearestHighlightedPoi.Latitude, _nearestHighlightedPoi.Longitude);
         double dist = MauiLocation.Location.CalculateDistance(

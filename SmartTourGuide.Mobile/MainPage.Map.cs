@@ -2,6 +2,16 @@ namespace SmartTourGuide.Mobile;
 
 public partial class MainPage
 {
+    private Mapsui.UI.Maui.MapView? MapViewCtrl => this.FindByName<Mapsui.UI.Maui.MapView>("mapView");
+    private Label? LblPoiNameCtrl => this.FindByName<Label>("lblPoiName");
+    private Label? LblAddressCtrl => this.FindByName<Label>("lblAddress");
+    private Label? LblDescriptionCtrl => this.FindByName<Label>("lblDescription");
+    private Button? BtnPlayAudioCtrl => this.FindByName<Button>("btnPlayAudio");
+    private Border? DetailPopupCtrl => this.FindByName<Border>("DetailPopup");
+    private Label? LblTourNameCtrl => this.FindByName<Label>("lblTourName");
+    private HorizontalStackLayout? TourPoiListCtrl => this.FindByName<HorizontalStackLayout>("tourPoiList");
+    private Border? TourInfoPanelCtrl => this.FindByName<Border>("TourInfoPanel");
+
     // LoadPoisOnMap, CreateGeofenceLayer, ShowPoiDetail
     private async Task LoadPoisOnMap()
     {
@@ -11,6 +21,8 @@ public partial class MainPage
             var pois = await _apiService.GetPoisAsync(_currentLanguageCode);
             _allPoisCache = pois;
             _nearestHighlightedPoi = null;
+            var mapView = MapViewCtrl;
+            if (mapView == null) return;
             mapView.Pins.Clear();
 
             ClearMapLayers("Geofences", "TourRoute");
@@ -76,9 +88,16 @@ public partial class MainPage
     private void ShowPoiDetail(PoiModel poi)
     {
         _currentSelectedPoi = poi;
-        lblPoiName.Text = poi.Name;
-        lblAddress.Text = poi.Address;
-        lblDescription.Text = string.IsNullOrEmpty(poi.Description) ? "Chưa có mô tả." : poi.Description;
+        var lblPoiName = LblPoiNameCtrl;
+        var lblAddress = LblAddressCtrl;
+        var lblDescription = LblDescriptionCtrl;
+        var btnPlayAudio = BtnPlayAudioCtrl;
+        var detailPopup = DetailPopupCtrl;
+
+        if (lblPoiName != null) lblPoiName.Text = poi.Name;
+        if (lblAddress != null) lblAddress.Text = poi.Address;
+        if (lblDescription != null)
+            lblDescription.Text = string.IsNullOrEmpty(poi.Description) ? "Chưa có mô tả." : poi.Description;
 
         _ = LoadPoiImageAsync(poi);
 
@@ -89,16 +108,23 @@ public partial class MainPage
             _poiAudioIndex.TryGetValue(poi.Id, out int idx);
             int next = (idx < poi.AudioUrls.Count) ? idx + 1 : 1;
             int total = poi.AudioUrls.Count;
-            btnPlayAudio.Text = total > 1
-                ? $"🔊 Nghe audio ({next}/{total})"
-                : "🔊 Nghe File Ghi Âm";
+            if (btnPlayAudio != null)
+            {
+                btnPlayAudio.Text = total > 1
+                    ? $"🔊 Nghe audio ({next}/{total})"
+                    : "🔊 Nghe File Ghi Âm";
+            }
         }
         else
         {
-            btnPlayAudio.Text = "🗣️ Đọc Tự Động (TTS)";
+            if (btnPlayAudio != null)
+                btnPlayAudio.Text = "🗣️ Đọc Tự Động (TTS)";
         }
 
-        MainThread.BeginInvokeOnMainThread(() => DetailPopup.IsVisible = true);
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            if (detailPopup != null) detailPopup.IsVisible = true;
+        });
     }
     // RenderTourOnMap, GetRoadRouteAsync, DecodePolyline6
     // ════════════════════════════════════════════════════════════════════════
@@ -115,6 +141,7 @@ public partial class MainPage
         {
             _currentTour = tour;
             await Task.Delay(300);
+            var mapView = MapViewCtrl;
             if (mapView?.Map == null) return;
 
             var allPois = await _apiService.GetPoisAsync();
@@ -325,6 +352,12 @@ public partial class MainPage
     /// <summary>Hiện panel tóm tắt lộ trình ở góc dưới bản đồ.</summary>
     private void ShowTourInfoPanel(TourModel tour, List<TourDetailModel> orderedPois)
     {
+        var lblTourName = LblTourNameCtrl;
+        var tourPoiList = TourPoiListCtrl;
+        var tourInfoPanel = TourInfoPanelCtrl;
+
+        if (lblTourName == null || tourPoiList == null || tourInfoPanel == null) return;
+
         lblTourName.Text = tour.Name ?? "Tour";
         tourPoiList.Children.Clear();
 
@@ -377,12 +410,13 @@ public partial class MainPage
                 });
         }
 
-        TourInfoPanel.IsVisible = true;
+        tourInfoPanel.IsVisible = true;
     }
     /// <summary>Đóng TourInfoPanel nhưng giữ route layer để user xem tuyến đi lâu hơn.</summary>
     private async void OnCloseTourPanelClicked(object? sender, EventArgs e)
     {
-        TourInfoPanel.IsVisible = false;
+        var tourInfoPanel = TourInfoPanelCtrl;
+        if (tourInfoPanel != null) tourInfoPanel.IsVisible = false;
         // Giữ _currentTour và route layer hiển thị — user có thể xem tuyến đi lâu hơn
         // Chỉ xóa tour khi user bấm nút "Reload" hoặc chọn tour khác
     }
@@ -392,6 +426,9 @@ public partial class MainPage
     // ════════════════════════════════════════════════════════════════════════
     private void OnMapClicked_SimulateWalk(object? sender, MapClickedEventArgs e)
     {
+        var mapView = MapViewCtrl;
+        if (mapView == null) return;
+
         _currentUserLocation = new MauiLocation.Location(e.Point.Latitude, e.Point.Longitude);
         _isManualLocationOverride = true;
          // Gửi vị trí lên server để lưu tuyến di chuyển ẩn danh
@@ -417,6 +454,11 @@ public partial class MainPage
     private void UpdatePopupContentOnly(PoiModel poi)
     {
         if (poi == null) return;
+
+        var lblPoiName = LblPoiNameCtrl;
+        var lblAddress = LblAddressCtrl;
+        var lblDescription = LblDescriptionCtrl;
+        var btnPlayAudio = BtnPlayAudioCtrl;
 
         // Kiểm tra null cho từng control XAML để an toàn tuyệt đối
         if (lblPoiName != null) lblPoiName.Text = poi.Name;

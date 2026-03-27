@@ -1,0 +1,284 @@
+@page "/owner/analytics"
+@attribute [Authorize(Roles = "BoothOwner")]
+@inject SmartTourGuide.Web.Services.OwnerAnalyticsApiService OwnerAnalyticsApi
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <MudText Typo="Typo.h5" Style="font-weight: 800;">PHÂN TÍCH POI CỦA GIAN HÀNG</MudText>
+
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudSelect T="int" Label="Khoảng ngày" Value="_days" ValueChanged="OnDaysChanged" Dense="true" Variant="Variant.Outlined" Style="min-width: 140px;">
+                <MudSelectItem Value="7">7 ngày</MudSelectItem>
+                <MudSelectItem Value="30">30 ngày</MudSelectItem>
+            </MudSelect>
+
+            <MudSelect T="int" Label="Top POI" Value="_top" ValueChanged="OnTopChanged" Dense="true" Variant="Variant.Outlined" Style="min-width: 140px;">
+                <MudSelectItem Value="5">Top 5</MudSelectItem>
+                <MudSelectItem Value="10">Top 10</MudSelectItem>
+                <MudSelectItem Value="20">Top 20</MudSelectItem>
+            </MudSelect>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAllAsync" Disabled="_loading">
+                Làm mới
+            </MudButton>
+        </MudStack>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudPaper Elevation="1" Class="pa-6 d-flex justify-center">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </MudPaper>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_error</MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Lượt nghe 7 ngày</MudText>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800;">@_summary.TotalListensWeek</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Lượt nghe 30 ngày</MudText>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800;">@_summary.TotalListensMonth</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Thời lượng nghe TB (30 ngày)</MudText>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800;">@_summary.AvgDurationSecMonth.ToString("0.0")s</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">POI đã có lượt nghe</MudText>
+                    <MudText Typo="Typo.h5" Style="font-weight: 800;">@_summary.DistinctPoisHeard/@_summary.TotalPois</MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="7">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px; height:100%;">
+                    <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:700;">Top POI được nghe nhiều</MudText>
+                    @if (_topPois.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Chưa có dữ liệu lượt nghe cho gian hàng này.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudTable Items="_topPois" Dense="true" Hover="true" Striped="true">
+                            <HeaderContent>
+                                <MudTh style="width:80px;">Hạng</MudTh>
+                                <MudTh>POI</MudTh>
+                                <MudTh style="text-align:right;">Lượt nghe</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>
+                                    <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small" Color="@(context.ListenCount == _maxTopListen ? Color.Warning : Color.Default)">
+                                        #@(_topPois.IndexOf(context) + 1)
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>@context.PoiName</MudTd>
+                                <MudTd style="text-align:right; font-weight:700;">@context.ListenCount</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="5">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px; height:100%;">
+                    <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:700;">Lượt nghe theo ngày (@_days ngày)</MudText>
+                    <MudChart ChartType="ChartType.Line" ChartSeries="_dailySeries" XAxisLabels="_dailyLabels" Width="100%" Height="320px"></MudChart>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px; height:100%;">
+                    <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:700;">Thời lượng nghe trung bình theo POI</MudText>
+                    @if (_avgByPoi.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Chưa đủ dữ liệu để tính trung bình.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudTable Items="_avgByPoi" Dense="true" Hover="true" Striped="true">
+                            <HeaderContent>
+                                <MudTh>POI</MudTh>
+                                <MudTh style="text-align:right;">TB (giây)</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.PoiName</MudTd>
+                                <MudTd style="text-align:right; font-weight:700;">@context.AvgDurationSec.ToString("0.0")</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px; height:100%;">
+                    <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:700;">Heatmap ẩn danh trong vùng POI</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2 d-block">
+                        Dữ liệu chỉ trong vùng geofence các POI của bạn, không hiển thị dữ liệu ngoài phạm vi sở hữu.
+                    </MudText>
+
+                    @if (_heatmap.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Không có điểm nhiệt trong khoảng thời gian đã chọn.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudChart ChartType="ChartType.Bar" ChartSeries="_heatSeries" XAxisLabels="_heatLabels" Width="100%" Height="260px"></MudChart>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px;">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+                        <MudText Typo="Typo.h6" Style="font-weight:700;">Tuyến di chuyển ẩn danh trong vùng POI</MudText>
+                        <MudChip T="string" Variant="Variant.Outlined">@_movement.Count điểm</MudChip>
+                    </MudStack>
+
+                    @if (_movement.Count < 2)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Chưa đủ dữ liệu để hiển thị tuyến di chuyển.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Class="mb-3 mud-text-secondary">
+                            Bắt đầu: @_movement.First().Timestamp.ToLocalTime().ToString("dd/MM HH:mm") | Kết thúc: @_movement.Last().Timestamp.ToLocalTime().ToString("dd/MM HH:mm")
+                        </MudText>
+
+                        <MudTable Items="_movement.Take(20).ToList()" Dense="true" Hover="true" Striped="true">
+                            <HeaderContent>
+                                <MudTh>Thời gian</MudTh>
+                                <MudTh>Vĩ độ</MudTh>
+                                <MudTh>Kinh độ</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.Timestamp.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</MudTd>
+                                <MudTd>@context.Latitude.ToString("0.000000")</MudTd>
+                                <MudTd>@context.Longitude.ToString("0.000000")</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private bool _loading = true;
+    private string _error = string.Empty;
+
+    private int _ownerId;
+    private int _top = 10;
+    private int _days = 7;
+    private int _maxTopListen;
+
+    private SmartTourGuide.Shared.DTOs.OwnerAnalyticsSummaryDto _summary = new();
+    private List<SmartTourGuide.Shared.DTOs.TopPoiDto> _topPois = new();
+    private List<SmartTourGuide.Shared.DTOs.AvgListenTimeDto> _avgByPoi = new();
+    private List<SmartTourGuide.Shared.DTOs.OwnerDailyListenDto> _daily = new();
+    private List<SmartTourGuide.Shared.DTOs.OwnerHeatmapPointDto> _heatmap = new();
+    private List<SmartTourGuide.Shared.DTOs.LocationLogDto> _movement = new();
+
+    private List<ChartSeries> _dailySeries = new();
+    private string[] _dailyLabels = Array.Empty<string>();
+    private List<ChartSeries> _heatSeries = new();
+    private string[] _heatLabels = Array.Empty<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _ownerId = await LocalStorage.GetItemAsync<int>("userId");
+        if (_ownerId <= 0)
+        {
+            _error = "Không xác định được chủ gian hàng hiện tại.";
+            _loading = false;
+            return;
+        }
+
+        await LoadAllAsync();
+    }
+
+    private async Task OnTopChanged(int value)
+    {
+        _top = value;
+        await LoadAllAsync();
+    }
+
+    private async Task OnDaysChanged(int value)
+    {
+        _days = value;
+        await LoadAllAsync();
+    }
+
+    private async Task LoadAllAsync()
+    {
+        if (_ownerId <= 0)
+            return;
+
+        _loading = true;
+        _error = string.Empty;
+
+        try
+        {
+            var summaryTask = OwnerAnalyticsApi.GetSummaryAsync(_ownerId);
+            var topTask = OwnerAnalyticsApi.GetTopPoisAsync(_ownerId, _top);
+            var avgTask = OwnerAnalyticsApi.GetAvgListenTimeAsync(_ownerId, _top);
+            var dailyTask = OwnerAnalyticsApi.GetDailyListensAsync(_ownerId, _days);
+            var movementTask = OwnerAnalyticsApi.GetMovementAsync(_ownerId, hours: _days == 7 ? 168 : 720, maxPoints: 400);
+            var heatTask = OwnerAnalyticsApi.GetHeatmapAsync(_ownerId, hours: _days == 7 ? 168 : 720, maxPoints: 30);
+
+            await Task.WhenAll(summaryTask, topTask, avgTask, dailyTask, movementTask, heatTask);
+
+            _summary = summaryTask.Result ?? new SmartTourGuide.Shared.DTOs.OwnerAnalyticsSummaryDto();
+            _topPois = topTask.Result ?? new List<SmartTourGuide.Shared.DTOs.TopPoiDto>();
+            _avgByPoi = avgTask.Result ?? new List<SmartTourGuide.Shared.DTOs.AvgListenTimeDto>();
+            _daily = dailyTask.Result ?? new List<SmartTourGuide.Shared.DTOs.OwnerDailyListenDto>();
+            _movement = movementTask.Result ?? new List<SmartTourGuide.Shared.DTOs.LocationLogDto>();
+            _heatmap = heatTask.Result ?? new List<SmartTourGuide.Shared.DTOs.OwnerHeatmapPointDto>();
+
+            _maxTopListen = _topPois.Count > 0 ? _topPois.Max(x => x.ListenCount) : 0;
+
+            _dailyLabels = _daily.Select(x => x.Date.ToString("dd/MM")).ToArray();
+            _dailySeries = new List<ChartSeries>
+            {
+                new ChartSeries
+                {
+                    Name = "Lượt nghe",
+                    Data = _daily.Select(x => (double)x.ListenCount).ToArray()
+                }
+            };
+
+            _heatLabels = _heatmap
+                .Select(x => $"{x.Latitude:0.000},{x.Longitude:0.000}")
+                .ToArray();
+            _heatSeries = new List<ChartSeries>
+            {
+                new ChartSeries
+                {
+                    Name = "Mật độ",
+                    Data = _heatmap.Select(x => (double)x.HitCount).ToArray()
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _error = $"Không tải được dữ liệu owner analytics: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}
