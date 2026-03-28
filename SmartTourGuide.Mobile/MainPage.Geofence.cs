@@ -4,15 +4,22 @@ public partial class MainPage
 {
     private Label? StatusLabelCtrl => this.FindByName<Label>("statusLabel");
 
-    // CheckGeofences, TriggerAutoAudio
     // ════════════════════════════════════════════════════════════════════════
     //  GEOFENCE ENGINE
     // ════════════════════════════════════════════════════════════════════════
+    //
+    //  LOGIC AUDIO THEO VÙNG:
+    //  - Mỗi POI có index audio riêng (ví dụ: 0/3, 1/3, 2/3).
+    //  - Mỗi lần VÀO VÙNG → phát đúng 1 audio tại index hiện tại, rồi tăng index.
+    //    Dù nghe hết hay bị ngắt (cancel) khi rời vùng → index vẫn tăng.
+    //  - Khi index đã qua N/N (phát đủ vòng) VÀ người dùng RỜI VÙNG → bắt đầu CD, reset index.
+    //  - Trong thời gian CD: vào lại vùng sẽ không phát, hiển thị trạng thái còn bao nhiêu giây.
+    //  - CD là riêng biệt cho từng POI, không ảnh hưởng lẫn nhau.
+    //
     private async void CheckGeofences()
     {
         try
         {
-            // Đang xem tour → không trigger geofence tự động
             if (_currentTour != null) return;
             if (_isCheckingGeofences || _allPoisCache.Count == 0) return;
             _isCheckingGeofences = true;
@@ -30,75 +37,70 @@ public partial class MainPage
             }
 
             if (poisInRange.Count > 0)
-            {
                 _lastGeofenceInsideAt = now;
-            }
 
-            // Kịch bản A: Ra khỏi tất cả vùng
+            // ── Kịch bản A: Ra khỏi tất cả vùng ──────────────────────────────
             if (poisInRange.Count == 0)
             {
                 if (_currentlyPlayingGeofencePoi != null)
                 {
                     var leftPoiName = _currentlyPlayingGeofencePoi.Name;
-                    StopAudio();
+                    StopAudio(); // cancel audio → index KHÔNG tăng (đúng logic)
                     _currentlyPlayingGeofencePoi = null;
+                    // CD KHÔNG tính ở đây vì bị cancel — chỉ tính khi phát xong tự nhiên N/N
                     SetStatus($"👋 Rời vùng: {leftPoiName}", priority: 2, autoRevertMs: 2000);
                 }
                 return;
             }
 
-            // Kịch bản C: Ra khỏi vùng đang phát, còn vùng khác
-            // FIX #2 & #3: Khi chuyển POI 1 → POI 2, KHÔNG để cooldown POI cũ chặn POI mới.
-            // Reset _lastGeofenceTriggerAt để POI mới trigger được ngay lập tức.
+            // ── Kịch bản C: Rời vùng POI đang phát, bước vào vùng POI khác ───
             if (_currentlyPlayingGeofencePoi != null)
             {
                 bool stillInZone = poisInRange.Any(p => p.Id == _currentlyPlayingGeofencePoi.Id);
                 if (!stillInZone)
                 {
-                    StopAudio();
+                    StopAudio(); // cancel → index KHÔNG tăng, KHÔNG tính CD
                     _currentlyPlayingGeofencePoi = null;
-                    // Reset để bỏ qua cooldown POI cũ khi đã sang vùng POI mới
-                    _lastGeofenceTriggerAt = DateTime.MinValue;
                     await Task.Delay(300);
                 }
             }
 
             var highestPri = poisInRange.OrderByDescending(p => p.Priority).First();
-            // FIX #2: Lấy cooldown riêng của POI mới (highestPri), không dùng _geofenceTriggerCooldown cũ
-            var cooldownSeconds = highestPri.CooldownInSeconds > 0 ? highestPri.CooldownInSeconds : 5;
-            var cooldownForThisPoi = TimeSpan.FromSeconds(cooldownSeconds);
+            var cdSec = highestPri.CooldownInSeconds > 0 ? highestPri.CooldownInSeconds : 5;
+            var cdSpan = TimeSpan.FromSeconds(cdSec);
 
-            // Kịch bản B: Bật / đổi nhạc
+            // ── Kịch bản B: Trigger POI mới ───────────────────────────────────
             if (_currentlyPlayingGeofencePoi == null)
             {
-                // Chỉ check CD khi POI này đã từng phát xong trước đó (có entry trong dict).
-                // Nếu chưa có → chưa bao giờ phát → trigger ngay, không cần đợi CD.
+                // Kiểm tra CD riêng của POI này
                 if (_poiLastTriggerAt.TryGetValue(highestPri.Id, out var lastTrigger)
-                    && now - lastTrigger < cooldownForThisPoi)
+                    && now - lastTrigger < cdSpan)
                 {
-                    var remaining = (cooldownForThisPoi - (now - lastTrigger)).TotalSeconds;
+                    var remaining = (cdSpan - (now - lastTrigger)).TotalSeconds;
+                    SetStatus($"⏳ {highestPri.Name} · CD còn {remaining:F0}s", priority: 1);
                     System.Diagnostics.Debug.WriteLine(
                         $"[Geofence] '{highestPri.Name}' đang CD, còn {remaining:F0}s.");
                     return;
                 }
 
                 _currentlyPlayingGeofencePoi = highestPri;
-                TriggerAutoAudio(highestPri);
+                TriggerOneAudio(highestPri);
             }
             else if (_currentlyPlayingGeofencePoi.Id != highestPri.Id)
             {
+                // Đang ở 2 vùng overlap, POI mới có priority cao hơn thì chiếm chỗ
                 if (highestPri.Priority > _currentlyPlayingGeofencePoi.Priority || !_isPlaying)
                 {
                     StopAudio();
                     await Task.Delay(300);
                     _currentlyPlayingGeofencePoi = highestPri;
-                    TriggerAutoAudio(highestPri);
+                    TriggerOneAudio(highestPri);
                 }
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Lỗi Geofence: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[Geofence] Lỗi: {ex.Message}");
         }
         finally
         {
@@ -106,65 +108,124 @@ public partial class MainPage
         }
     }
 
-    private void TriggerAutoAudio(PoiModel poi)
+    // ════════════════════════════════════════════════════════════════════════
+    //  TRIGGER: Phát đúng 1 audio tại index hiện tại, rồi tăng index
+    // ════════════════════════════════════════════════════════════════════════
+    private void TriggerOneAudio(PoiModel poi)
     {
-        // KHÔNG ghi _poiLastTriggerAt ở đây.
-        // CD chỉ được ghi sau khi phát HẾT tự nhiên (IsCompletedSuccessfully).
-        // Nếu bị cancel (rời vùng, sang POI khác) thì KHÔNG tính CD — POI đó vẫn "tươi".
-        _geofenceTriggerCooldown = TimeSpan.FromSeconds(
-            poi.CooldownInSeconds > 0 ? poi.CooldownInSeconds : 5);
+        var urls = poi.AudioUrls;
 
-        _queueCts?.Cancel();
-        _queueCts = new CancellationTokenSource();
-        var capturedCts = _queueCts;
+        // Không có audio file → TTS toàn bộ description (giữ nguyên hành vi cũ)
+        if (urls == null || urls.Count == 0)
+        {
+            _currentSelectedPoi = poi;
+            _isPlaying = true;
+            _queueCts?.Cancel();
+            _queueCts = new CancellationTokenSource();
+            var ttsCts = _queueCts;
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                if (BtnPlayAudioCtrl != null) BtnPlayAudioCtrl.Text = "⏹️ Dừng phát";
+                if (DetailPopupCtrl?.IsVisible == true) UpdatePopupContentOnly(poi);
+            });
+
+            _ = SpeakDescription(poi.Description);
+            return;
+        }
+
+        // Lấy index hiện tại của POI này
+        if (!_poiAudioIndex.TryGetValue(poi.Id, out int index) || index >= urls.Count)
+            index = 0;
+
+        int displayIdx = index + 1;
+        int total = urls.Count;
+
+        System.Diagnostics.Debug.WriteLine(
+            $"[Geofence] Trigger '{poi.Name}' audio {displayIdx}/{total}");
 
         _currentSelectedPoi = poi;
         _isPlaying = true;
 
+        _queueCts?.Cancel();
+        _queueCts = new CancellationTokenSource();
+        var capturedCts = _queueCts;
+        var capturedIndex = index;
+
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            var btnPlayAudio = BtnPlayAudioCtrl;
-            var detailPopup = DetailPopupCtrl;
-
-            if (btnPlayAudio != null) btnPlayAudio.Text = "⏹️ Dừng phát";
-            // Cập nhật popup nếu đang mở, không gọi ShowPoiDetail (sẽ StopAudio)
-            if (detailPopup != null && detailPopup.IsVisible)
-            {
-                UpdatePopupContentOnly(poi);
-            }
+            if (BtnPlayAudioCtrl != null)
+                BtnPlayAudioCtrl.Text = total > 1 ? $"⏹️ Dừng ({displayIdx}/{total})" : "⏹️ Dừng phát";
+            SetStatus($"🎵 {poi.Name}  ·  {displayIdx}/{total}", priority: 3);
+            if (DetailPopupCtrl?.IsVisible == true) UpdatePopupContentOnly(poi);
         });
 
-        _ = PlayAudioQueueAsync(poi, capturedCts.Token).ContinueWith(t =>
+        string rawPath = urls[capturedIndex].Replace("\\", "/").TrimStart('/');
+        string fullUrl = $"{BaseApiUrl.TrimEnd('/')}/{rawPath}";
+
+        _ = PlayRemoteAudioAndWaitAsync(fullUrl, capturedCts.Token).ContinueWith(t =>
         {
+            // ═══════════════════════════════════════════════════════════════
+            //  QUAN TRỌNG: CHỈ tăng index khi phát XONG TỰ NHIÊN.
+            //  Nếu bị cancel (rời vùng) → giữ nguyên index → lần vào lại
+            //  sẽ phát đúng audio đó lại, không bỏ qua.
+            // ═══════════════════════════════════════════════════════════════
+
+            if (t.IsCanceled)
+            {
+                // Bị cancel do rời vùng → KHÔNG tăng index, KHÔNG tính CD
+                System.Diagnostics.Debug.WriteLine(
+                    $"[Geofence] '{poi.Name}' audio {displayIdx}/{total} bị cancel, giữ index={capturedIndex}.");
+                MainThread.BeginInvokeOnMainThread(() => { _isPlaying = false; });
+                return;
+            }
+
             if (t.IsFaulted)
             {
                 var ex = t.Exception?.GetBaseException();
-                System.Diagnostics.Debug.WriteLine($"[TriggerAudio] Lỗi phát ngầm '{poi.Name}': {ex?.Message}");
+                System.Diagnostics.Debug.WriteLine($"[Geofence] Lỗi audio '{poi.Name}': {ex?.Message}");
+                MainThread.BeginInvokeOnMainThread(() => { _isPlaying = false; });
+                return;
+            }
 
-                MainThread.BeginInvokeOnMainThread(() =>
+            // Phát xong tự nhiên → tăng index
+            int nextIndex = capturedIndex + 1;
+            bool allPlayed = (nextIndex >= total); // đã phát hết N/N
+
+            if (allPlayed)
+                nextIndex = 0; // reset về đầu cho vòng tiếp theo
+
+            _poiAudioIndex[poi.Id] = nextIndex;
+
+            System.Diagnostics.Debug.WriteLine(
+                $"[Geofence] '{poi.Name}' audio {displayIdx}/{total} phát xong tự nhiên. " +
+                $"nextIndex={nextIndex}, allPlayed={allPlayed}");
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                _isPlaying = false;
+                if (BtnPlayAudioCtrl != null)
+                    BtnPlayAudioCtrl.Text = !allPlayed
+                        ? $"🔊 Nghe audio ({nextIndex + 1}/{total})"
+                        : "🔊 Nghe lại";
+
+                if (allPlayed)
                 {
-                    var btnPlayAudio = BtnPlayAudioCtrl;
-                    if (btnPlayAudio != null)
-                        btnPlayAudio.Text = poi.AudioUrls?.Count > 0 ? "🔊 Nghe File Ghi Âm" : "🗣️ Đọc Tự Động (TTS)";
-                    SetStatus("Lỗi phát âm thanh tự động", priority: 2, autoRevertMs: 3000);
-                });
-            }
-            else if (t.IsCompletedSuccessfully)
-            {
-                // ✅ Chỉ ghi CD khi phát HẾT toàn bộ queue (không bị cancel, không bị lỗi).
-                // Nếu bị cancel giữa chừng (rời vùng / sang POI khác), t.IsCanceled = true
-                // → không vào nhánh này → POI đó KHÔNG bị tính CD → lần sau vào lại phát bình thường.
-                _poiLastTriggerAt[poi.Id] = DateTime.UtcNow;
-                System.Diagnostics.Debug.WriteLine(
-                    $"[TriggerAudio] ✅ Phát xong '{poi.Name}', bắt đầu CD {poi.CooldownInSeconds}s.");
-            }
-            else if (t.IsCanceled)
-            {
-                // Bị cancel (rời vùng hoặc sang POI mới) → KHÔNG tính CD.
-                // POI này vẫn có thể phát lại ngay khi quay lại vùng.
-                System.Diagnostics.Debug.WriteLine(
-                    $"[TriggerAudio] ⏹️ Bị huỷ '{poi.Name}', KHÔNG tính CD.");
-            }
+                    // Phát đủ N/N → bắt đầu CD ngay, không cần đợi rời vùng
+                    _poiLastTriggerAt[poi.Id] = DateTime.UtcNow;
+                    _currentlyPlayingGeofencePoi = null;
+                    SetStatus(
+                        $"✅ {poi.Name} · Phát xong {total}/{total} · CD {poi.CooldownInSeconds}s",
+                        priority: 2, autoRevertMs: 3000);
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[Geofence] '{poi.Name}' ✅ đủ {total}/{total}, bắt đầu CD {poi.CooldownInSeconds}s.");
+                }
+                else
+                {
+                    // Phát xong audio này nhưng chưa đủ vòng → báo tiến độ
+                    SetStatus($"✅ {poi.Name}  ·  {displayIdx}/{total} xong", priority: 2, autoRevertMs: 2000);
+                }
+            });
         });
     }
 
@@ -176,8 +237,6 @@ public partial class MainPage
     {
         var mapView = MapViewCtrl;
         if (_allPoisCache.Count == 0 || mapView?.Pins == null || mapView.Pins.Count == 0) return;
-        
-        // Đang hiển thị Tour → KHÔNG làm gì cả, giữ nguyên tuyến đường
         if (_currentTour != null) return;
 
         PoiModel? nearestPoi = null;
