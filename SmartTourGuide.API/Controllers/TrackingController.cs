@@ -22,16 +22,16 @@ public class TrackingController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> ReportLocation([FromBody] LocationLogDto dto)
     {
-        // Kiểm tra User có tồn tại không (nếu cần thiết)
-        // var userExists = await _context.Users.AnyAsync(u => u.Id == dto.UserId);
-        // if (!userExists) return BadRequest("User không tồn tại");
+        // Không check UserExists nữa vì ta cho phép khách vãng lai
 
         var log = new UserLocationLog
         {
-            UserId = dto.UserId,
+            // Nếu dto.UserId <= 0 thì lưu null
+            UserId = dto.UserId > 0 ? dto.UserId : null,
+            DeviceId = dto.DeviceId, // Frontend gửi UUID của máy lên
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
-            Timestamp = dto.Timestamp // Nên lấy giờ từ Client để chính xác nhịp điệu
+            Timestamp = dto.Timestamp == default ? DateTime.Now : dto.Timestamp
         };
 
         _context.UserLocationLogs.Add(log);
@@ -45,22 +45,19 @@ public class TrackingController : ControllerBase
     [HttpGet("history/{userId}")]
     public async Task<ActionResult<IEnumerable<LocationLogDto>>> GetHistory(int userId, [FromQuery] DateTime? date)
     {
-        var query = _context.UserLocationLogs
-            .Where(x => x.UserId == userId);
+        var query = _context.UserLocationLogs.Where(x => x.UserId == userId);
 
-        // Nếu có lọc theo ngày
         if (date.HasValue)
-        {
             query = query.Where(x => x.Timestamp.Date == date.Value.Date);
-        }
 
-        // Lấy dữ liệu, sắp xếp mới nhất lên đầu
         var logs = await query
             .OrderByDescending(x => x.Timestamp)
-            .Take(100) // Chỉ lấy 100 điểm gần nhất định để tránh lag bản đồ
+            .Take(100)
             .Select(x => new LocationLogDto
             {
-                UserId = x.UserId,
+                // Sửa lỗi ép kiểu: Nếu UserId trong DB là null thì trả về 0
+                UserId = x.UserId ?? 0,
+                DeviceId = x.DeviceId,
                 Latitude = x.Latitude,
                 Longitude = x.Longitude,
                 Timestamp = x.Timestamp

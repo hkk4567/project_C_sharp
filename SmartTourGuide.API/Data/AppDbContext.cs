@@ -55,23 +55,21 @@ namespace SmartTourGuide.API.Data
 
             // --- Cấu hình User Location Log ---
             modelBuilder.Entity<UserLocationLog>(entity =>
-            {
-                // Chỉ định khóa chính
-                entity.HasKey(e => e.Id);
+                {
+                    // 1. Chỉ định khóa chính
+                    entity.HasKey(e => e.Id);
 
-                // Tạo Index cho UserId để tìm lịch sử của 1 người cho nhanh
-                entity.HasIndex(e => e.UserId);
+                    // 2. Tạo Index (Giữ nguyên vì nó tốt cho hiệu năng)
+                    entity.HasIndex(e => e.UserId);
+                    entity.HasIndex(e => e.Timestamp);
 
-                // Tạo Index cho Timestamp để lọc theo ngày tháng nhanh hơn
-                entity.HasIndex(e => e.Timestamp);
-
-                // Thiết lập khóa ngoại (nếu xóa User thì xóa luôn lịch sử đi lại cho sạch DB)
-                entity.HasOne<User>()
-                      .WithMany() // User không cần chứa list Log (vì quá nhiều)
-                      .HasForeignKey(e => e.UserId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-
+                    // 3. SỬA CHỖ NÀY: Thay HasOne<User>() bằng HasOne(e => e.User)
+                    entity.HasOne(e => e.User)           // Trỏ trực tiếp vào thuộc tính User trong Class
+                        .WithMany()                    // Một User có nhiều Logs
+                        .HasForeignKey(e => e.UserId)  // Dùng chung cột UserId này, không đẻ thêm cột ảo
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired(false);            // Cực kỳ quan trọng: Cho phép UserId là NULL (khách vãng lai)
+                });
             // --- CẤU HÌNH TOUR DETAIL (QUAN HỆ N-N) ---
 
             // 1. Tour xóa -> Chi tiết xóa theo (Cascade)
@@ -92,7 +90,8 @@ namespace SmartTourGuide.API.Data
 
 
             // --- Cấu hình Poi Listen Log ---
-            modelBuilder.Entity<PoiListenLog>(entity => {
+            modelBuilder.Entity<PoiListenLog>(entity =>
+            {
                 entity.HasKey(e => e.Id);
                 entity.HasIndex(e => e.PoiId);
                 entity.HasIndex(e => e.Timestamp);

@@ -1,3 +1,5 @@
+namespace SmartTourGuide.API.Data.Entities;
+
 public class ActivityLog
 {
     public int Id { get; set; }

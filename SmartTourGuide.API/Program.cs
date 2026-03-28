@@ -47,7 +47,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
-
+app.UseAuthentication();
 app.UseAuthorization();
 
 // Map các Controller vào đường dẫn URL (QUAN TRỌNG)

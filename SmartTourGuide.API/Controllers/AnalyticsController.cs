@@ -110,7 +110,8 @@ public class AnalyticsController : ControllerBase
     {
         var result = await _context.PoiListenLogs
             .GroupBy(l => l.PoiId)
-            .Select(g => new {
+            .Select(g => new
+            {
                 PoiId = g.Key,
                 Count = g.Count()
             })
@@ -136,7 +137,8 @@ public class AnalyticsController : ControllerBase
     {
         var result = await _context.PoiListenLogs
             .GroupBy(l => l.PoiId)
-            .Select(g => new {
+            .Select(g => new
+            {
                 PoiId = g.Key,
                 Avg = g.Average(x => (double)x.ListenDurationSec)
             })
@@ -163,7 +165,8 @@ public class AnalyticsController : ControllerBase
             .Where(x => x.Timestamp >= since)
             .Select(x => new LocationLogDto
             {
-                UserId = 0,          // Ẩn danh — không trả về UserId
+                UserId = x.UserId ?? 0, // Trả về 0 cho khách vãng lai
+                DeviceId = x.DeviceId,
                 Latitude = x.Latitude,
                 Longitude = x.Longitude,
                 Timestamp = x.Timestamp
