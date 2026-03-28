@@ -13,7 +13,7 @@ public partial class MainPage
         try
         {
             // Đang xem tour → không trigger geofence tự động
-            if (_currentTour != null) return; // ← THÊM DÒNG NÀY
+            if (_currentTour != null) return;
             if (_isCheckingGeofences || _allPoisCache.Count == 0) return;
             _isCheckingGeofences = true;
 
@@ -48,6 +48,8 @@ public partial class MainPage
             }
 
             // Kịch bản C: Ra khỏi vùng đang phát, còn vùng khác
+            // FIX #2 & #3: Khi chuyển POI 1 → POI 2, KHÔNG để cooldown POI cũ chặn POI mới.
+            // Reset _lastGeofenceTriggerAt để POI mới trigger được ngay lập tức.
             if (_currentlyPlayingGeofencePoi != null)
             {
                 bool stillInZone = poisInRange.Any(p => p.Id == _currentlyPlayingGeofencePoi.Id);
@@ -55,19 +57,28 @@ public partial class MainPage
                 {
                     StopAudio();
                     _currentlyPlayingGeofencePoi = null;
+                    // Reset để bỏ qua cooldown POI cũ khi đã sang vùng POI mới
+                    _lastGeofenceTriggerAt = DateTime.MinValue;
                     await Task.Delay(300);
                 }
             }
 
             var highestPri = poisInRange.OrderByDescending(p => p.Priority).First();
+            // FIX #2: Lấy cooldown riêng của POI mới (highestPri), không dùng _geofenceTriggerCooldown cũ
             var cooldownSeconds = highestPri.CooldownInSeconds > 0 ? highestPri.CooldownInSeconds : 5;
-            _geofenceTriggerCooldown = TimeSpan.FromSeconds(cooldownSeconds);
+            var cooldownForThisPoi = TimeSpan.FromSeconds(cooldownSeconds);
 
             // Kịch bản B: Bật / đổi nhạc
             if (_currentlyPlayingGeofencePoi == null)
             {
-                if (now - _lastGeofenceTriggerAt < _geofenceTriggerCooldown)
+                // Chỉ check CD khi POI này đã từng phát xong trước đó (có entry trong dict).
+                // Nếu chưa có → chưa bao giờ phát → trigger ngay, không cần đợi CD.
+                if (_poiLastTriggerAt.TryGetValue(highestPri.Id, out var lastTrigger)
+                    && now - lastTrigger < cooldownForThisPoi)
                 {
+                    var remaining = (cooldownForThisPoi - (now - lastTrigger)).TotalSeconds;
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[Geofence] '{highestPri.Name}' đang CD, còn {remaining:F0}s.");
                     return;
                 }
 
@@ -94,14 +105,18 @@ public partial class MainPage
             _isCheckingGeofences = false;
         }
     }
+
     private void TriggerAutoAudio(PoiModel poi)
     {
-        _lastGeofenceTriggerAt = DateTime.UtcNow;
+        // KHÔNG ghi _poiLastTriggerAt ở đây.
+        // CD chỉ được ghi sau khi phát HẾT tự nhiên (IsCompletedSuccessfully).
+        // Nếu bị cancel (rời vùng, sang POI khác) thì KHÔNG tính CD — POI đó vẫn "tươi".
         _geofenceTriggerCooldown = TimeSpan.FromSeconds(
             poi.CooldownInSeconds > 0 ? poi.CooldownInSeconds : 5);
 
         _queueCts?.Cancel();
         _queueCts = new CancellationTokenSource();
+        var capturedCts = _queueCts;
 
         _currentSelectedPoi = poi;
         _isPlaying = true;
@@ -112,20 +127,19 @@ public partial class MainPage
             var detailPopup = DetailPopupCtrl;
 
             if (btnPlayAudio != null) btnPlayAudio.Text = "⏹️ Dừng phát";
+            // Cập nhật popup nếu đang mở, không gọi ShowPoiDetail (sẽ StopAudio)
             if (detailPopup != null && detailPopup.IsVisible)
             {
-                // Thay vì gọi ShowPoiDetail(poi) - vốn sẽ gọi StopAudio() gây lỗi,
-                // chúng ta chỉ cập nhật nội dung hiển thị.
                 UpdatePopupContentOnly(poi);
             }
         });
 
-        _ = PlayAudioQueueAsync(poi, _queueCts.Token).ContinueWith(t =>
+        _ = PlayAudioQueueAsync(poi, capturedCts.Token).ContinueWith(t =>
         {
             if (t.IsFaulted)
             {
                 var ex = t.Exception?.GetBaseException();
-                System.Diagnostics.Debug.WriteLine($"[TriggerAudio] Lỗi phát ngầm: {ex?.Message}");
+                System.Diagnostics.Debug.WriteLine($"[TriggerAudio] Lỗi phát ngầm '{poi.Name}': {ex?.Message}");
 
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
@@ -135,8 +149,25 @@ public partial class MainPage
                     SetStatus("Lỗi phát âm thanh tự động", priority: 2, autoRevertMs: 3000);
                 });
             }
-        }, TaskContinuationOptions.OnlyOnFaulted);
+            else if (t.IsCompletedSuccessfully)
+            {
+                // ✅ Chỉ ghi CD khi phát HẾT toàn bộ queue (không bị cancel, không bị lỗi).
+                // Nếu bị cancel giữa chừng (rời vùng / sang POI khác), t.IsCanceled = true
+                // → không vào nhánh này → POI đó KHÔNG bị tính CD → lần sau vào lại phát bình thường.
+                _poiLastTriggerAt[poi.Id] = DateTime.UtcNow;
+                System.Diagnostics.Debug.WriteLine(
+                    $"[TriggerAudio] ✅ Phát xong '{poi.Name}', bắt đầu CD {poi.CooldownInSeconds}s.");
+            }
+            else if (t.IsCanceled)
+            {
+                // Bị cancel (rời vùng hoặc sang POI mới) → KHÔNG tính CD.
+                // POI này vẫn có thể phát lại ngay khi quay lại vùng.
+                System.Diagnostics.Debug.WriteLine(
+                    $"[TriggerAudio] ⏹️ Bị huỷ '{poi.Name}', KHÔNG tính CD.");
+            }
+        });
     }
+
     // UpdateNearestPoiHighlight
     // ════════════════════════════════════════════════════════════════════════
     //  HIGHLIGHT POI GẦN NHẤT
@@ -147,7 +178,7 @@ public partial class MainPage
         if (_allPoisCache.Count == 0 || mapView?.Pins == null || mapView.Pins.Count == 0) return;
         
         // Đang hiển thị Tour → KHÔNG làm gì cả, giữ nguyên tuyến đường
-        if (_currentTour != null) return; // ← đã có, giữ nguyên
+        if (_currentTour != null) return;
 
         PoiModel? nearestPoi = null;
         double minDistanceM = double.MaxValue;
@@ -187,6 +218,7 @@ public partial class MainPage
             });
         }
     }
+
     // SetStatus, ShowIdleStatus
     // ════════════════════════════════════════════════════════════════════════
     //  STATUS BAR MANAGER
@@ -221,6 +253,7 @@ public partial class MainPage
             });
         }
     }
+
     private void ShowIdleStatus()
     {
         if (_isPlaying || _nearestHighlightedPoi == null) return;

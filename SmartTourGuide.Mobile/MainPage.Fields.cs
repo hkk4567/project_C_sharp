@@ -44,6 +44,8 @@ public partial class MainPage : ContentPage
     private TimeSpan _geofenceTriggerCooldown = TimeSpan.FromSeconds(5);
     private DateTime _lastGeofenceTriggerAt = DateTime.MinValue;
     private DateTime _lastGeofenceInsideAt = DateTime.MinValue;
+    private readonly Dictionary<int, DateTime> _poiLastTriggerAt = new();
+
     private bool _isManualLocationOverride = false;
 
     // ── TOUR ─────────────────────────────────────────────────────────────────
