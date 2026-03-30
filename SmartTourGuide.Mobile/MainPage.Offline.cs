@@ -287,42 +287,61 @@ public partial class MainPage
     /// </summary>
     private void UpdateOfflineBanner(bool isOffline, bool hasNoData = false)
     {
-        // Gom TẤT CẢ thao tác liên quan đến UI vào MainThread
         MainThread.BeginInvokeOnMainThread(async () =>
         {
-            // Disable/Enable nút
-            btnLanguage.IsEnabled = !isOffline;
-            btnShowTours.IsEnabled = !isOffline;
-            btnLanguage.Opacity = isOffline ? 0.4 : 1.0;
-            btnShowTours.Opacity = isOffline ? 0.4 : 1.0;
+            // ✅ Lớp 1: Kiểm tra page còn gắn vào window không
+            // Nếu app đang shutdown hoặc navigate away thì dừng luôn
+            if (this.Window == null || !this.IsLoaded) return;
 
-            if (!isOffline)
+            try
             {
-                await OfflineBanner.FadeToAsync(0, 300);
-                OfflineBanner.IsVisible = false;
-                return;
+                btnLanguage.IsEnabled = !isOffline;
+                btnShowTours.IsEnabled = !isOffline;
+                btnLanguage.Opacity = isOffline ? 0.4 : 1.0;
+                btnShowTours.Opacity = isOffline ? 0.4 : 1.0;
+
+                if (!isOffline)
+                {
+                    // ✅ Kiểm tra lại trước mỗi animation
+                    if (this.Window == null || !this.IsLoaded) return;
+                    await OfflineBanner.FadeToAsync(0, 300);
+                    OfflineBanner.IsVisible = false;
+                    return;
+                }
+
+                OfflineBanner.IsVisible = true;
+
+                if (hasNoData)
+                {
+                    OfflineBannerLabel.Text = "📴 Không có mạng — Chưa có dữ liệu offline";
+                    OfflineBanner.BackgroundColor = MauiColor.FromArgb("#B71C1C");
+                }
+                else
+                {
+                    var lastSync = await _localDb.GetLastSyncTimeAsync();
+                    string syncText = lastSync.HasValue
+                        ? lastSync.Value.ToString("dd/MM HH:mm")
+                        : "chưa rõ";
+
+                    OfflineBannerLabel.Text = $"📴 Đang offline · Dữ liệu: {syncText}";
+                    OfflineBanner.BackgroundColor = MauiColor.FromArgb("#E65100");
+                }
+
+                OfflineBanner.Opacity = 0;
+
+                // ✅ Kiểm tra lại trước animation cuối
+                if (this.Window == null || !this.IsLoaded) return;
+                await OfflineBanner.FadeToAsync(1, 300);
             }
-
-            OfflineBanner.IsVisible = true;
-
-            if (hasNoData)
+            catch (ObjectDisposedException)
             {
-                OfflineBannerLabel.Text = "📴 Không có mạng — Chưa có dữ liệu offline";
-                OfflineBanner.BackgroundColor = MauiColor.FromArgb("#B71C1C"); 
+                // ✅ Lớp 2: App đang shutdown, bỏ qua animation — không crash
             }
-            else
+            catch (InvalidOperationException)
             {
-                var lastSync = await _localDb.GetLastSyncTimeAsync();
-                string syncText = lastSync.HasValue
-                    ? lastSync.Value.ToString("dd/MM HH:mm")
-                    : "chưa rõ";
-
-                OfflineBannerLabel.Text = $"📴 Đang offline · Dữ liệu: {syncText}";
-                OfflineBanner.BackgroundColor = MauiColor.FromArgb("#E65100"); 
+                // ✅ MAUI đôi khi throw InvalidOperationException thay vì ObjectDisposedException
+                // khi handler được gọi sau khi page detach khỏi visual tree
             }
-
-            OfflineBanner.Opacity = 0;
-            await OfflineBanner.FadeToAsync(1, 300);
         });
     }
 }
