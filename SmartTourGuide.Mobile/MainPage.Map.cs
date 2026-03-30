@@ -144,7 +144,9 @@ public partial class MainPage
             var mapView = MapViewCtrl;
             if (mapView?.Map == null) return;
 
-            var allPois = await _apiService.GetPoisAsync();
+            var allPois = _allPoisCache.Count > 0
+                ? _allPoisCache
+                : await _apiService.GetPoisAsync(_currentLanguageCode);
             var orderedPois = tour.Pois.OrderBy(p => p.OrderIndex).ToList();
             int total = orderedPois.Count;
             var tourStart = new MauiLocation.Location(DefaultLat, DefaultLon);
@@ -417,8 +419,11 @@ public partial class MainPage
     {
         var tourInfoPanel = TourInfoPanelCtrl;
         if (tourInfoPanel != null) tourInfoPanel.IsVisible = false;
-        // Giữ _currentTour và route layer hiển thị — user có thể xem tuyến đi lâu hơn
-        // Chỉ xóa tour khi user bấm nút "Reload" hoặc chọn tour khác
+
+        // ✅ FIX: reset tour state và load lại POI bình thường
+        _currentTour = null;
+        ClearMapLayers("TourRoute");
+        await LoadPoisWithOfflineFallbackAsync();
     }
     // OnMapClicked_SimulateWalk
     // ════════════════════════════════════════════════════════════════════════

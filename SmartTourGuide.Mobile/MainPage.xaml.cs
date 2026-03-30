@@ -240,13 +240,9 @@ public partial class MainPage : ContentPage
     }
     private async void OnReloadClicked(object? sender, EventArgs e)
     {
-        // ── THÊM: đóng tour panel nếu đang mở ────────────────────────
-        if (TourInfoPanel.IsVisible)
-        {
-            TourInfoPanel.IsVisible = false;
-            _currentTour = null;
-        }
-        // ─────────────────────────────────────────────────────────────
+        // ✅ FIX: luôn reset tour bất kể panel có visible hay không
+        TourInfoPanel.IsVisible = false;
+        _currentTour = null;
 
         await LoadPoisWithOfflineFallbackAsync();
     }

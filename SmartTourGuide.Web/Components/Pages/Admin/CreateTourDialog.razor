@@ -8,30 +8,32 @@
         <MudForm @ref="form" @bind-IsValid="@success">
             <!-- 1. Thông tin cơ bản -->
             <MudTextField @bind-Value="tourName" Label="Tên Tour" Required="true" />
-            <MudTextField @bind-Value="description" Label="Mô tả ngắn" Lines="2" Class="mb-3"/>
+            <MudTextField @bind-Value="description" Label="Mô tả ngắn" Lines="2" Class="mb-3" />
 
-            <!-- 2. (MỚI) Chọn ảnh bìa -->
+            <!-- 2. Chọn ảnh bìa -->
             <MudFileUpload T="IBrowserFile" FilesChanged="UploadFile" Class="mb-3">
                 <ActivatorContent>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Image">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.Image">
                         @(file == null ? "Chọn ảnh bìa (Tùy chọn)" : $"Đã chọn: {file.Name}")
                     </MudButton>
                 </ActivatorContent>
             </MudFileUpload>
-            @if(file == null && selectedPois.Count > 0)
+            @if (file == null && orderedPois.Count > 0)
             {
                 <MudText Typo="Typo.caption" Color="Color.Info">
-                    *Nếu không chọn ảnh, hệ thống sẽ lấy ảnh của địa điểm đầu tiên: <b>@selectedPois.First().Name</b>
+                    *Nếu không chọn ảnh, hệ thống sẽ lấy ảnh của địa điểm đầu tiên: <b>@orderedPois.First().Name</b>
                 </MudText>
             }
 
-            <MudDivider Class="my-3"/>
+            <MudDivider Class="my-3" />
 
             <!-- 3. Chọn địa điểm (Table) -->
             <MudText Typo="Typo.subtitle1" Color="Color.Primary"><b>Chọn các địa điểm:</b></MudText>
-            
-            <MudTable T="PoiDto" Items="@allPois" MultiSelection="true" @bind-SelectedItems="selectedPois" 
-                      Hover="true" Dense="true" Bordered="true" FixedHeader="true" Height="250px">
+
+            <MudTable T="PoiDto" Items="@allPois" MultiSelection="true" SelectedItems="selectedPoisSet"
+                      SelectedItemsChanged="OnSelectionChanged" Hover="true" Dense="true" Bordered="true" FixedHeader="true"
+                      Height="250px">
                 <HeaderContent>
                     <MudTh>Tên địa điểm</MudTh>
                     <MudTh>Địa chỉ</MudTh>
@@ -41,11 +43,68 @@
                     <MudTd DataLabel="Địa chỉ">@context.Address</MudTd>
                 </RowTemplate>
             </MudTable>
+
+            <!-- 4. Danh sách thứ tự đã chọn -->
+            @if (orderedPois.Count > 0)
+            {
+                <MudDivider Class="my-3" />
+                <MudText Typo="Typo.subtitle1" Color="Color.Primary">
+                    <b>Thứ tự lộ trình (@orderedPois.Count điểm):</b>
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
+                    Dùng nút ▲ ▼ để sắp xếp lại thứ tự các điểm dừng
+                </MudText>
+
+                <MudPaper Outlined="true" Class="pa-2">
+                    @for (int i = 0; i < orderedPois.Count; i++)
+                    {
+                        var index = i; // capture cho lambda
+                        var poi = orderedPois[i];
+                        bool isFirst = index == 0;
+                        bool isLast = index == orderedPois.Count - 1;
+
+                        <MudStack Row="true" AlignItems="AlignItems.Center"
+                                  Class="@($"pa-1 {(index < orderedPois.Count - 1 ? "mb-1" : "")}")"
+                                  Style="border: 1px solid var(--mud-palette-lines-default); border-radius: 4px;">
+
+                            <!-- Số thứ tự -->
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary"
+                                     Style="min-width:32px; justify-content:center;">
+                                @(index + 1)
+                            </MudChip>
+
+                            <!-- Tên POI -->
+                            <MudStack Spacing="0" Style="flex:1; min-width:0;">
+                                <MudText Typo="Typo.body2"
+                                         Style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                    @poi.Name
+                                </MudText>
+                                @if (!string.IsNullOrEmpty(poi.Address))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary"
+                                             Style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                        @poi.Address
+                                    </MudText>
+                                }
+                            </MudStack>
+
+                            <!-- Nút điều chỉnh thứ tự -->
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" Disabled="@isFirst"
+                                           OnClick="@(() => MoveUp(index))" title="Lên trên" />
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" Disabled="@isLast"
+                                           OnClick="@(() => MoveDown(index))" title="Xuống dưới" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error"
+                                           OnClick="@(() => RemovePoi(poi))" title="Xóa khỏi lộ trình" />
+                        </MudStack>
+                    }
+                </MudPaper>
+            }
         </MudForm>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel">Hủy</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!success)">Tạo Tour</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(!success)">Tạo Tour
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -56,18 +115,61 @@
     private bool success;
     private string tourName = "";
     private string description = "";
-    private IBrowserFile? file; // Biến lưu file ảnh bìa
+    private IBrowserFile? file;
 
     private List<PoiDto> allPois = new();
-    private HashSet<PoiDto> selectedPois = new();
+
+    // HashSet chỉ để MudTable bind (track trạng thái tick)
+    private HashSet<PoiDto> selectedPoisSet = new();
+
+    // List giữ đúng thứ tự admin chọn
+    private List<PoiDto> orderedPois = new();
 
     protected override async Task OnInitializedAsync()
     {
-        try {
-            // Lấy POI đã duyệt (Active)
+        try
+        {
             var result = await Http.GetFromJsonAsync<List<PoiDto>>("api/pois");
             allPois = result ?? new();
-        } catch {}
+        }
+        catch { }
+    }
+
+    // Mỗi khi admin tick/untick một POI trong bảng
+    private void OnSelectionChanged(HashSet<PoiDto> newSelection)
+    {
+        // Thêm POI mới được tick vào cuối orderedPois (giữ thứ tự chọn)
+        foreach (var poi in newSelection)
+        {
+            if (!orderedPois.Contains(poi))
+                orderedPois.Add(poi);
+        }
+
+        // Xóa POI bị untick khỏi orderedPois
+        orderedPois.RemoveAll(p => !newSelection.Contains(p));
+
+        selectedPoisSet = newSelection;
+    }
+
+    // Nút ▲ - di chuyển lên trên
+    private void MoveUp(int index)
+    {
+        if (index <= 0) return;
+        (orderedPois[index], orderedPois[index - 1]) = (orderedPois[index - 1], orderedPois[index]);
+    }
+
+    // Nút ▼ - di chuyển xuống dưới
+    private void MoveDown(int index)
+    {
+        if (index >= orderedPois.Count - 1) return;
+        (orderedPois[index], orderedPois[index + 1]) = (orderedPois[index + 1], orderedPois[index]);
+    }
+
+    // Nút X - xóa khỏi lộ trình (đồng thời bỏ tick trong bảng)
+    private void RemovePoi(PoiDto poi)
+    {
+        orderedPois.Remove(poi);
+        selectedPoisSet.Remove(poi);
     }
 
     private void UploadFile(IBrowserFile selectedFile)
@@ -77,36 +179,33 @@
 
     private async Task Submit()
     {
-        if (selectedPois.Count == 0)
+        if (orderedPois.Count == 0)
         {
             Snackbar.Add("Chọn ít nhất 1 địa điểm!", Severity.Warning);
             return;
         }
 
-        // --- CHUYỂN DỮ LIỆU SANG FORM DATA ĐỂ GỬI ẢNH ---
         using var content = new MultipartFormDataContent();
-        
+
         content.Add(new StringContent(tourName), "Name");
         content.Add(new StringContent(description), "Description");
 
-        // Gửi danh sách ID (Phải lặp để add từng cái)
-        foreach(var p in selectedPois)
+        // Gửi theo đúng thứ tự trong orderedPois (không phải selectedPoisSet)
+        foreach (var p in orderedPois)
         {
             content.Add(new StringContent(p.Id.ToString()), "PoiIds");
         }
 
-        // Gửi file ảnh (nếu có)
         if (file != null)
         {
-            var fileStream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024); // Max 5MB
+            var fileStream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
             var streamContent = new StreamContent(fileStream);
             streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
             content.Add(streamContent, "thumbnailFile", file.Name);
         }
 
-        // Gọi API (Lúc này API bên kia đã đổi sang [FromForm] nên sẽ nhận được)
         var response = await Http.PostAsync("api/tours", content);
-        
+
         if (response.IsSuccessStatusCode)
         {
             MudDialogRef.Close(DialogResult.Ok(true));
