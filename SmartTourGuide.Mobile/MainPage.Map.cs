@@ -149,7 +149,7 @@ public partial class MainPage
                 : await _apiService.GetPoisAsync(_currentLanguageCode);
             var orderedPois = tour.Pois.OrderBy(p => p.OrderIndex).ToList();
             int total = orderedPois.Count;
-            var tourStart = new MauiLocation.Location(DefaultLat, DefaultLon);
+            var tourStart = _currentUserLocation;
 
             // ── Gọi OSRM lấy đường đi thực tế (ngoài MainThread) ────────
             // OSRM public demo — miễn phí, không cần API key, dùng dữ liệu OSM
