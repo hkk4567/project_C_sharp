@@ -111,7 +111,12 @@ public class TranslationsController : ControllerBase
                 });
             }
         }
-
+        // --- PHẦN 3: RESET STATUS POI VỀ PENDING ---
+        var poi = await _context.Pois.FindAsync(dto.PoiId);
+        if (poi != null && poi.Status == PoiStatus.Active)
+        {
+            poi.Status = PoiStatus.Pending;
+        }
         await _context.SaveChangesAsync();
         return Ok(new { message = "Lưu thành công!" });
     }

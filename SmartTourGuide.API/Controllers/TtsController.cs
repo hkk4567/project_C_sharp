@@ -88,6 +88,10 @@ public class TtsController : ControllerBase
             };
 
             _context.MediaAssets.Add(asset);
+            if (poi.Status == PoiStatus.Active)
+            {
+                poi.Status = PoiStatus.Pending;
+            }
             await _context.SaveChangesAsync();
 
             return Ok(new
