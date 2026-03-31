@@ -64,7 +64,7 @@
     <div class="lang-switcher">
         @foreach (var lang in _langs)
         {
-            <div class="ls-btn @(_viewLang == lang.Code ? "active" : "")"                 @onclick="() => SwitchViewLang(lang.Code)">
+            <div class="ls-btn @(_viewLang == lang.Code ? "active" : "")" @onclick="() => SwitchViewLang(lang.Code)">
                 <span>@lang.Flag</span>
                 <span>@lang.Name</span>
             </div>
@@ -91,8 +91,8 @@
             @if (context.ImageUrls != null && context.ImageUrls.Count > 0)
             {
                 <MudTooltip Text="Bấm để xem chi tiết ảnh & audio">
-                    <MudImage Src="@($"{ApiUrl}{context.ImageUrls[0]}")" Width="80" Height="60"                              ObjectFit="ObjectFit.Cover"
-                              Class="rounded cursor-pointer"                              @onclick="@(() => OpenMediaDialog(context))" />
+                    <MudImage Src="@($"{ApiUrl}{context.ImageUrls[0]}")" Width="80" Height="60" ObjectFit="ObjectFit.Cover"
+                              Class="rounded cursor-pointer" @onclick="@(() => OpenMediaDialog(context))" />
                 </MudTooltip>
             }
             else
@@ -106,7 +106,7 @@
                     @* vi-VN: dùng GetAudiosForLang để lọc đúng từ ExistingAudios *@
                     @if (GetAudiosForLang(context).Count > 0)
                     {
-                        <MudChip T="string" Color="Color.Info" Size="Size.Small"                                 Icon="@Icons.Material.Filled.Mic">
+                        <MudChip T="string" Color="Color.Info" Size="Size.Small" Icon="@Icons.Material.Filled.Mic">
                             @GetAudiosForLang(context).Count audio (vi)
                         </MudChip>
                     }
@@ -120,13 +120,13 @@
                 {
                     @if (GetAudiosForLang(context).Count > 0)
                     {
-                        <MudChip T="string" Color="Color.Success" Size="Size.Small"                                 Icon="@Icons.Material.Filled.VolumeUp">
+                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.VolumeUp">
                             @GetAudiosForLang(context).Count audio (@GetLangShort(_viewLang))
                         </MudChip>
                     }
                     else
                     {
-                        <MudChip T="string" Color="Color.Warning" Size="Size.Small"                                 Icon="@Icons.Material.Filled.VolumeOff">Chưa
+                        <MudChip T="string" Color="Color.Warning" Size="Size.Small" Icon="@Icons.Material.Filled.VolumeOff">Chưa
                             có audio</MudChip>
                         }
                     }
@@ -169,13 +169,13 @@
             <!-- HÀNH ĐỘNG -->
             <MudTd DataLabel="Hành động" Style="text-align:right">
                 <MudStack Row="true" Justify="Justify.FlexEnd">
-                    <MudIconButton Icon="@Icons.Material.Filled.PermMedia"                               Color="Color.Tertiary" title="Xem Ảnh & Audio"
+                    <MudIconButton Icon="@Icons.Material.Filled.PermMedia" Color="Color.Tertiary" title="Xem Ảnh & Audio"
                                    OnClick="@(() => OpenMediaDialog(context))" />
-                    <MudIconButton Icon="@Icons.Material.Filled.RecordVoiceOver"                               Color="Color.Secondary"
-                                   title="TTS Studio & Bản dịch"                               OnClick="@(() => Nav.NavigateTo($"/tts-studio/{context.Id}"))" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit"                               Color="Color.Primary" title="Sửa thông tin"
+                    <MudIconButton Icon="@Icons.Material.Filled.RecordVoiceOver" Color="Color.Secondary"
+                                   title="TTS Studio & Bản dịch" OnClick="@(() => Nav.NavigateTo($"/tts-studio/{context.Id}"))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" title="Sửa thông tin"
                                    OnClick="@(() => Nav.NavigateTo($"/owner/edit-poi/{context.Id}"))" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete"                               Color="Color.Error" title="Xóa"
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" title="Xóa"
                                    OnClick="@(async (MouseEventArgs e) => await DeletePoi(context))" />
                 </MudStack>
             </MudTd>
@@ -185,8 +185,7 @@
             <MudText>Bạn chưa có địa điểm nào.</MudText>
         </NoRecordsContent>
         <PagerContent>
-            <MudTablePager RowsPerPageString="Số dòng mỗi trang"
-                           InfoFormat="{first_item}-{last_item} / {all_items}"
+            <MudTablePager RowsPerPageString="Số dòng mỗi trang" InfoFormat="{first_item}-{last_item} / {all_items}"
                            PageSizeOptions="new int[] { 5, 10, 20 }" />
         </PagerContent>
     </MudTable>
@@ -207,6 +206,8 @@
         ("en-US", "English", "🇺🇸"),
         ("ja-JP", "日本語", "🇯🇵"),
         ("ko-KR", "한국어", "🇰🇷"),
+        ("zh-CN", "中文", "🇨🇳"),
+        ("fr-FR", "Français", "🇫🇷"),
     };
 
     // ── INIT ──────────────────────────────────────────────────────────────
