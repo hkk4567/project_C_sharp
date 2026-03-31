@@ -25,11 +25,13 @@ public class PoisController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly FileStorageService _fileService;
+    private readonly IWebHostEnvironment _env;
 
-    public PoisController(AppDbContext context, FileStorageService fileService)
+    public PoisController(AppDbContext context, FileStorageService fileService, IWebHostEnvironment env)
     {
         _context = context;
         _fileService = fileService;
+        _env = env;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -325,7 +327,10 @@ public class PoisController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeletePoi(int id)
     {
-        var poi = await _context.Pois.FindAsync(id);
+        // ✅ Include MediaAssets để lấy danh sách file cần xóa vật lý
+        var poi = await _context.Pois
+            .Include(p => p.MediaAssets)
+            .FirstOrDefaultAsync(p => p.Id == id);
         if (poi == null) return NotFound("Không tìm thấy địa điểm.");
 
         // --- CHECK TOUR ---
@@ -334,6 +339,24 @@ public class PoisController : ControllerBase
         if (isInAnyTour)
         {
             return BadRequest("Địa điểm này đang nằm trong một Tuyến Du Lịch (Tour). Vui lòng liên hệ Admin để gỡ địa điểm ra khỏi Tour trước khi xóa!");
+        }
+
+        // --- XÓA FILE VẬT LÝ TRONG WWWROOT ---
+        var webRootPath = string.IsNullOrEmpty(_env.WebRootPath)
+            ? Path.Combine(_env.ContentRootPath, "wwwroot")
+            : _env.WebRootPath;
+
+        foreach (var asset in poi.MediaAssets)
+        {
+            // TtsScript lưu text thuần, không có file vật lý → bỏ qua
+            if (asset.Type == MediaType.TtsScript) continue;
+            if (string.IsNullOrEmpty(asset.UrlOrContent)) continue;
+
+            var relativePath = asset.UrlOrContent.Replace("\\", "/").TrimStart('/');
+            var fullPath = Path.Combine(webRootPath, relativePath);
+
+            if (System.IO.File.Exists(fullPath))
+                System.IO.File.Delete(fullPath);
         }
 
         // --- XÓA TRANSLATIONS ---
