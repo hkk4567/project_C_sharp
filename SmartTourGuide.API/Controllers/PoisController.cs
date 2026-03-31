@@ -309,7 +309,12 @@ public class PoisController : ControllerBase
             // MỚI: Lấy danh sách Audio Tiếng Việt (hoặc mặc định) KÈM THEO ID
             ExistingAudios = p.MediaAssets
                 .Where(m => m.Type == MediaType.AudioFile && (m.LanguageCode == "vi-VN" || string.IsNullOrEmpty(m.LanguageCode)))
-                .Select(m => new MediaAssetDto { Id = m.Id, Url = m.UrlOrContent })
+                .Select(m => new MediaAssetDto
+                {
+                    Id = m.Id,
+                    Url = m.UrlOrContent,
+                    LanguageCode = string.IsNullOrEmpty(m.LanguageCode) ? "vi-VN" : m.LanguageCode
+                })
                 .ToList()
         });
 
@@ -393,11 +398,10 @@ public class PoisController : ControllerBase
         poi.Longitude = dto.Longitude;
 
         // 2. Logic nghiệp vụ
-        if (poi.Status == PoiStatus.Active || poi.Status == PoiStatus.Rejected)
+        if (poi.Status != PoiStatus.Pending)
         {
             poi.Status = PoiStatus.Pending;
         }
-
         // 3. Upload file
         if (files != null && files.Count > 0)
         {
