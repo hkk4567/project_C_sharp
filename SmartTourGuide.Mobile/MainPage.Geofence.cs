@@ -47,6 +47,10 @@ public partial class MainPage
                     var leftPoiName = _currentlyPlayingGeofencePoi.Name;
                     StopAudio(); // cancel audio → index KHÔNG tăng (đúng logic)
                     _currentlyPlayingGeofencePoi = null;
+                    _isGeofenceVisitActive = false;
+                    _loggedPoisInCurrentGeofenceVisit.Clear();
+                    _currentListenSessionPoiId = 0;
+                    _currentListenSessionId = string.Empty;
                     // CD KHÔNG tính ở đây vì bị cancel — chỉ tính khi phát xong tự nhiên N/N
                     SetStatus($"👋 Rời vùng: {leftPoiName}", priority: 2, autoRevertMs: 2000);
                 }
@@ -64,6 +68,9 @@ public partial class MainPage
                     await Task.Delay(300);
                 }
             }
+
+            if (_isGeofenceVisitActive)
+                return;
 
             var highestPri = poisInRange.OrderByDescending(p => p.Priority).First();
             var cdSec = highestPri.CooldownInSeconds > 0 ? highestPri.CooldownInSeconds : 5;
@@ -83,6 +90,8 @@ public partial class MainPage
                     return;
                 }
 
+                _isGeofenceVisitActive = true;
+                _loggedPoisInCurrentGeofenceVisit.Clear();
                 _currentlyPlayingGeofencePoi = highestPri;
                 TriggerOneAudio(highestPri);
             }
@@ -93,6 +102,8 @@ public partial class MainPage
                 {
                     StopAudio();
                     await Task.Delay(300);
+                    _isGeofenceVisitActive = true;
+                    _loggedPoisInCurrentGeofenceVisit.Clear();
                     _currentlyPlayingGeofencePoi = highestPri;
                     TriggerOneAudio(highestPri);
                 }
@@ -114,6 +125,8 @@ public partial class MainPage
     private void TriggerOneAudio(PoiModel poi)
     {
         var urls = poi.AudioUrls;
+        var geofencePlayStartTime = DateTime.Now;  // ← NEW: Track start time for logging
+        PrepareListenSession(poi.Id, allowReuseCurrent: false);
 
         // Không có audio file → TTS toàn bộ description (giữ nguyên hành vi cũ)
         if (urls == null || urls.Count == 0)
@@ -173,9 +186,11 @@ public partial class MainPage
 
             if (t.IsCanceled)
             {
-                // Bị cancel do rời vùng → KHÔNG tăng index, KHÔNG tính CD
+                // ✅ NEW: Bị cancel do rời vùng → GHI LOG
+                _ = LogAudioPlaybackAsync(poi.Id, geofencePlayStartTime);
+
                 System.Diagnostics.Debug.WriteLine(
-                    $"[Geofence] '{poi.Name}' audio {displayIdx}/{total} bị cancel, giữ index={capturedIndex}.");
+                    $"[Geofence] '{poi.Name}' audio {displayIdx}/{total} bị cancel, giữ index={capturedIndex}. ✅ Log requested.");
                 MainThread.BeginInvokeOnMainThread(() => { _isPlaying = false; });
                 return;
             }
@@ -188,6 +203,9 @@ public partial class MainPage
                 return;
             }
 
+            // ✅ NEW: Phát xong tự nhiên → GHI LOG
+            _ = LogAudioPlaybackAsync(poi.Id, geofencePlayStartTime);
+
             // Phát xong tự nhiên → tăng index
             int nextIndex = capturedIndex + 1;
             bool allPlayed = (nextIndex >= total); // đã phát hết N/N
@@ -197,9 +215,10 @@ public partial class MainPage
 
             _poiAudioIndex[poi.Id] = nextIndex;
 
+            var completedDuration = (int)(DateTime.Now - geofencePlayStartTime).TotalSeconds;
             System.Diagnostics.Debug.WriteLine(
                 $"[Geofence] '{poi.Name}' audio {displayIdx}/{total} phát xong tự nhiên. " +
-                $"nextIndex={nextIndex}, allPlayed={allPlayed}");
+                $"nextIndex={nextIndex}, allPlayed={allPlayed}. ✅ Logged {completedDuration}s.");
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
@@ -214,6 +233,8 @@ public partial class MainPage
                     // Phát đủ N/N → bắt đầu CD ngay, không cần đợi rời vùng
                     _poiLastTriggerAt[poi.Id] = DateTime.UtcNow;
                     _currentlyPlayingGeofencePoi = null;
+                    _isGeofenceVisitActive = false;
+                    _loggedPoisInCurrentGeofenceVisit.Clear();
                     SetStatus(
                         $"✅ {poi.Name} · Phát xong {total}/{total} · CD {poi.CooldownInSeconds}s",
                         priority: 2, autoRevertMs: 3000);

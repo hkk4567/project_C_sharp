@@ -13,6 +13,8 @@ public partial class MainPage
         if (_isPlaying) { StopAudio(); return; }
         if (_currentSelectedPoi == null) return;
 
+        PrepareListenSession(_currentSelectedPoi.Id, allowReuseCurrent: true);
+
         _isPlaying = true;
         btnPlayAudio.Text = "⏹️ Dừng phát";
 
@@ -48,12 +50,17 @@ public partial class MainPage
         // Ghi lại thời điểm bắt đầu phát
         // Dùng để tính tổng thời gian nghe khi dừng hoặc hết audio
         var playStartTime = DateTime.Now;
+        _playStartTime = playStartTime;
+        _currentAudioPoiId = poi.Id; // ✅ Lưu POI ID hiện tại
+        PrepareListenSession(poi.Id, allowReuseCurrent: true);
 
         for (int i = startIndex; i < urls.Count; i++)
         {
             if (ct.IsCancellationRequested)
             {
                 _poiAudioIndex[poi.Id] = i;
+                // ✅ LOG KHI USER CANCEL/STOP GIỮA CHỪNG VÀ KHI RỜI VÙNG
+                await LogAudioPlaybackAsync(poi.Id, playStartTime);
                 return;
             }
 
@@ -77,6 +84,8 @@ public partial class MainPage
             {
                 int nextIdx = i + 1;
                 _poiAudioIndex[poi.Id] = nextIdx < urls.Count ? nextIdx : 0;
+                // ✅ LOG KHI USER DỪNG 1 AUDIO (không phải hết hàng)
+                await LogAudioPlaybackAsync(poi.Id, playStartTime);
                 return;
             }
             catch (Exception ex)
@@ -88,8 +97,8 @@ public partial class MainPage
 
         // Phát hết toàn bộ → reset về 0
         _poiAudioIndex[poi.Id] = 0;
-        var durationSec = (int)(DateTime.Now - playStartTime).TotalSeconds;
-        await _apiService.LogPoiListenAsync(poi.Id, durationSec, _deviceId);
+        await LogAudioPlaybackAsync(poi.Id, playStartTime);
+        _currentAudioPoiId = 0; // ✅ Reset POI ID
         _isPlaying = false;
         int played = urls.Count;
         MainThread.BeginInvokeOnMainThread(() =>
@@ -145,6 +154,50 @@ public partial class MainPage
 
         await tcs.Task;
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  LOG AUDIO PLAYBACK (GỌI KHI STOP/CANCEL)
+    // ════════════════════════════════════════════════════════════════════════
+    /// <summary>
+    /// Ghi lại listen event khi user:
+    /// - Dừng audio bằng nút "⏹️ Dừng"
+    /// - Rời vùng POI lúc đang nghe (cancel token)
+    /// - Dừng 1 audio trong queue (OperationCanceledException)
+    /// 
+    /// Fire-and-forget — không block UI, lỗi mạng được lieca.
+    /// </summary>
+    private async Task LogAudioPlaybackAsync(int poiId, DateTime startTime)
+    {
+        try
+        {
+            if (_isGeofenceVisitActive && _loggedPoisInCurrentGeofenceVisit.Contains(poiId))
+                return;
+
+            var durationSec = (int)(DateTime.Now - startTime).TotalSeconds;
+            if (durationSec < 1) return; // Lọc bấm nhầm (< 1 giây)
+
+            if (_isGeofenceVisitActive)
+                _loggedPoisInCurrentGeofenceVisit.Add(poiId);
+
+            // Không await — fire and forget
+            _ = _apiService.LogPoiListenAsync(poiId, durationSec, _deviceId, _currentListenSessionId);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Log Playback] Lỗi: {ex.Message}");
+            // Không throw — log lỗi xong và tiếp tục
+        }
+    }
+
+    private void PrepareListenSession(int poiId, bool allowReuseCurrent)
+    {
+        if (allowReuseCurrent && _currentListenSessionPoiId == poiId && !string.IsNullOrWhiteSpace(_currentListenSessionId))
+            return;
+
+        _currentListenSessionPoiId = poiId;
+        _currentListenSessionId = Guid.NewGuid().ToString("N");
+    }
+
     // PauseForInterruption, ResumeFromInterruption
     // ════════════════════════════════════════════════════════════════════════
     //  TẠMM DỪNG / TIẾP TỤC KHI CÓ CUỘC GỌI / APP VÀO BACKGROUND
@@ -333,22 +386,8 @@ public partial class MainPage
         }
 
         _isPlaying = false;
+        _currentAudioPoiId = 0;
 
-        // Ghi log thời gian nghe vào database khi user bấm dừng
-        // Chỉ ghi nếu trước đó đang thực sự phát
-        // Chỉ ghi nếu nghe trên 2 giây — lọc bấm nhầm
-        if (wasPlaying && selectedPoi != null)
-        {
-            var durationSec = Math.Max(0, (int)(DateTime.Now - _playStartTime).TotalSeconds);
-            if (durationSec >= 2)
-            {
-                // Fire and forget — không chờ, không block UI
-            _ = _apiService.LogPoiListenAsync(
-                selectedPoi.Id,          // POI nào đang nghe
-                durationSec,             // Nghe bao nhiêu giây
-                _deviceId);              // Thiết bị nào
-            }
-        }
         MainThread.BeginInvokeOnMainThread(() =>
         {
             if (selectedPoi?.AudioUrls?.Count > 0)

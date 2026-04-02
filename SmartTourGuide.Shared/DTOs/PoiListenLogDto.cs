@@ -3,7 +3,8 @@ namespace SmartTourGuide.Shared.DTOs;
 public class PoiListenLogDto
 {
     public int PoiId { get; set; }
-        public string DeviceId { get; set; } = string.Empty; 
+    public string DeviceId { get; set; } = string.Empty;
+    public string? SessionId { get; set; }
 
     public int ListenDurationSec { get; set; }
     public DateTime Timestamp { get; set; }

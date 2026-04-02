@@ -21,6 +21,14 @@ public partial class MainPage : ContentPage
     private bool _isPausedByInterruption = false;
     // Lưu giờ bắt đầu phát audio để tính thời gian nghe
     private DateTime _playStartTime;
+    // Lưu POI ID đang phát audio (dùng để log khi user stop/cancel)
+    private int _currentAudioPoiId = 0;
+    // Chống ghi trùng log cho cùng một lần ghé geofence
+    private bool _isGeofenceVisitActive = false;
+    private readonly HashSet<int> _loggedPoisInCurrentGeofenceVisit = new();
+    // Session ID cho lượt nghe hiện tại (manual/geofence cùng POI visit dùng chung)
+    private string _currentListenSessionId = string.Empty;
+    private int _currentListenSessionPoiId = 0;
     // ── STATUS BAR ──────────────────────────────────────────────────────────────
     // Ưu tiên: 0=idle(📍nearest)  1=info(auto-revert)  2=zone-event  3=playing  4=error
     private int _statusPriority = 0;
@@ -56,7 +64,7 @@ public partial class MainPage : ContentPage
     // ID ẩn danh định danh thiết bị — sinh 1 lần, lưu vĩnh viễn
     // Không cần đăng nhập, mỗi điện thoại có 1 ID riêng để phân biệt khi thống kê nghe POI
     private string _deviceId = GetOrCreateDeviceId();
-    
+
     /// <summary>
     /// Tạo hoặc đọc Device ID từ bộ nhớ cục bộ.
     /// Lần đầu: sinh GUID mới → lưu vào Preferences.

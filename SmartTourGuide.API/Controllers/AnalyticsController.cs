@@ -18,6 +18,7 @@ namespace SmartTourGuide.API.Controllers;
 public class AnalyticsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> RecentListenSessions = new();
     public AnalyticsController(AppDbContext context) => _context = context;
 
     private string GetCurrentUsername()
@@ -90,6 +91,18 @@ public class AnalyticsController : ControllerBase
     [HttpPost("poi-listen")]
     public async Task<IActionResult> LogListen([FromBody] PoiListenLogDto dto)
     {
+        if (!string.IsNullOrWhiteSpace(dto.SessionId))
+        {
+            var now = DateTime.UtcNow;
+            if (RecentListenSessions.TryGetValue(dto.SessionId, out var lastSeen)
+                && now - lastSeen < TimeSpan.FromMinutes(15))
+            {
+                return Ok(new { message = "Đã ghi nhận" });
+            }
+
+            RecentListenSessions[dto.SessionId] = now;
+        }
+
         // Mỗi lần nghe hợp lệ sẽ tạo một record mới.
         _context.PoiListenLogs.Add(new PoiListenLog
         {

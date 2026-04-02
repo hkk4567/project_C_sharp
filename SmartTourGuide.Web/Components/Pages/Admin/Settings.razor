@@ -1,0 +1,134 @@
+@page "/admin/settings"
+@using SmartTourGuide.Web.Services
+@using SmartTourGuide.Web.Components.Shared
+@layout AdminLayout
+@inject AdminNavbarThemeService NavbarThemeService
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "Admin")]
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-6 mb-8">
+    <MudPaper Elevation="3" Class="pa-6" Style="border-radius: 18px;">
+        <MudText Typo="Typo.h5" Style="font-weight: 800;">Cấu hình giao diện Admin</MudText>
+        <MudText Typo="Typo.body2" Class="mt-2 mud-text-secondary">
+            Chỉnh màu thanh nav bar bằng 3 thanh trượt RGB. Bấm lưu để áp dụng ngay, hoặc reset để quay về màu mặc định.
+        </MudText>
+
+        <MudGrid Class="mt-4">
+            <MudItem xs="12" md="7">
+                <MudPaper Class="pa-4"
+                          Style="border-radius: 16px; background: var(--mud-palette-background); border: 1px solid var(--mud-palette-divider);">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3" Style="font-weight: 700;">Điều chỉnh RGB</MudText>
+
+                    <div class="mb-3">
+                        <MudText Class="mb-1">Đỏ: <b>@_red</b></MudText>
+                        <MudSlider @bind-Value="_red" Min="0" Max="255" Step="1" Color="Color.Error" />
+                    </div>
+
+                    <div class="mb-3">
+                        <MudText Class="mb-1">Xanh lá: <b>@_green</b></MudText>
+                        <MudSlider @bind-Value="_green" Min="0" Max="255" Step="1" Color="Color.Success" />
+                    </div>
+
+                    <div class="mb-2">
+                        <MudText Class="mb-1">Xanh dương: <b>@_blue</b></MudText>
+                        <MudSlider @bind-Value="_blue" Min="0" Max="255" Step="1" Color="Color.Primary" />
+                    </div>
+
+                    <MudStack Row="true" Spacing="2" Class="mt-5">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyAsync">
+                            Lưu màu
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="ResetAsync">
+                            Reset màu mặc định
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="5">
+                <MudPaper Class="pa-4 h-100" Style="border-radius: 16px;">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3" Style="font-weight: 700;">Xem trước</MudText>
+
+                    <MudPaper Elevation="0" Class="px-4 py-3 d-flex align-center justify-space-between"
+                              Style="@($"border-radius: 14px; background-color: {_previewColor}; color: {_previewTextColor}; min-height: 64px;")">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Style="font-weight: 800; color: inherit;">Admin Nav Bar
+                            </MudText>
+                            <MudText Typo="Typo.caption" Style="color: inherit; opacity: 0.85;">@_previewHex</MudText>
+                        </div>
+
+                        <MudIconButton Icon="@Icons.Material.Filled.Settings" Style="@GetPreviewButtonStyle()" />
+                    </MudPaper>
+
+                    <MudPaper Class="pa-3 mt-4"
+                              Style="border-radius: 12px; background: var(--mud-palette-background); border: 1px solid var(--mud-palette-divider);">
+                        <MudText Typo="Typo.caption" Style="font-weight: 700;">Giá trị hiện tại</MudText>
+                        <MudText Typo="Typo.body2" Class="mt-1">RGB: @_red, @_green, @_blue</MudText>
+                        <MudText Typo="Typo.body2">HEX: @_previewHex</MudText>
+                    </MudPaper>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private int _red;
+    private int _green;
+    private int _blue;
+    private bool _loaded;
+
+    private string _previewColor => AdminNavbarThemeService.ToHex(_red, _green, _blue);
+    private string _previewHex => _previewColor;
+    private string _previewTextColor => GetReadableTextColor(_previewColor);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _loaded)
+            return;
+
+        _loaded = true;
+        await NavbarThemeService.EnsureLoadedAsync();
+
+        var rgb = AdminNavbarThemeService.FromHex(NavbarThemeService.CurrentColorHex);
+        _red = rgb.Red;
+        _green = rgb.Green;
+        _blue = rgb.Blue;
+
+        StateHasChanged();
+    }
+
+    private async Task ApplyAsync()
+    {
+        await NavbarThemeService.SetColorAsync(_red, _green, _blue);
+        Snackbar.Add($"Đã lưu màu navbar: {_previewHex}", Severity.Success);
+    }
+
+    private async Task ResetAsync()
+    {
+        await NavbarThemeService.ResetAsync();
+
+        var rgb = AdminNavbarThemeService.FromHex(NavbarThemeService.CurrentColorHex);
+        _red = rgb.Red;
+        _green = rgb.Green;
+        _blue = rgb.Blue;
+
+        Snackbar.Add("Đã reset navbar về màu mặc định.", Severity.Info);
+    }
+
+    private string GetPreviewButtonStyle()
+    {
+        var subtleBg = _previewTextColor == "#111111"
+            ? "rgba(0,0,0,0.08)"
+            : "rgba(255,255,255,0.14)";
+
+        return $"background: {subtleBg}; color: {_previewTextColor}; border-radius: 50%; width: 40px; height: 40px;";
+    }
+
+    private static string GetReadableTextColor(string hex)
+    {
+        var (red, green, blue) = AdminNavbarThemeService.FromHex(hex);
+        var luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255d;
+        return luminance > 0.62 ? "#111111" : "#ffffff";
+    }
+}

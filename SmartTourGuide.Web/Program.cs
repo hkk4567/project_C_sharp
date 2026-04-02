@@ -58,6 +58,7 @@ builder.Services.AddScoped<AnalyticsApiService>();
 builder.Services.AddScoped<OwnerAnalyticsApiService>();
 builder.Services.AddScoped<OwnerNotificationService>();
 builder.Services.AddScoped<AdminNotificationService>();
+builder.Services.AddScoped<AdminNavbarThemeService>();
 builder.Services.AddScoped<IUserService, UserService>();
 var app = builder.Build();
 

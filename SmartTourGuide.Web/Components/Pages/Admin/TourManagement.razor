@@ -15,10 +15,14 @@
     @@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
     /* Áp dụng font cho toàn bộ khu vực quản lý tour */
+    .tour-shell,
     .tour-header,
+    .tour-card,
     .tour-table,
     .tour-title,
-    .tour-create-btn {
+    .tour-create-btn,
+    .tour-stat,
+    .tour-meta {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -26,27 +30,38 @@
 
     .tour-header {
         margin-top: 12px;
-        padding-bottom: 8px;
+        padding: 20px 22px;
+        border-radius: 22px;
+        background: linear-gradient(135deg, rgba(var(--mud-palette-primary-rgb), 0.12), rgba(var(--mud-palette-primary-rgb), 0.03));
+        border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.12);
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
     }
 
-    /* ===== TITLE: Chỉnh cho sắc nét và hiện đại hơn ===== */
+    .tour-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
     .tour-title {
         font-weight: 800;
-        font-size: 1.75rem !important;
-        /* Chỉnh size cho chuẩn h4 */
+        font-size: 1.8rem !important;
         letter-spacing: -0.02em;
-        /* Thu hẹp nhẹ khoảng cách để trông cao cấp hơn */
-        margin-top: 6px;
         color: var(--mud-palette-text-primary);
     }
 
-    /* ===== CREATE BUTTON: Bo góc và hiệu ứng mượt ===== */
+    .tour-subtitle {
+        color: var(--mud-palette-text-secondary);
+        margin-top: 6px;
+        max-width: 720px;
+        line-height: 1.6;
+    }
+
     .tour-create-btn {
         font-weight: 600;
-        border-radius: 10px;
-        padding: 10px 20px;
+        border-radius: 999px;
+        padding: 12px 22px;
         text-transform: none;
-        /* Giữ nguyên chữ hoa/thường cho dễ đọc */
         letter-spacing: 0.2px;
         box-shadow: 0 4px 14px 0 rgba(var(--mud-palette-primary-rgb), 0.39);
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -57,39 +72,107 @@
         box-shadow: 0 6px 20px rgba(var(--mud-palette-primary-rgb), 0.23);
     }
 
-    /* ===== TABLE: Kẻ dọc và Font chữ dữ liệu ===== */
-    .tour-table {
-        border: 1px solid var(--mud-palette-divider) !important;
-        border-radius: 12px;
-        /* Tăng độ bo góc cho hiện đại */
+    .tour-card {
+        border-radius: 22px;
         overflow: hidden;
-        background-color: var(--mud-palette-surface);
+        border: 1px solid var(--mud-palette-divider);
+        box-shadow: 0 12px 35px rgba(15, 23, 42, 0.08);
+        background: var(--mud-palette-surface);
+    }
+
+    .tour-card-header {
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--mud-palette-divider);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+    }
+
+    .tour-card-eyebrow {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--mud-palette-primary);
+        margin-bottom: 6px;
+    }
+
+    .tour-card-title {
+        font-weight: 800;
+        color: var(--mud-palette-text-primary);
+        font-size: 1.08rem;
+    }
+
+    .tour-card-desc {
+        margin-top: 4px;
+        color: var(--mud-palette-text-secondary);
+        line-height: 1.55;
+    }
+
+    .tour-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+    }
+
+    .tour-stat {
+        min-width: 140px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: rgba(var(--mud-palette-background-rgb), 0.7);
+        border: 1px solid var(--mud-palette-divider);
+        backdrop-filter: blur(10px);
+    }
+
+    .tour-stat-label {
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--mud-palette-text-secondary);
+        margin-bottom: 4px;
+    }
+
+    .tour-stat-value {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .tour-table-wrap {
+        padding: 0;
+    }
+
+    .tour-table {
+        border: none !important;
+        overflow: hidden;
+        background-color: transparent;
     }
 
     .tour-table .mud-table-cell {
-        border-right: 1px solid var(--mud-palette-divider) !important;
         vertical-align: middle !important;
         padding: 14px 16px !important;
-        /* Tăng padding để bảng "thở" được */
         font-size: 0.875rem;
         color: var(--mud-palette-text-secondary);
     }
 
-    .tour-table .mud-table-cell:last-child {
-        border-right: none !important;
+    .tour-table .mud-table-head .mud-table-cell,
+    .tour-table .mud-table-body .mud-table-cell {
+        border-bottom: 1px solid var(--mud-palette-divider) !important;
     }
 
-    /* Header của bảng: Chữ nhỏ, đậm, khoảng cách rộng (kiểu Argon) */
     .tour-table .mud-table-head .mud-table-cell {
         background-color: rgba(var(--mud-palette-action-default-rgb), 0.04) !important;
         font-weight: 700 !important;
         color: var(--mud-palette-text-primary) !important;
         text-transform: uppercase;
-        font-size: 0.7rem;
+        font-size: 0.72rem;
         letter-spacing: 0.05em;
     }
 
-    /* Căn chỉnh các cột */
+    .tour-table .mud-table-body .mud-table-row:hover .mud-table-cell {
+        background: rgba(var(--mud-palette-primary-rgb), 0.03) !important;
+    }
+
     .tour-table .mud-table-cell:nth-child(1),
     .tour-table .mud-table-cell:nth-child(2),
     .tour-table .mud-table-cell:nth-child(5),
@@ -98,95 +181,181 @@
         text-align: center !important;
     }
 
-    /* Xử lý text quá dài: hiện dấu ... */
     .tour-table .mud-table-cell:nth-child(3),
     .tour-table .mud-table-cell:nth-child(4) {
-        max-width: 280px;
+        max-width: 320px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    /* ===== DARK MODE OPTIMIZATION ===== */
+    .tour-cover {
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid var(--mud-palette-divider);
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+    }
+
+    .tour-name {
+        font-weight: 700;
+        color: var(--mud-palette-text-primary);
+    }
+
+    .tour-description {
+        color: var(--mud-palette-text-secondary);
+        font-size: 0.82rem;
+        line-height: 1.45;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .tour-poi-chip {
+        border-radius: 999px;
+        font-weight: 700;
+        padding-inline: 4px;
+    }
+
+    .tour-action-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .tour-action-btn {
+        border-radius: 12px;
+        text-transform: none;
+        font-weight: 600;
+    }
+
     .mud-theme-dark .tour-title {
         color: #f8fafc;
-        /* Trắng dịu chống lóa */
     }
 
-    .mud-theme-dark .tour-table {
-        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    .mud-theme-dark .tour-header {
+        background: linear-gradient(135deg, rgba(var(--mud-palette-primary-rgb), 0.2), rgba(255, 255, 255, 0.02));
+        border-color: rgba(255, 255, 255, 0.07);
     }
 
-    /* Hiệu ứng sọc cho Dark Mode */
     .mud-theme-dark .mud-table-striped .mud-table-body .mud-tr-striped {
         background-color: rgba(255, 255, 255, 0.02) !important;
     }
 </style>
-<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="tour-header mb-4">
-          
-    <MudText Typo="Typo.h4" Class="tour-title">
-        Quản Lý Tuyến Du Lịch
-    </MudText>
 
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Map"
-               OnClick="OpenCreateTourDialog" Class="tour-create-btn">
-        Tạo Tour Mới
-    </MudButton>
+<MudPaper Class="tour-shell" Elevation="0">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="tour-header">
+        <div>
+            <MudText Typo="Typo.h4" Class="tour-title">Quản Lý Tuyến Du Lịch</MudText>
+            <MudText Typo="Typo.body2" Class="tour-subtitle">
+                Quản lý danh sách tour, ảnh bìa, mô tả và các lộ trình từ một giao diện trực quan hơn, sạch hơn và dễ
+                theo dõi hơn.
+            </MudText>
 
-</MudStack>
+            <div class="tour-stats">
+                <div class="tour-stat">
+                    <div class="tour-stat-label">Tổng tour</div>
+                    <div class="tour-stat-value">@tours.Count</div>
+                </div>
+                <div class="tour-stat">
+                    <div class="tour-stat-label">Tổng điểm tham quan</div>
+                    <div class="tour-stat-value">@tours.Sum(x => x.TotalPois)</div>
+                </div>
+            </div>
+        </div>
 
-<MudDataGrid Items="@tours" Filterable="true" Bordered="true" Striped="true" Class="tour-table">
-    <Columns>
-        <PropertyColumn Property="x => x.Id" Title="ID" Sortable="true" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Map"
+                   OnClick="OpenCreateTourDialog" Class="tour-create-btn">
+            Tạo Tour Mới
+        </MudButton>
+    </MudStack>
 
-        <TemplateColumn Title="Ảnh Bìa">
-            <CellTemplate>
-                @if (!string.IsNullOrEmpty(context.Item.ThumbnailUrl))
-                {
-                    <MudImage Src="@($"{ApiUrl}{context.Item.ThumbnailUrl}")" Width="80" Height="50"
-                              ObjectFit="ObjectFit.Cover" Class="rounded" />
-                }
-                else
-                {
-                    <MudIcon Icon="@Icons.Material.Filled.ImageNotSupported" />
-                }
-            </CellTemplate>
-        </TemplateColumn>
+    <MudPaper Elevation="0" Class="tour-card">
+        <div class="tour-card-header">
+            <div class="tour-card-eyebrow">Danh sách tour</div>
+            <div class="tour-card-title">Bảng dữ liệu quản lý tour</div>
+        </div>
 
-        <PropertyColumn Property="x => x.Name" Title="Tên Tour" />
-        <PropertyColumn Property="x => x.Description" Title="Mô tả" />
-        <PropertyColumn Property="x => x.TotalPois" Title="Số điểm tham quan" />
+        <div class="tour-table-wrap">
+            <MudDataGrid Items="@tours" Filterable="true" Bordered="true" Striped="true" Hover="true"
+                         Class="tour-table">
+                <Columns>
+                    <PropertyColumn Property="x => x.Id" Title="ID" Sortable="true" />
 
-        <TemplateColumn Title="Chi tiết">
-            <CellTemplate>
-                <MudButton StartIcon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small"
-                           Variant="Variant.Outlined" OnClick="@(() => Nav.NavigateTo($"/admin/tours/{context.Item.Id}"))">
-                    Xem Lộ Trình
-                </MudButton>
-            </CellTemplate>
-        </TemplateColumn>
+                    <TemplateColumn Title="Ảnh bìa">
+                        <CellTemplate>
+                            @if (!string.IsNullOrEmpty(context.Item.ThumbnailUrl))
+                            {
+                                <MudImage Src="@($"{ApiUrl}{context.Item.ThumbnailUrl}")" Width="88" Height="56"
+                                          ObjectFit="ObjectFit.Cover" Class="tour-cover" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.ImageNotSupported" Color="Color.Default" />
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
 
-        <TemplateColumn Title="Bản dịch">
-            <CellTemplate>
-                <MudButton StartIcon="@Icons.Material.Filled.Translate" Color="Color.Secondary" Size="Size.Small"
-                           Variant="Variant.Outlined" OnClick="@(() => OpenTranslationDialog(context.Item))">
-                    Dịch
-                </MudButton>
-            </CellTemplate>
-        </TemplateColumn>
+                    <TemplateColumn Title="Thông tin tour">
+                        <CellTemplate>
+                            <div>
+                                <div class="tour-name">@context.Item.Name</div>
+                                <div class="tour-description">@context.Item.Description</div>
+                            </div>
+                        </CellTemplate>
+                    </TemplateColumn>
 
-        <TemplateColumn Title="Hành động">
-            <CellTemplate>
-                <!-- Nút Xóa Tour -->
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                               OnClick="@(() => DeleteTour(context.Item))" title="Xóa Tour" />
-            </CellTemplate>
-        </TemplateColumn>
-    </Columns>
-    <NoRecordsContent>
-        <MudText>Chưa có Tour nào trong hệ thống.</MudText>
-    </NoRecordsContent>
-</MudDataGrid>
+                    <TemplateColumn Title="Số điểm tham quan">
+                        <CellTemplate>
+                            <MudChip T="string" Color="Color.Info" Variant="Variant.Filled" Size="Size.Small"
+                                     Class="tour-poi-chip">
+                                @context.Item.TotalPois điểm
+                            </MudChip>
+                        </CellTemplate>
+                    </TemplateColumn>
+
+                    <TemplateColumn Title="Chi tiết">
+                        <CellTemplate>
+                            <MudButton StartIcon="@Icons.Material.Filled.Visibility" Color="Color.Info"
+                                       Size="Size.Small" Variant="Variant.Outlined" Class="tour-action-btn"
+                                       OnClick="@(() => Nav.NavigateTo($"/admin/tours/{context.Item.Id}"))">
+                                Xem lộ trình
+                            </MudButton>
+                        </CellTemplate>
+                    </TemplateColumn>
+
+                    <TemplateColumn Title="Bản dịch">
+                        <CellTemplate>
+                            <MudButton StartIcon="@Icons.Material.Filled.Translate" Color="Color.Secondary"
+                                       Size="Size.Small" Variant="Variant.Outlined" Class="tour-action-btn"
+                                       OnClick="@(() => OpenTranslationDialog(context.Item))">
+                                Dịch
+                            </MudButton>
+                        </CellTemplate>
+                    </TemplateColumn>
+
+                    <TemplateColumn Title="Hành động">
+                        <CellTemplate>
+                            <div class="tour-action-bar">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" title="Xóa tour"
+                                               OnClick="@(() => DeleteTour(context.Item))" />
+                            </div>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+                <NoRecordsContent>
+                    <MudStack AlignItems="AlignItems.Center" Class="py-8">
+                        <MudIcon Icon="@Icons.Material.Filled.DirectionsBus" Size="Size.Large" Color="Color.Default" />
+                        <MudText Class="mt-3" Style="font-weight: 700;">Chưa có tour nào trong hệ thống</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Tạo tour mới để bắt đầu quản lý dữ liệu.
+                        </MudText>
+                    </MudStack>
+                </NoRecordsContent>
+            </MudDataGrid>
+        </div>
+    </MudPaper>
+</MudPaper>
 
 @code {
     private List<TourDto> tours = new();

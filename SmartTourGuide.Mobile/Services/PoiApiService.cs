@@ -74,7 +74,7 @@ public class PoiApiService
     ///   - Thời gian trung bình nghe 1 POI (AVG của durationSec)
     /// Không throw exception — lỗi mạng không được crash app.
     /// </summary>
-    public async Task LogPoiListenAsync(int poiId, int durationSec, string deviceId)
+    public async Task LogPoiListenAsync(int poiId, int durationSec, string deviceId, string? sessionId = null)
     {
         try
         {
@@ -82,6 +82,7 @@ public class PoiApiService
             {
                 PoiId = poiId,
                 DeviceId = deviceId,   // ← thay UserId = 0
+                SessionId = sessionId,
                 ListenDurationSec = durationSec
             });
         }
