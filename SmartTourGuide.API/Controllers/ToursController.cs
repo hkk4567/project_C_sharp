@@ -56,13 +56,25 @@ public class ToursController : ControllerBase
 
         var tours = await query.OrderByDescending(t => t.Id).ToListAsync();
 
-        return tours.Select(t => new TourDto
+        // Lấy bản dịch tên/mô tả Tour nếu không phải Tiếng Việt
+        var tourIds = tours.Select(t => t.Id).ToList();
+        var tourTranslations = langCode != "vi-VN"
+            ? await _context.TourTranslations
+                .Where(tt => tourIds.Contains(tt.TourId) && tt.LanguageCode == langCode)
+                .ToListAsync()
+            : new List<TourTranslation>();
+
+        return tours.Select(t =>
         {
-            Id = t.Id,
-            Name = t.Name, // Ở đây bạn có thể thêm logic dịch tên Tour nếu có bảng TourTranslation
-            Description = t.Description,
-            ThumbnailUrl = t.ThumbnailUrl ?? string.Empty,
-            TotalPois = t.TourDetails.Count
+            var tt = tourTranslations.FirstOrDefault(x => x.TourId == t.Id);
+            return new TourDto
+            {
+                Id = t.Id,
+                Name = tt?.TranslatedName ?? t.Name,
+                Description = tt?.TranslatedDescription ?? t.Description,
+                ThumbnailUrl = t.ThumbnailUrl ?? string.Empty,
+                TotalPois = t.TourDetails.Count
+            };
         }).ToList();
     }
 
@@ -84,11 +96,17 @@ public class ToursController : ControllerBase
             .Where(trans => poiIds.Contains(trans.PoiId) && trans.LanguageCode == langCode)
             .ToListAsync();
 
+        // Lấy bản dịch tên/mô tả của Tour
+        var tourTrans = langCode != "vi-VN"
+            ? await _context.TourTranslations
+                .FirstOrDefaultAsync(tt => tt.TourId == id && tt.LanguageCode == langCode)
+            : null;
+
         return new TourDto
         {
             Id = tour.Id,
-            Name = tour.Name,
-            Description = tour.Description,
+            Name = tourTrans?.TranslatedName ?? tour.Name,
+            Description = tourTrans?.TranslatedDescription ?? tour.Description,
             ThumbnailUrl = tour.ThumbnailUrl ?? string.Empty,
             TotalPois = tour.TourDetails.Count,
             Pois = tour.TourDetails.OrderBy(td => td.OrderIndex).Select(td =>

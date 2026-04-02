@@ -21,4 +21,7 @@ public class Tour
 
     // Danh sách các điểm trong tour
     public ICollection<TourDetail> TourDetails { get; set; } = new List<TourDetail>();
+
+    // Danh sách bản dịch của tour này
+    public ICollection<TourTranslation> TourTranslations { get; set; } = new List<TourTranslation>();
 }

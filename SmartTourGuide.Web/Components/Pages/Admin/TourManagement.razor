@@ -15,7 +15,10 @@
     @@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
     /* Áp dụng font cho toàn bộ khu vực quản lý tour */
-    .tour-header, .tour-table, .tour-title, .tour-create-btn {
+    .tour-header,
+    .tour-table,
+    .tour-title,
+    .tour-create-btn {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
@@ -29,8 +32,10 @@
     /* ===== TITLE: Chỉnh cho sắc nét và hiện đại hơn ===== */
     .tour-title {
         font-weight: 800;
-        font-size: 1.75rem !important; /* Chỉnh size cho chuẩn h4 */
-        letter-spacing: -0.02em; /* Thu hẹp nhẹ khoảng cách để trông cao cấp hơn */
+        font-size: 1.75rem !important;
+        /* Chỉnh size cho chuẩn h4 */
+        letter-spacing: -0.02em;
+        /* Thu hẹp nhẹ khoảng cách để trông cao cấp hơn */
         margin-top: 6px;
         color: var(--mud-palette-text-primary);
     }
@@ -40,7 +45,8 @@
         font-weight: 600;
         border-radius: 10px;
         padding: 10px 20px;
-        text-transform: none; /* Giữ nguyên chữ hoa/thường cho dễ đọc */
+        text-transform: none;
+        /* Giữ nguyên chữ hoa/thường cho dễ đọc */
         letter-spacing: 0.2px;
         box-shadow: 0 4px 14px 0 rgba(var(--mud-palette-primary-rgb), 0.39);
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -54,7 +60,8 @@
     /* ===== TABLE: Kẻ dọc và Font chữ dữ liệu ===== */
     .tour-table {
         border: 1px solid var(--mud-palette-divider) !important;
-        border-radius: 12px; /* Tăng độ bo góc cho hiện đại */
+        border-radius: 12px;
+        /* Tăng độ bo góc cho hiện đại */
         overflow: hidden;
         background-color: var(--mud-palette-surface);
     }
@@ -62,7 +69,8 @@
     .tour-table .mud-table-cell {
         border-right: 1px solid var(--mud-palette-divider) !important;
         vertical-align: middle !important;
-        padding: 14px 16px !important; /* Tăng padding để bảng "thở" được */
+        padding: 14px 16px !important;
+        /* Tăng padding để bảng "thở" được */
         font-size: 0.875rem;
         color: var(--mud-palette-text-secondary);
     }
@@ -101,11 +109,12 @@
 
     /* ===== DARK MODE OPTIMIZATION ===== */
     .mud-theme-dark .tour-title {
-        color: #f8fafc; /* Trắng dịu chống lóa */
+        color: #f8fafc;
+        /* Trắng dịu chống lóa */
     }
 
     .mud-theme-dark .tour-table {
-        border: 1px solid rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
     }
 
     /* Hiệu ứng sọc cho Dark Mode */
@@ -113,26 +122,20 @@
         background-color: rgba(255, 255, 255, 0.02) !important;
     }
 </style>
-<MudStack Row="true"
-          Justify="Justify.SpaceBetween"
-          AlignItems="AlignItems.Center"
-          Class="tour-header mb-4">
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="tour-header mb-4">
           
     <MudText Typo="Typo.h4" Class="tour-title">
         Quản Lý Tuyến Du Lịch
     </MudText>
 
-    <MudButton Variant="Variant.Filled"
-               Color="Color.Primary"
-               StartIcon="@Icons.Material.Filled.Map"
-               OnClick="OpenCreateTourDialog"
-               Class="tour-create-btn">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Map"
+               OnClick="OpenCreateTourDialog" Class="tour-create-btn">
         Tạo Tour Mới
     </MudButton>
 
 </MudStack>
 
-<MudDataGrid Items="@tours" Filterable="true" Bordered="true" Striped="true"  Class="tour-table">
+<MudDataGrid Items="@tours" Filterable="true" Bordered="true" Striped="true" Class="tour-table">
     <Columns>
         <PropertyColumn Property="x => x.Id" Title="ID" Sortable="true" />
 
@@ -159,6 +162,15 @@
                 <MudButton StartIcon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small"
                            Variant="Variant.Outlined" OnClick="@(() => Nav.NavigateTo($"/admin/tours/{context.Item.Id}"))">
                     Xem Lộ Trình
+                </MudButton>
+            </CellTemplate>
+        </TemplateColumn>
+
+        <TemplateColumn Title="Bản dịch">
+            <CellTemplate>
+                <MudButton StartIcon="@Icons.Material.Filled.Translate" Color="Color.Secondary" Size="Size.Small"
+                           Variant="Variant.Outlined" OnClick="@(() => OpenTranslationDialog(context.Item))">
+                    Dịch
                 </MudButton>
             </CellTemplate>
         </TemplateColumn>
@@ -210,6 +222,26 @@
             Snackbar.Add("Tạo Tour thành công!", Severity.Success);
             await LoadData(); // Reload lại danh sách
         }
+    }
+
+    private async Task OpenTranslationDialog(TourDto tour)
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(TourTranslationDialog.TourId), tour.Id },
+            { nameof(TourTranslationDialog.TourName), tour.Name },
+            { nameof(TourTranslationDialog.TourDescription), tour.Description }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        await DialogService.ShowAsync<TourTranslationDialog>(
+            $"Bản dịch Tour", parameters, options);
     }
 
     private async Task DeleteTour(TourDto tour)

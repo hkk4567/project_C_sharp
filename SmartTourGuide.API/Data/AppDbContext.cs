@@ -18,6 +18,7 @@ namespace SmartTourGuide.API.Data
         public DbSet<Tour> Tours { get; set; }
         public DbSet<TourDetail> TourDetails { get; set; }
         public DbSet<PoiTranslation> PoiTranslations { get; set; }
+        public DbSet<TourTranslation> TourTranslations { get; set; }
         public DbSet<ActivityLog> ActivityLogs { get; set; }
         public DbSet<PoiListenLog> PoiListenLogs { get; set; }
         public DbSet<OwnerNotification> OwnerNotifications { get; set; }
@@ -87,6 +88,19 @@ namespace SmartTourGuide.API.Data
                 .WithMany() // Poi entity không cần chứa list TourDetail ngược lại
                 .HasForeignKey(td => td.PoiId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // --- CẤU HÌNH TOUR TRANSLATION ---
+            modelBuilder.Entity<TourTranslation>(entity =>
+            {
+                // Mỗi Tour chỉ có 1 bản dịch cho 1 ngôn ngữ (unique index)
+                entity.HasIndex(t => new { t.TourId, t.LanguageCode }).IsUnique();
+
+                // Tour xóa -> Bản dịch xóa theo
+                entity.HasOne(t => t.Tour)
+                    .WithMany(tour => tour.TourTranslations)
+                    .HasForeignKey(t => t.TourId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
 
             // --- Cấu hình Poi Listen Log ---
