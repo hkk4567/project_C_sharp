@@ -45,6 +45,7 @@ public partial class MainPage
             {
                 if (_currentlyPlayingGeofencePoi != null)
                 {
+                    _ = LogAudioPlaybackAsync(_currentlyPlayingGeofencePoi.Id, _playStartTime);
                     StopAudio();
                     _currentlyPlayingGeofencePoi = null;
                     _isGeofenceVisitActive = false;
