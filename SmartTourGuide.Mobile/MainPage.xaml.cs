@@ -69,12 +69,8 @@ public partial class MainPage : ContentPage
             _geofenceTimer.Interval = TimeSpan.FromSeconds(3);
             _geofenceTimer.Tick += async (s, e) =>
             {
-                // Chỉ check geofence và highlight khi KHÔNG đang xem tour
-                if (_currentTour == null)
-                {
-                    CheckGeofences();
-                    UpdateNearestPoiHighlight();
-                }
+                CheckGeofences();
+                UpdateNearestPoiHighlight();
 
                 // Ghi GPS thật lên server (luôn chạy dù có tour hay không)
                 try
@@ -177,24 +173,24 @@ public partial class MainPage : ContentPage
             // Lấy vị trí GPS thực tế (chờ tối đa 15 giây để emulator kịp lock)
             var location = await Geolocation.GetLocationAsync(
                 new GeolocationRequest(
-                    GeolocationAccuracy.Best, 
+                    GeolocationAccuracy.Best,
                     TimeSpan.FromSeconds(15)));
-            
+
             if (location != null)
             {
                 _currentUserLocation = location;
-                
+
                 // Cập nhật bản đồ vào vị trí user
                 var smc = SphericalMercator.FromLonLat(location.Longitude, location.Latitude);
                 var mPoint = new MPoint(smc.x, smc.y);
-                
+
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     mapView.MyLocationLayer.UpdateMyLocation(
                         new Mapsui.UI.Maui.Position(location.Latitude, location.Longitude));
                     mapView.Map?.Navigator.CenterOnAndZoomTo(mPoint, 1.5, duration: 500);
                 });
-                
+
                 System.Diagnostics.Debug.WriteLine(
                     $"✅ GPS: {location.Latitude}, {location.Longitude}");
                 return;
@@ -204,7 +200,7 @@ public partial class MainPage : ContentPage
         {
             System.Diagnostics.Debug.WriteLine($"❌ GPS lỗi: {ex.Message}");
         }
-        
+
         // Fallback nếu GPS lỗi
         MoveMapToDefaultLocation(resolution: 2);
     }
@@ -260,18 +256,4 @@ public partial class MainPage : ContentPage
 
     private async void OnShowToursClicked(object? sender, EventArgs e)
         => await Navigation.PushModalAsync(new ToursPage(this));
-    private static int DecodePolylineChunk(string encoded, ref int index)
-    {
-        int result = 0;
-        int shift = 0;
-        int b;
-        do
-        {
-            b = encoded[index++] - 63;
-            result |= (b & 0x1F) << shift;
-            shift += 5;
-        } while (b >= 0x20);
-
-        return (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
-    }
 }

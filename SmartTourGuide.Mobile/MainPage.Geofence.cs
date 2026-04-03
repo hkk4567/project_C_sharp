@@ -22,14 +22,17 @@ public partial class MainPage
     {
         try
         {
-            if (_currentTour != null) return;
             if (_isCheckingGeofences || _allPoisCache.Count == 0) return;
             _isCheckingGeofences = true;
+
+            var poisToCheck = _currentTour != null
+                            ? _allPoisCache.Where(p => _currentTour.Pois.Any(tp => tp.PoiId == p.Id)).ToList()
+                            : _allPoisCache;
 
             var now = DateTime.UtcNow;
             var poisInRange = new List<PoiModel>();
 
-            foreach (var poi in _allPoisCache)
+            foreach (var poi in poisToCheck)
             {
                 var poiLoc = new MauiLocation.Location(poi.Latitude, poi.Longitude);
                 double dist = MauiLocation.Location.CalculateDistance(_currentUserLocation, poiLoc, DistanceUnits.Kilometers) * 1000;
@@ -60,6 +63,7 @@ public partial class MainPage
                 System.Diagnostics.Debug.WriteLine($"[Logic] Đổi vùng từ {_currentlyPlayingGeofencePoi.Name} sang {highestPriPoi.Name}. Dừng audio cũ.");
 
                 StopAudio(); // Dừng POI 1 ngay lập tức
+                _loggedPoisInCurrentGeofenceVisit.Clear();
                 _currentlyPlayingGeofencePoi = null; // Xóa trạng thái POI đang phát cũ
                 await Task.Delay(200); // Chờ một chút để hệ thống audio giải phóng
             }
@@ -154,8 +158,8 @@ public partial class MainPage
                 }
                 catch (OperationCanceledException)
                 {
-                    // Rời vùng -> i giữ nguyên để lần sau quay lại phát tiếp file này
-                    return;
+                    _ = LogAudioPlaybackAsync(poi.Id, fileStartTime);
+                    throw;
                 }
             }
 
@@ -175,6 +179,11 @@ public partial class MainPage
                     if (btnPlayAudio != null) btnPlayAudio.Text = "🔊 Nghe lại";
                 });
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Rời vùng -> i giữ nguyên để lần sau quay lại phát tiếp file này
+            return;
         }
         catch (Exception ex)
         {

@@ -25,7 +25,7 @@ public partial class MainPage
             if (mapView == null) return;
             mapView.Pins.Clear();
 
-            ClearMapLayers("Geofences", "TourRoute");
+            ClearMapLayers("Geofences");
 
             mapView.Map.Layers.Insert(1, CreateGeofenceLayer(pois));
 
@@ -126,9 +126,9 @@ public partial class MainPage
             if (detailPopup != null) detailPopup.IsVisible = true;
         });
     }
-    // RenderTourOnMap, GetRoadRouteAsync, DecodePolyline6
+
     // ════════════════════════════════════════════════════════════════════════
-    //  TOUR — VẼ LỘ TRÌNH TRÊN BẢN ĐỒ
+    //  TOUR — HIỂN THỊ CÁC ĐIỂM DỪNG TRÊN BẢN ĐỒ (không vẽ tuyến đường)
     // ════════════════════════════════════════════════════════════════════════
     public async Task RenderTourOnMap(TourModel tour)
     {
@@ -140,6 +140,15 @@ public partial class MainPage
         try
         {
             _currentTour = tour;
+
+            // Nếu đang phát audio POI không thuộc tour → dừng ngay
+            if (_currentlyPlayingGeofencePoi != null &&
+                !tour.Pois.Any(tp => tp.PoiId == _currentlyPlayingGeofencePoi.Id))
+            {
+                StopAudio();
+                _currentlyPlayingGeofencePoi = null;
+            }
+
             await Task.Delay(300);
             var mapView = MapViewCtrl;
             if (mapView?.Map == null) return;
@@ -151,28 +160,20 @@ public partial class MainPage
             int total = orderedPois.Count;
             var tourStart = _currentUserLocation;
 
-            // ── Gọi OSRM lấy đường đi thực tế (ngoài MainThread) ────────
-            // OSRM public demo — miễn phí, không cần API key, dùng dữ liệu OSM
-            List<Coordinate>? roadCoords = null;
-            if (total >= 1)
-            {
-                SetStatus("🗺️ Đang tính lộ trình...", priority: 2, force: true);
-                roadCoords = await GetRoadRouteAsync(orderedPois, tourStart);
-            }
-
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 mapView.Pins.Clear();
-
-                // Xóa Geofences + TourRoute layer cũ
-                ClearMapLayers("Geofences", "TourRoute");
+                var tourPoiIds = orderedPois.Select(p => p.PoiId).ToHashSet();
+                var tourPoisOnly = allPois.Where(p => tourPoiIds.Contains(p.Id)).ToList();
+                // Xóa Geofences layer cũ
+                ClearMapLayers("Geofences");
+                mapView.Map.Layers.Insert(1, CreateGeofenceLayer(tourPoisOnly));
 
                 double minX = double.MaxValue, minY = double.MaxValue,
                        maxX = double.MinValue, maxY = double.MinValue;
                 bool hasPoints = false;
 
                 var tourStartSmc = SphericalMercator.FromLonLat(tourStart.Longitude, tourStart.Latitude);
-                var tourStartCoord = new Coordinate(tourStartSmc.x, tourStartSmc.y);
                 minX = Math.Min(minX, tourStartSmc.x); minY = Math.Min(minY, tourStartSmc.y);
                 maxX = Math.Max(maxX, tourStartSmc.x); maxY = Math.Max(maxY, tourStartSmc.y);
                 hasPoints = true;
@@ -202,46 +203,6 @@ public partial class MainPage
                     });
                 }
 
-                // ── Vẽ lộ trình theo đường đi thực tế ────────────────────
-                if (total >= 1)
-                {
-                    // Nếu OSRM trả về → dùng đường thực; nếu lỗi → fallback đường thẳng
-                    var coords = roadCoords ?? new[] { tourStartCoord }
-                        .Concat(orderedPois.Select(p =>
-                        {
-                            var smc = SphericalMercator.FromLonLat(p.Longitude, p.Latitude);
-                            return new Coordinate(smc.x, smc.y);
-                        }))
-                        .ToList();
-
-                    bool isRealRoute = roadCoords != null;
-
-                    var lineString = new NetTopologySuite.Geometries.LineString(coords.ToArray());
-                    var routeFeature = new GeometryFeature(lineString);
-                    routeFeature.Styles.Add(new VectorStyle
-                    {
-                        Line = new Mapsui.Styles.Pen
-                        {
-                            // Đường thực: xanh dương đậm, nét liền
-                            // Fallback (thẳng): cam đậm, nét đứt
-                            Color = isRealRoute
-                                         ? new Mapsui.Styles.Color(25, 118, 210, 220)   // Blue 700
-                                         : new Mapsui.Styles.Color(255, 152, 0, 200), // Orange
-                            Width = isRealRoute ? 4 : 3,
-                            PenStyle = isRealRoute ? PenStyle.Solid : PenStyle.Dash
-                        },
-                        Fill = null
-                    });
-
-                    var routeLayer = new MemoryLayer
-                    {
-                        Name = "TourRoute",
-                        Features = new List<IFeature> { routeFeature },
-                        Style = null
-                    };
-                    mapView.Map.Layers.Insert(1, routeLayer);
-                }
-
                 // ── Zoom vừa khung tất cả POI ─────────────────────────────
                 if (hasPoints)
                 {
@@ -264,92 +225,7 @@ public partial class MainPage
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Lỗi RenderTour: {ex.Message}"); }
         finally { _mapLock.Release(); }
     }
-    // ════════════════════════════════════════════════════════════════════════
-    //  OSRM ROUTING — lấy đường đi thực tế qua các POI
-    // ════════════════════════════════════════════════════════════════════════
-    /// <summary>
-    /// Gọi OSRM public API để lấy tuyến đường thực tế qua tất cả các POI.
-    /// OSRM dùng dữ liệu OpenStreetMap — miễn phí, không cần API key.
-    /// Trả về null nếu network lỗi (caller sẽ fallback về đường thẳng).
-    /// </summary>
-    private async Task<List<Coordinate>?> GetRoadRouteAsync(List<TourDetailModel> orderedPois, MauiLocation.Location? userStart = null)
-    {
-        try
-        {
-            // Ghép tọa độ: lon,lat;lon,lat;... (OSRM dùng lon trước lat)
-            // BẮT BUỘC dùng InvariantCulture — tránh dấu phẩy thập phân theo locale device
-            // vd: locale vi-VN sẽ format 21,016492 thay vì 21.016492 → OSRM trả 400
-            var ic = System.Globalization.CultureInfo.InvariantCulture;
-            var waypoints = new List<string>();
 
-            if (userStart != null)
-            {
-                waypoints.Add($"{userStart.Longitude.ToString("F6", ic)},{userStart.Latitude.ToString("F6", ic)}");
-            }
-
-            waypoints.AddRange(orderedPois.Select(p =>
-                $"{p.Longitude.ToString("F6", ic)},{p.Latitude.ToString("F6", ic)}"));
-
-            var coords = string.Join(";", waypoints);
-
-            // OSRM public demo server — driving profile, full geometry dạng polyline6
-            var url = $"https://router.project-osrm.org/route/v1/driving/{coords}" +
-                      "?overview=full&geometries=polyline6&continue_straight=false";
-
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            client.DefaultRequestHeaders.Add("User-Agent", "SmartTourGuide/1.0");
-
-            var response = await client.GetStringAsync(url);
-            var json = System.Text.Json.JsonDocument.Parse(response);
-            var root = json.RootElement;
-
-            // Kiểm tra OSRM trả về OK
-            if (root.GetProperty("code").GetString() != "Ok") return null;
-
-            // Lấy encoded polyline của toàn bộ tuyến
-            var encodedPolyline = root
-                .GetProperty("routes")[0]
-                .GetProperty("geometry")
-                .GetString();
-
-            if (string.IsNullOrEmpty(encodedPolyline)) return null;
-
-            // Giải mã Polyline6 → danh sách tọa độ GPS
-            var gpsPoints = DecodePolyline6(encodedPolyline);
-
-            // Chuyển GPS → tọa độ bản đồ Mapsui (SphericalMercator)
-            return gpsPoints.Select(pt =>
-            {
-                var smc = SphericalMercator.FromLonLat(pt.lon, pt.lat);
-                return new Coordinate(smc.x, smc.y);
-            }).ToList();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[OSRM] Lỗi routing: {ex.Message}");
-            return null; // Fallback về đường thẳng
-        }
-    }
-
-    /// <summary>
-    /// Giải mã Google Encoded Polyline6 (precision=6) thành list (lat, lon).
-    /// OSRM dùng precision 6 thay vì 5 như Google Maps.
-    /// </summary>
-    private static List<(double lat, double lon)> DecodePolyline6(string encoded)
-    {
-        var result = new List<(double, double)>();
-        int index = 0;
-        int lat = 0;
-        int lon = 0;
-
-        while (index < encoded.Length)
-        {
-            lat += DecodePolylineChunk(encoded, ref index);
-            lon += DecodePolylineChunk(encoded, ref index);
-            result.Add((lat / 1e6, lon / 1e6));
-        }
-        return result;
-    }
     // ShowTourInfoPanel, OnCloseTourPanelClicked
     /// <summary>Hiện panel tóm tắt lộ trình ở góc dưới bản đồ.</summary>
     private void ShowTourInfoPanel(TourModel tour, List<TourDetailModel> orderedPois)
@@ -420,9 +296,8 @@ public partial class MainPage
         var tourInfoPanel = TourInfoPanelCtrl;
         if (tourInfoPanel != null) tourInfoPanel.IsVisible = false;
 
-        // ✅ FIX: reset tour state và load lại POI bình thường
+        // reset tour state và load lại POI bình thường
         _currentTour = null;
-        ClearMapLayers("TourRoute");
         await LoadPoisWithOfflineFallbackAsync();
     }
     // OnMapClicked_SimulateWalk
@@ -436,7 +311,7 @@ public partial class MainPage
 
         _currentUserLocation = new MauiLocation.Location(e.Point.Latitude, e.Point.Longitude);
         _isManualLocationOverride = true;
-         // Gửi vị trí lên server để lưu tuyến di chuyển ẩn danh
+        // Gửi vị trí lên server để lưu tuyến di chuyển ẩn danh
         // Dùng cho heatmap và analytics
         _ = _apiService.SendLocationAsync(
             e.Point.Latitude,

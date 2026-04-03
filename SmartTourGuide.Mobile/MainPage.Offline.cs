@@ -202,20 +202,20 @@ public partial class MainPage
         MainThread.BeginInvokeOnMainThread(() =>
         {
             mapView.Pins.Clear();
-            
-            // Chỉ xóa TourRoute nếu không có tour đang hiển thị
-            // Nếu tour đang active, giữ route layer để user xem lâu hơn
-            if (_currentTour == null)
+            List<PoiModel> poisToRender;
+            if (_currentTour != null)
             {
-                ClearMapLayers("Geofences", "TourRoute");
+                var tourPoiIds = _currentTour.Pois.Select(p => p.PoiId).ToHashSet();
+                poisToRender = pois.Where(p => tourPoiIds.Contains(p.Id)).ToList();
             }
             else
             {
-                ClearMapLayers("Geofences"); // Chỉ xóa Geofences, giữ TourRoute
+                poisToRender = pois;
             }
-            mapView.Map.Layers.Insert(1, CreateGeofenceLayer(pois));
+            ClearMapLayers("Geofences");
+            mapView.Map.Layers.Insert(1, CreateGeofenceLayer(poisToRender));
 
-            foreach (var poi in pois)
+            foreach (var poi in poisToRender)
             {
                 mapView.Pins.Add(new Mapsui.UI.Maui.Pin(mapView)
                 {
