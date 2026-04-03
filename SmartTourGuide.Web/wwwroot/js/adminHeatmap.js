@@ -1,15 +1,22 @@
-window.ownerHeatmap = (() => {
+window.adminHeatmap = (() => {
     let map = null;
     let heatLayer = null;
-    let poiMarkers = [];
     let heatmapMarkers = [];
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+    }
 
     function init(containerId, centerLat, centerLng, zoom) {
         if (map) {
             map.remove();
             map = null;
             heatLayer = null;
-            poiMarkers = [];
             heatmapMarkers = [];
         }
 
@@ -56,7 +63,7 @@ window.ownerHeatmap = (() => {
         }).addTo(map);
     }
 
-    function renderHeatmapMarkers(points) {
+    function renderHeatmapFlags(points) {
         if (!map) return;
 
         heatmapMarkers.forEach(marker => map.removeLayer(marker));
@@ -67,56 +74,23 @@ window.ownerHeatmap = (() => {
         points.forEach(point => {
             const hitCount = point.hitCount ?? 0;
             const marker = L.circleMarker([point.latitude, point.longitude], {
-                radius: 8,
+                radius: 11,
                 fillColor: '#e53935',
                 color: '#ffffff',
-                weight: 2,
+                weight: 3,
                 opacity: 1,
                 fillOpacity: 0.95
             });
 
+            const pointName = escapeHtml(point.name || 'POI');
             marker.bindTooltip(
-                `<b style="font-size:13px;color:#e53935">Điểm nóng</b><br/>Lượt ghé: ${hitCount}`,
-                { permanent: false, direction: 'top', offset: [0, -8] }
+                `<b style="font-size:13px;color:#e53935">${pointName}</b><br/>Lượt ghé: ${hitCount}`,
+                { permanent: false, direction: 'top', offset: [0, -12] }
             );
 
             marker.addTo(map);
             heatmapMarkers.push(marker);
         });
-    }
-
-    function renderPoiMarkers(pois) {
-        if (!map) return;
-
-        poiMarkers.forEach(m => map.removeLayer(m));
-        poiMarkers = [];
-
-        if (!pois || pois.length === 0) return;
-
-        pois.forEach(poi => {
-            const marker = L.circleMarker([poi.latitude, poi.longitude], {
-                radius: 10,
-                fillColor: '#e53935',
-                color: '#ffffff',
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 0.9
-            });
-
-            marker.bindTooltip(
-                `<b style="font-size:13px">${poi.name}</b>`,
-                { permanent: false, direction: 'top', offset: [0, -8] }
-            );
-
-            marker.addTo(map);
-            poiMarkers.push(marker);
-        });
-    }
-
-    function fitToPois(pois) {
-        if (!map || !pois || pois.length === 0) return;
-        const bounds = pois.map(p => [p.latitude, p.longitude]);
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
     }
 
     function invalidate() {
@@ -125,5 +99,5 @@ window.ownerHeatmap = (() => {
         }
     }
 
-    return { init, renderHeatmap, renderHeatmapMarkers, renderPoiMarkers, fitToPois, invalidate };
+    return { init, renderHeatmap, renderHeatmapFlags, invalidate };
 })();

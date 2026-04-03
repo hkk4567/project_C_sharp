@@ -457,6 +457,7 @@ public class AnalyticsController : ControllerBase
             })
             .Select(g => new OwnerHeatmapPointDto
             {
+                Name = g.Key.Name,
                 Latitude = g.Key.Latitude,
                 Longitude = g.Key.Longitude,
                 HitCount = g.Count()

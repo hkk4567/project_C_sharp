@@ -1,21 +1,28 @@
 @page "/admin/poi-analytics"
+@using SmartTourGuide.Shared.DTOs
+@using SmartTourGuide.Shared.Enums
 @layout AdminLayout
 @attribute [Authorize(Roles = "Admin")]
+@inject HttpClient Http
 @inject SmartTourGuide.Web.Services.AnalyticsApiService AnalyticsApi
+@inject SmartTourGuide.Web.Services.OwnerAnalyticsApiService OwnerAnalyticsApi
+@inject IJSRuntime JS
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
         <MudText Typo="Typo.h5" Style="font-weight: 800; color: #333;">THỐNG KÊ TOP POI ĐƯỢC NGHE NHIỀU</MudText>
 
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            <MudSelect T="int" Label="Top" Value="_top" ValueChanged="OnTopChanged" Dense="true" Variant="Variant.Outlined" Style="min-width: 120px;">
+            <MudSelect T="int" Label="Top" Value="_top" ValueChanged="OnTopChanged" Dense="true"
+                       Variant="Variant.Outlined" Style="min-width: 120px;">
                 <MudSelectItem Value="5">Top 5</MudSelectItem>
                 <MudSelectItem Value="10">Top 10</MudSelectItem>
                 <MudSelectItem Value="20">Top 20</MudSelectItem>
                 <MudSelectItem Value="50">Top 50</MudSelectItem>
             </MudSelect>
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadDataAsync" Disabled="_loading">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="ReloadAllAsync" Disabled="_loading || _heatmapLoading">
                 Làm mới
             </MudButton>
         </MudStack>
@@ -51,7 +58,9 @@
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd>
-                                <MudChip T="string" Color="@(context.ListenCount == _maxListenCount ? Color.Warning : Color.Default)" Variant="Variant.Outlined" Size="Size.Small">
+                                <MudChip T="string"
+                                         Color="@(context.ListenCount == _maxListenCount ? Color.Warning : Color.Default)"
+                                         Variant="Variant.Outlined" Size="Size.Small">
                                     #@(_items.IndexOf(context) + 1)
                                 </MudChip>
                             </MudTd>
@@ -67,25 +76,88 @@
                 <MudPaper Elevation="2" Class="pa-4" Style="border-radius: 14px; height: 100%;">
                     <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight: 700; color: #333;">Biểu đồ lượt nghe</MudText>
 
-                    <MudChart ChartType="ChartType.Bar" ChartSeries="_series" XAxisLabels="_xLabels" Width="100%" Height="360px"></MudChart>
+                    <MudChart ChartType="ChartType.Bar" ChartSeries="_series" XAxisLabels="_xLabels" Width="100%"
+                              Height="360px"></MudChart>
                 </MudPaper>
             </MudItem>
         </MudGrid>
+
+        <MudPaper Elevation="2" Class="pa-4 mt-4" Style="border-radius: 14px;">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-3">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.h6" Style="font-weight: 700; color: #333;">Heatmap theo chủ gian hàng</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                        Xem mật độ ghé thăm theo từng owner hoặc gộp toàn bộ owner đang quản lý.
+                    </MudText>
+                </MudStack>
+
+                <MudSelect T="int" Label="Chủ gian hàng" Value="_selectedOwnerId" ValueChanged="OnSelectedOwnerChanged"
+                           Dense="true" Variant="Variant.Outlined" Style="min-width: 280px;">
+                    <MudSelectItem Value="0">Tất cả chủ gian hàng</MudSelectItem>
+                    @foreach (var owner in _owners)
+                    {
+                        <MudSelectItem Value="owner.Id">@owner.FullName (@owner.Username)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudStack>
+
+            @if (_heatmapLoading)
+            {
+                <MudPaper Elevation="0" Class="pa-6 d-flex justify-center">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                </MudPaper>
+            }
+            else if (!string.IsNullOrWhiteSpace(_heatmapError))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@_heatmapError</MudAlert>
+            }
+            else if (_owners.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Filled">Chưa có tài khoản chủ gian hàng để hiển thị heatmap.
+                </MudAlert>
+            }
+            else if (_heatmap.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Filled">Chưa có dữ liệu heatmap cho lựa chọn hiện tại.
+                </MudAlert>
+            }
+            else
+            {
+                <div id="admin-poi-heatmap-container"
+                     style="height: 420px; width: 100%; border-radius: 12px; overflow: hidden; z-index: 0;">
+                </div>
+            }
+        </MudPaper>
     }
 </MudContainer>
 
 @code {
     private bool _loading = true;
+    private bool _heatmapLoading = true;
+    private bool _heatmapDrawn = false;
     private string _error = string.Empty;
+    private string _heatmapError = string.Empty;
     private int _top = 10;
     private int _maxListenCount;
     private List<SmartTourGuide.Shared.DTOs.TopPoiDto> _items = new();
     private List<ChartSeries> _series = new();
     private string[] _xLabels = Array.Empty<string>();
+    private int _selectedOwnerId = 0;
+    private List<UserDto> _owners = new();
+    private List<OwnerHeatmapPointDto> _heatmap = new();
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadDataAsync();
+        await ReloadAllAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_heatmapLoading && _heatmap.Count > 0 && !_heatmapDrawn)
+        {
+            _heatmapDrawn = true;
+            await DrawHeatmapAsync();
+        }
     }
 
     private async Task OnTopChanged(int value)
@@ -125,5 +197,102 @@
         {
             _loading = false;
         }
+    }
+
+    private async Task ReloadAllAsync()
+    {
+        await LoadDataAsync();
+        var ownersLoaded = await LoadOwnersAsync();
+        if (!ownersLoaded)
+        {
+            return;
+        }
+        await LoadHeatmapAsync();
+    }
+
+    private async Task<bool> LoadOwnersAsync()
+    {
+        try
+        {
+            var users = await Http.GetFromJsonAsync<List<UserDto>>("api/users") ?? new();
+            _owners = users
+                .Where(x => x.Role == UserRole.BoothOwner)
+                .OrderBy(x => x.FullName)
+                .ThenBy(x => x.Username)
+                .ToList();
+
+            if (_owners.Count > 0 && !_owners.Any(x => x.Id == _selectedOwnerId))
+            {
+                _selectedOwnerId = 0;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _owners.Clear();
+            _heatmapError = $"Không tải được danh sách chủ gian hàng: {ex.Message}";
+            _heatmapLoading = false;
+            return false;
+        }
+    }
+
+    private async Task OnSelectedOwnerChanged(int value)
+    {
+        _selectedOwnerId = value;
+        await LoadHeatmapAsync();
+    }
+
+    private async Task LoadHeatmapAsync()
+    {
+        _heatmapLoading = true;
+        _heatmapDrawn = false;
+        _heatmapError = string.Empty;
+
+        try
+        {
+            if (_owners.Count == 0)
+            {
+                _heatmap.Clear();
+                return;
+            }
+
+            if (_selectedOwnerId == 0)
+            {
+                var tasks = _owners.Select(owner => OwnerAnalyticsApi.GetHeatmapAsync(owner.Id, hours: 24, maxPoints: 200)).ToArray();
+                var results = await Task.WhenAll(tasks);
+                _heatmap = results.SelectMany(points => points).ToList();
+            }
+            else
+            {
+                _heatmap = await OwnerAnalyticsApi.GetHeatmapAsync(_selectedOwnerId, hours: 24, maxPoints: 200);
+            }
+        }
+        catch (Exception ex)
+        {
+            _heatmapError = $"Không tải được dữ liệu heatmap: {ex.Message}";
+            _heatmap.Clear();
+        }
+        finally
+        {
+            _heatmapLoading = false;
+        }
+    }
+
+    private async Task DrawHeatmapAsync()
+    {
+        var centerLat = _heatmap.Average(p => p.Latitude);
+        var centerLng = _heatmap.Average(p => p.Longitude);
+
+        await JS.InvokeVoidAsync(
+            "adminHeatmap.init",
+            "admin-poi-heatmap-container",
+            centerLat,
+            centerLng,
+            17);
+
+        await JS.InvokeVoidAsync("adminHeatmap.renderHeatmap", _heatmap);
+        await JS.InvokeVoidAsync("adminHeatmap.renderHeatmapFlags", _heatmap);
+        await JS.InvokeVoidAsync("adminHeatmap.invalidate");
     }
 }
