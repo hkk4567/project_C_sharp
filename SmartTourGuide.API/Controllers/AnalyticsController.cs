@@ -435,73 +435,35 @@ public class AnalyticsController : ControllerBase
 
         var safeHours = Math.Clamp(hours, 1, 720);
         var safeMaxPoints = Math.Clamp(maxPoints, 5, 500);
-        var safeBuffer = Math.Clamp(areaBufferMeters, 0, 500);
-        var safeCell = Math.Clamp(cellSizeMeters, 20, 500);
-
-        var ownerAreas = await _context.Pois
-            .Where(p => p.OwnerId == ownerId)
-            .Select(p => new OwnerPoiArea
-            {
-                Latitude = p.Latitude,
-                Longitude = p.Longitude,
-                RadiusMeters = p.GeofenceSetting != null && p.GeofenceSetting.TriggerRadiusInMeters > 0
-                    ? p.GeofenceSetting.TriggerRadiusInMeters
-                    : 50
-            })
-            .ToListAsync();
-
-        if (ownerAreas.Count == 0) return Ok(new List<OwnerHeatmapPointDto>());
-
-        var minLat = double.MaxValue;
-        var maxLat = double.MinValue;
-        var minLon = double.MaxValue;
-        var maxLon = double.MinValue;
-
-        foreach (var area in ownerAreas)
-        {
-            var latDelta = GetLatDelta(area.RadiusMeters + safeBuffer);
-            var lonDelta = GetLonDelta(area.RadiusMeters + safeBuffer, area.Latitude);
-
-            minLat = Math.Min(minLat, area.Latitude - latDelta);
-            maxLat = Math.Max(maxLat, area.Latitude + latDelta);
-            minLon = Math.Min(minLon, area.Longitude - lonDelta);
-            maxLon = Math.Max(maxLon, area.Longitude + lonDelta);
-        }
-
         var since = DateTime.UtcNow.AddHours(-safeHours);
-        var rawPoints = await _context.UserLocationLogs
-            .Where(x => x.Timestamp >= since
-                        && x.Latitude >= minLat && x.Latitude <= maxLat
-                        && x.Longitude >= minLon && x.Longitude <= maxLon)
-            .OrderByDescending(x => x.Timestamp)
-            .Take(30000)
-            .ToListAsync();
-
-        var filtered = rawPoints
-            .Where(x => IsInAnyOwnerArea(x, ownerAreas, safeBuffer))
-            .ToList();
-
-        if (filtered.Count == 0) return Ok(new List<OwnerHeatmapPointDto>());
-
-        var avgLat = ownerAreas.Average(x => x.Latitude);
-        var latStep = GetLatDelta(safeCell);
-        var lonStep = GetLonDelta(safeCell, avgLat);
-
-        var hotspots = filtered
-            .GroupBy(p => new
+        var hotspots = await _context.PoiListenLogs
+            .Where(l => l.Timestamp >= since)
+            .Join(_context.Pois.Where(p => p.OwnerId == ownerId),
+                log => log.PoiId,
+                poi => poi.Id,
+                (log, poi) => new
+                {
+                    poi.Id,
+                    poi.Name,
+                    poi.Latitude,
+                    poi.Longitude
+                })
+            .GroupBy(x => new
             {
-                LatBucket = (int)Math.Round(p.Latitude / latStep),
-                LonBucket = (int)Math.Round(p.Longitude / lonStep)
+                x.Id,
+                x.Name,
+                x.Latitude,
+                x.Longitude
             })
             .Select(g => new OwnerHeatmapPointDto
             {
-                Latitude = g.Key.LatBucket * latStep,
-                Longitude = g.Key.LonBucket * lonStep,
+                Latitude = g.Key.Latitude,
+                Longitude = g.Key.Longitude,
                 HitCount = g.Count()
             })
             .OrderByDescending(x => x.HitCount)
             .Take(safeMaxPoints)
-            .ToList();
+            .ToListAsync();
 
         return Ok(hotspots);
     }
