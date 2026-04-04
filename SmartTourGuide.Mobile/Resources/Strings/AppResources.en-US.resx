@@ -207,4 +207,109 @@
   <data name="ToursPageTitle" xml:space="preserve">
     <value>Tour List</value>
   </data>
+  <data name="AlertNotice" xml:space="preserve">
+    <value>Notice</value>
+  </data>
+  <data name="AudioPlayError" xml:space="preserve">
+    <value>Unable to play audio: {0}</value>
+  </data>
+  <data name="BtnListenAudioCount" xml:space="preserve">
+    <value>🔊 Listen Audio ({0}/{1})</value>
+  </data>
+  <data name="BtnListenRecording" xml:space="preserve">
+    <value>🔊 Listen to Recording</value>
+  </data>
+  <data name="BtnReadTtsAgain" xml:space="preserve">
+    <value>🗣️ Read Again</value>
+  </data>
+  <data name="BtnRelisten" xml:space="preserve">
+    <value>🔊 Listen Again</value>
+  </data>
+  <data name="BtnStopWithCount" xml:space="preserve">
+    <value>⏹️ Stop  ({0}/{1})</value>
+  </data>
+  <data name="BtnStopWithCountCompact" xml:space="preserve">
+    <value>⏹️ Stop ({0}/{1})</value>
+  </data>
+  <data name="MsgTourBusy" xml:space="preserve">
+    <value>The system is processing another tour, please wait!</value>
+  </data>
+  <data name="PrefixOffline" xml:space="preserve">
+    <value>📴 Offline · </value>
+  </data>
+  <data name="PrefixServerError" xml:space="preserve">
+    <value>⚠️ Server error · </value>
+  </data>
+  <data name="StatusBannerNoNetwork" xml:space="preserve">
+    <value>📴 No network — No offline data available</value>
+  </data>
+  <data name="StatusBannerOffline" xml:space="preserve">
+    <value>📴 Offline · Data: {0}</value>
+  </data>
+  <data name="StatusBannerUnknownSync" xml:space="preserve">
+    <value>unknown</value>
+  </data>
+  <data name="StatusGeofenceDoneWait" xml:space="preserve">
+    <value>✅ Done {0}. Wait {1}s</value>
+  </data>
+  <data name="StatusGeofenceLeft" xml:space="preserve">
+    <value>👋 Left the playback zone</value>
+  </data>
+  <data name="StatusNearestPoi" xml:space="preserve">
+    <value>📍 Nearest: {0} · {1}</value>
+  </data>
+  <data name="StatusNeverSynced" xml:space="preserve">
+    <value>Never synced</value>
+  </data>
+  <data name="StatusNoNetworkNoData" xml:space="preserve">
+    <value>❌ No network and no offline data available</value>
+  </data>
+  <data name="StatusOfflineWithCount" xml:space="preserve">
+    <value>{0}{1} · {2} locations</value>
+  </data>
+  <data name="StatusPlayDone" xml:space="preserve">
+    <value>✅ {0}  ·  Played {1} audio files</value>
+  </data>
+  <data name="StatusPlayingTrack" xml:space="preserve">
+    <value>🎵 {0}  ·  {1}/{2}</value>
+  </data>
+  <data name="StatusPlayingTrackCompact" xml:space="preserve">
+    <value>🎵 {0} ({1}/{2})</value>
+  </data>
+  <data name="StatusSyncDone" xml:space="preserve">
+    <value>✅ Sync done · {0} locations</value>
+  </data>
+  <data name="StatusSyncedAt" xml:space="preserve">
+    <value>Synced: {0}</value>
+  </data>
+  <data name="StatusSyncFailed" xml:space="preserve">
+    <value>⚠️ Sync failed</value>
+  </data>
+  <data name="StatusSyncing" xml:space="preserve">
+    <value>🔄 Syncing...</value>
+  </data>
+  <data name="StatusWaitReplay" xml:space="preserve">
+    <value>⏳ {0} · Waiting to replay: {1}s</value>
+  </data>
+  <data name="StopCountFormat" xml:space="preserve">
+    <value>Stop {0}/{1}</value>
+  </data>
+  <data name="BtnViewItinerary" xml:space="preserve">
+    <value>View Itinerary ›</value>
+  </data>
+  <data name="ItineraryTitle" xml:space="preserve">
+    <value>🗺️ Itinerary</value>
+  </data>
+  <data name="BtnShowOnMap" xml:space="preserve">
+    <value>📍 View on Map</value>
+  </data>
+  <data name="MsgNoStops" xml:space="preserve">
+    <value>This tour has no stops yet.</value>
+  </data>
+  <data name="BadgeStart" xml:space="preserve">
+    <value>🚩 Start</value>
+  </data>
+  <data name="BadgeEnd" xml:space="preserve">
+    <value>🏁 End</value>
+  </data>
 </root>

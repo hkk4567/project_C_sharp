@@ -60,7 +60,7 @@ public partial class MainPage
     /// </summary>
     private async Task LoadPoisWithOfflineFallbackAsync()
     {
-        SetStatus(SmartTourGuide.Mobile.Resources.Strings.AppResources.StatusLoading, priority: 2, force: true);
+        SetStatus(AppRes.StatusLoading, priority: 2, force: true);
 
         try
         {
@@ -104,7 +104,7 @@ public partial class MainPage
             RenderPoisOnMap(pois);
 
             SetStatus(
-                string.Format(SmartTourGuide.Mobile.Resources.Strings.AppResources.StatusLoaded, pois.Count),
+                string.Format(AppRes.StatusLoaded, pois.Count),
                 priority: 2, autoRevertMs: 3000, force: true);
 
             // Pre-cache ảnh + audio ngầm (không chờ)
@@ -135,8 +135,7 @@ public partial class MainPage
             // Chưa có cache lần nào
             _isOffline = true;
             UpdateOfflineBanner(isOffline: true, hasNoData: true);
-            SetStatus("❌ Không có mạng và chưa có dữ liệu offline",
-                      priority: 4, force: true);
+            SetStatus(AppRes.StatusNoNetworkNoData, priority: 4, force: true);
             return;
         }
 
@@ -149,11 +148,11 @@ public partial class MainPage
         // Thông báo nhẹ
         var lastSync = await _localDb.GetLastSyncTimeAsync();
         string syncText = lastSync.HasValue
-            ? $"Đồng bộ: {lastSync.Value:dd/MM HH:mm}"
-            : "Chưa đồng bộ";
+            ? string.Format(AppRes.StatusSyncedAt, lastSync.Value.ToString("dd/MM HH:mm"))
+            : AppRes.StatusNeverSynced;
 
-        string prefix = apiError ? "⚠️ Server lỗi · " : "📴 Offline · ";
-        SetStatus($"{prefix}{syncText} · {pois.Count} địa điểm",
+        string prefix = apiError ? AppRes.PrefixServerError : AppRes.PrefixOffline;
+        SetStatus(string.Format(AppRes.StatusOfflineWithCount, prefix, syncText, pois.Count),
                   priority: 2, autoRevertMs: 5000, force: true);
     }
 
@@ -169,7 +168,7 @@ public partial class MainPage
 
         try
         {
-            SetStatus("🔄 Đang đồng bộ...", priority: 2, force: true);
+            SetStatus(AppRes.StatusSyncing, priority: 2, force: true);
 
             var pois = await _apiService.GetPoisAsync(_currentLanguageCode);
             await _localDb.SavePoisAsync(pois);
@@ -177,7 +176,7 @@ public partial class MainPage
 
             RenderPoisOnMap(pois);
 
-            SetStatus($"✅ Đồng bộ xong · {pois.Count} địa điểm",
+            SetStatus(string.Format(AppRes.StatusSyncDone, pois.Count),
                       priority: 2, autoRevertMs: 3000, force: true);
 
             // Cache ảnh + audio mới ngầm
@@ -186,7 +185,7 @@ public partial class MainPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[Sync] Lỗi: {ex.Message}");
-            SetStatus("⚠️ Đồng bộ thất bại", priority: 2, autoRevertMs: 3000);
+            SetStatus(AppRes.StatusSyncFailed, priority: 2, autoRevertMs: 3000);
         }
     }
 
@@ -313,7 +312,7 @@ public partial class MainPage
 
                 if (hasNoData)
                 {
-                    OfflineBannerLabel.Text = "📴 Không có mạng — Chưa có dữ liệu offline";
+                    OfflineBannerLabel.Text = AppRes.StatusBannerNoNetwork;
                     OfflineBanner.BackgroundColor = MauiColor.FromArgb("#B71C1C");
                 }
                 else
@@ -321,9 +320,9 @@ public partial class MainPage
                     var lastSync = await _localDb.GetLastSyncTimeAsync();
                     string syncText = lastSync.HasValue
                         ? lastSync.Value.ToString("dd/MM HH:mm")
-                        : "chưa rõ";
+                        : AppRes.StatusBannerUnknownSync;
 
-                    OfflineBannerLabel.Text = $"📴 Đang offline · Dữ liệu: {syncText}";
+                    OfflineBannerLabel.Text = string.Format(AppRes.StatusBannerOffline, syncText);
                     OfflineBanner.BackgroundColor = MauiColor.FromArgb("#E65100");
                 }
 

@@ -15,7 +15,7 @@ public partial class MainPage
     // LoadPoisOnMap, CreateGeofenceLayer, ShowPoiDetail
     private async Task LoadPoisOnMap()
     {
-        SetStatus(SmartTourGuide.Mobile.Resources.Strings.AppResources.StatusLoading, priority: 2, force: true);
+        SetStatus(AppRes.StatusLoading, priority: 2, force: true);
         try
         {
             var pois = await _apiService.GetPoisAsync(_currentLanguageCode);
@@ -43,14 +43,12 @@ public partial class MainPage
                 });
             }
 
-            SetStatus(string.Format(
-                SmartTourGuide.Mobile.Resources.Strings.AppResources.StatusLoaded, pois.Count),
+            SetStatus(string.Format(AppRes.StatusLoaded, pois.Count),
                 priority: 2, autoRevertMs: 3000, force: true);
         }
         catch (Exception ex)
         {
-            SetStatus(string.Format(
-                SmartTourGuide.Mobile.Resources.Strings.AppResources.StatusError, ex.Message),
+            SetStatus(string.Format(AppRes.StatusError, ex.Message),
                 priority: 4, force: true, autoRevertMs: 4000);
         }
     }
@@ -97,7 +95,9 @@ public partial class MainPage
         if (lblPoiName != null) lblPoiName.Text = poi.Name;
         if (lblAddress != null) lblAddress.Text = poi.Address;
         if (lblDescription != null)
-            lblDescription.Text = string.IsNullOrEmpty(poi.Description) ? "Chưa có mô tả." : poi.Description;
+            lblDescription.Text = string.IsNullOrEmpty(poi.Description)
+                ? AppRes.NoDescription
+                : poi.Description;
 
         _ = LoadPoiImageAsync(poi);
 
@@ -111,14 +111,14 @@ public partial class MainPage
             if (btnPlayAudio != null)
             {
                 btnPlayAudio.Text = total > 1
-                    ? $"🔊 Nghe audio ({next}/{total})"
-                    : "🔊 Nghe File Ghi Âm";
+                    ? string.Format(AppRes.BtnListenAudioCount, next, total)
+                    : AppRes.BtnListenRecording;
             }
         }
         else
         {
             if (btnPlayAudio != null)
-                btnPlayAudio.Text = "🗣️ Đọc Tự Động (TTS)";
+                btnPlayAudio.Text = AppRes.BtnReadTts;
         }
 
         MainThread.BeginInvokeOnMainThread(() =>
@@ -134,7 +134,7 @@ public partial class MainPage
     {
         if (!await _mapLock.WaitAsync(500))
         {
-            await DisplayAlertAsync("Thông báo", "Hệ thống đang xử lý tour trước, vui lòng đợi chút!", "OK");
+            await DisplayAlertAsync(AppRes.AlertNotice, AppRes.MsgTourBusy, AppRes.OkButton);
             return;
         }
         try
@@ -196,7 +196,7 @@ public partial class MainPage
                     {
                         Position = new Mapsui.UI.Maui.Position(poi.Latitude, poi.Longitude),
                         Label = $"{idx + 1}. {poi.PoiName}",
-                        Address = $"Điểm dừng {idx + 1}/{total}",
+                        Address = string.Format(AppRes.StopCountFormat, idx + 1, total),
                         Color = pinColor,
                         Scale = idx == 0 || idx == total - 1 ? 0.70f : 0.55f,
                         Tag = allPois.FirstOrDefault(p => p.Id == poi.PoiId)
@@ -344,14 +344,16 @@ public partial class MainPage
         if (lblPoiName != null) lblPoiName.Text = poi.Name;
         if (lblAddress != null) lblAddress.Text = poi.Address;
         if (lblDescription != null)
-            lblDescription.Text = string.IsNullOrEmpty(poi.Description) ? "Chưa có mô tả." : poi.Description;
+            lblDescription.Text = string.IsNullOrEmpty(poi.Description)
+                ? AppRes.NoDescription
+                : poi.Description;
 
         _ = LoadPoiImageAsync(poi);
 
         // Cập nhật text nút bấm mà không dừng audio hiện tại
         if (btnPlayAudio != null)
         {
-            btnPlayAudio.Text = "⏹️ Dừng phát";
+            btnPlayAudio.Text = AppRes.BtnStop;
         }
     }
 }

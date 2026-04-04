@@ -50,7 +50,7 @@ public partial class MainPage
                     _currentlyPlayingGeofencePoi = null;
                     _isGeofenceVisitActive = false;
                     _statusPriority = 0;
-                    SetStatus("👋 Đã rời vùng phát", priority: 0, autoRevertMs: 2000);
+                    SetStatus(AppRes.StatusGeofenceLeft, priority: 0, autoRevertMs: 2000);
                 }
                 return;
             }
@@ -92,7 +92,8 @@ public partial class MainPage
 
                     // HIỂN THỊ CD VỚI ƯU TIÊN CAO (Priority 2)
                     // Dùng force: true để đảm bảo nó hiện ra kể cả khi vừa StopAudio
-                    SetStatus($"⏳ {highestPriPoi.Name} · Chờ phát lại: {remaining}s", priority: 2, force: true);
+                    SetStatus(string.Format(AppRes.StatusWaitReplay, highestPriPoi.Name, remaining),
+                              priority: 2, force: true);
                     // Nếu đang CD thì thoát, không phát nhạc POI 2
                     return;
                 }
@@ -139,8 +140,9 @@ public partial class MainPage
 
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    SetStatus($"🎵 {poi.Name} ({displayIdx}/{total})", priority: 3);
-                    if (btnPlayAudio != null) btnPlayAudio.Text = $"⏹️ Dừng ({displayIdx}/{total})";
+                    SetStatus(string.Format(AppRes.StatusPlayingTrackCompact, poi.Name, displayIdx, total), priority: 3);
+                    if (btnPlayAudio != null)
+                        btnPlayAudio.Text = string.Format(AppRes.BtnStopWithCountCompact, displayIdx, total);
                 });
 
                 string rawPath = urls[i].Replace("\\", "/").TrimStart('/');
@@ -176,8 +178,9 @@ public partial class MainPage
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     int cdSeconds = poi.CooldownInSeconds;
-                    SetStatus($"✅ Xong {poi.Name}. Nghỉ {cdSeconds}s", priority: 2, autoRevertMs: 3000);
-                    if (btnPlayAudio != null) btnPlayAudio.Text = "🔊 Nghe lại";
+                    SetStatus(string.Format(AppRes.StatusGeofenceDoneWait, poi.Name, cdSeconds),
+                              priority: 2, autoRevertMs: 3000);
+                    if (btnPlayAudio != null) btnPlayAudio.Text = AppRes.BtnRelisten;
                 });
             }
         }
@@ -223,7 +226,7 @@ public partial class MainPage
             ? $"{minDistanceM / 1000:F1} km"
             : $"{minDistanceM:F0} m";
 
-        SetStatus($"📍 Gần nhất: {nearestPoi.Name} · {distanceText}", priority: 0);
+        SetStatus(string.Format(AppRes.StatusNearestPoi, nearestPoi.Name, distanceText), priority: 0);
 
         if (_nearestHighlightedPoi?.Id != nearestPoi.Id)
         {
@@ -291,6 +294,6 @@ public partial class MainPage
         double dist = MauiLocation.Location.CalculateDistance(
             _currentUserLocation, poiLoc, DistanceUnits.Kilometers) * 1000;
         string distText = dist >= 1000 ? $"{dist / 1000:F1} km" : $"{dist:F0} m";
-        statusLabel.Text = $"📍 Gần nhất: {_nearestHighlightedPoi.Name} · {distText}";
+        statusLabel.Text = string.Format(AppRes.StatusNearestPoi, _nearestHighlightedPoi.Name, distText);
     }
 }
