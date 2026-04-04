@@ -207,4 +207,109 @@
   <data name="ToursPageTitle" xml:space="preserve">
     <value>Tuyến Du Lịch</value>
   </data>
+  <data name="AlertNotice" xml:space="preserve">
+    <value>Thông báo</value>
+  </data>
+  <data name="AudioPlayError" xml:space="preserve">
+    <value>Không thể phát âm thanh: {0}</value>
+  </data>
+  <data name="BtnListenAudioCount" xml:space="preserve">
+    <value>🔊 Nghe audio ({0}/{1})</value>
+  </data>
+  <data name="BtnListenRecording" xml:space="preserve">
+    <value>🔊 Nghe File Ghi Âm</value>
+  </data>
+  <data name="BtnReadTtsAgain" xml:space="preserve">
+    <value>🗣️ Đọc lại</value>
+  </data>
+  <data name="BtnRelisten" xml:space="preserve">
+    <value>🔊 Nghe lại</value>
+  </data>
+  <data name="BtnStopWithCount" xml:space="preserve">
+    <value>⏹️ Dừng  ({0}/{1})</value>
+  </data>
+  <data name="BtnStopWithCountCompact" xml:space="preserve">
+    <value>⏹️ Dừng ({0}/{1})</value>
+  </data>
+  <data name="MsgTourBusy" xml:space="preserve">
+    <value>Hệ thống đang xử lý tour trước, vui lòng đợi chút!</value>
+  </data>
+  <data name="PrefixOffline" xml:space="preserve">
+    <value>📴 Offline · </value>
+  </data>
+  <data name="PrefixServerError" xml:space="preserve">
+    <value>⚠️ Server lỗi · </value>
+  </data>
+  <data name="StatusBannerNoNetwork" xml:space="preserve">
+    <value>📴 Không có mạng — Chưa có dữ liệu offline</value>
+  </data>
+  <data name="StatusBannerOffline" xml:space="preserve">
+    <value>📴 Đang offline · Dữ liệu: {0}</value>
+  </data>
+  <data name="StatusBannerUnknownSync" xml:space="preserve">
+    <value>chưa rõ</value>
+  </data>
+  <data name="StatusGeofenceDoneWait" xml:space="preserve">
+    <value>✅ Xong {0}. Nghỉ {1}s</value>
+  </data>
+  <data name="StatusGeofenceLeft" xml:space="preserve">
+    <value>👋 Đã rời vùng phát</value>
+  </data>
+  <data name="StatusNearestPoi" xml:space="preserve">
+    <value>📍 Gần nhất: {0} · {1}</value>
+  </data>
+  <data name="StatusNeverSynced" xml:space="preserve">
+    <value>Chưa đồng bộ</value>
+  </data>
+  <data name="StatusNoNetworkNoData" xml:space="preserve">
+    <value>❌ Không có mạng và chưa có dữ liệu offline</value>
+  </data>
+  <data name="StatusOfflineWithCount" xml:space="preserve">
+    <value>{0}{1} · {2} địa điểm</value>
+  </data>
+  <data name="StatusPlayDone" xml:space="preserve">
+    <value>✅ {0}  ·  Phát xong {1} audio</value>
+  </data>
+  <data name="StatusPlayingTrack" xml:space="preserve">
+    <value>🎵 {0}  ·  {1}/{2}</value>
+  </data>
+  <data name="StatusPlayingTrackCompact" xml:space="preserve">
+    <value>🎵 {0} ({1}/{2})</value>
+  </data>
+  <data name="StatusSyncDone" xml:space="preserve">
+    <value>✅ Đồng bộ xong · {0} địa điểm</value>
+  </data>
+  <data name="StatusSyncedAt" xml:space="preserve">
+    <value>Đồng bộ: {0}</value>
+  </data>
+  <data name="StatusSyncFailed" xml:space="preserve">
+    <value>⚠️ Đồng bộ thất bại</value>
+  </data>
+  <data name="StatusSyncing" xml:space="preserve">
+    <value>🔄 Đang đồng bộ...</value>
+  </data>
+  <data name="StatusWaitReplay" xml:space="preserve">
+    <value>⏳ {0} · Chờ phát lại: {1}s</value>
+  </data>
+  <data name="StopCountFormat" xml:space="preserve">
+    <value>Điểm dừng {0}/{1}</value>
+  </data>
+  <data name="BtnViewItinerary" xml:space="preserve">
+    <value>Xem lộ trình ›</value>
+  </data>
+  <data name="ItineraryTitle" xml:space="preserve">
+    <value>🗺️ Lộ trình</value>
+  </data>
+  <data name="BtnShowOnMap" xml:space="preserve">
+    <value>📍 Xem trên bản đồ</value>
+  </data>
+  <data name="MsgNoStops" xml:space="preserve">
+    <value>Tour chưa có điểm dừng nào.</value>
+  </data>
+  <data name="BadgeStart" xml:space="preserve">
+    <value>🚩 Xuất phát</value>
+  </data>
+  <data name="BadgeEnd" xml:space="preserve">
+    <value>🏁 Kết thúc</value>
+  </data>
 </root>

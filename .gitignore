@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+SmartTourGuide.API/wwwroot/uploads/*
+!SmartTourGuide.API/wwwroot/uploads/.gitkeep

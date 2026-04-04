@@ -67,6 +67,49 @@ public class PoiApiService
             return null;
         }
     }
+    /// <summary>
+    /// Gửi log lên server sau khi user nghe audio tại 1 POI.
+    /// Phục vụ 2 tính năng analytics:
+    ///   - Top địa điểm được nghe nhiều nhất (đếm số lần gọi hàm này)
+    ///   - Thời gian trung bình nghe 1 POI (AVG của durationSec)
+    /// Không throw exception — lỗi mạng không được crash app.
+    /// </summary>
+    public async Task LogPoiListenAsync(int poiId, int durationSec, string deviceId, string? sessionId = null)
+    {
+        try
+        {
+            await _httpClient.PostAsJsonAsync("api/analytics/poi-listen", new
+            {
+                PoiId = poiId,
+                DeviceId = deviceId,   // ← thay UserId = 0
+                SessionId = sessionId,
+                ListenDurationSec = durationSec
+            });
+        }
+        catch { }
+    }
+
+
+    /// <summary>
+    /// Gửi vị trí GPS hiện tại lên server.
+    /// Dùng để vẽ heatmap và lưu tuyến di chuyển ẩn danh.
+    /// DeviceId thay cho UserId — không cần đăng nhập.
+    /// </summary>
+    public async Task SendLocationAsync(double lat, double lng, string deviceId)
+    {
+        try
+        {
+            await _httpClient.PostAsJsonAsync("api/tracking", new
+            {
+                UserId = 0,        // Ẩn danh
+                DeviceId = deviceId,
+                Latitude = lat,
+                Longitude = lng,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+        catch { /* Không crash app nếu mất mạng */ }
+    }
 }
 
 public class PoiModel
@@ -82,6 +125,7 @@ public class PoiModel
     public List<string>? ImageUrls { get; set; }
     public List<string>? AudioUrls { get; set; }
     public double TriggerRadius { get; set; } = 50;
+    public int CooldownInSeconds { get; set; } = 300;
     public int Priority { get; set; } = 1;
 }
 public class TourModel
@@ -103,3 +147,5 @@ public class TourDetailModel
     public double Longitude { get; set; }
     public int OrderIndex { get; set; }
 }
+
+

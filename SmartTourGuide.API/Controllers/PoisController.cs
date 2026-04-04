@@ -25,11 +25,13 @@ public class PoisController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly FileStorageService _fileService;
+    private readonly IWebHostEnvironment _env;
 
-    public PoisController(AppDbContext context, FileStorageService fileService)
+    public PoisController(AppDbContext context, FileStorageService fileService, IWebHostEnvironment env)
     {
         _context = context;
         _fileService = fileService;
+        _env = env;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -121,6 +123,7 @@ public class PoisController : ControllerBase
                 Latitude = p.Latitude,
                 Longitude = p.Longitude,
                 TriggerRadius = p.GeofenceSetting?.TriggerRadiusInMeters ?? 50,
+                CooldownInSeconds = p.GeofenceSetting?.CooldownInSeconds ?? 300,
                 Priority = p.GeofenceSetting?.Priority ?? 1,
                 AudioUrls = audioList.Select(m => m.UrlOrContent).ToList(),
                 ImageUrls = p.MediaAssets.Where(m => m.Type == MediaType.Image).Select(m => m.UrlOrContent).ToList()
@@ -180,6 +183,7 @@ public class PoisController : ControllerBase
                 Latitude = p.Latitude,
                 Longitude = p.Longitude,
                 TriggerRadius = p.GeofenceSetting?.TriggerRadiusInMeters ?? 50,
+                CooldownInSeconds = p.GeofenceSetting?.CooldownInSeconds ?? 300,
                 Priority = p.GeofenceSetting?.Priority ?? 1,
 
                 AudioUrls = audioList.Select(m => m.UrlOrContent).ToList(),
@@ -197,7 +201,7 @@ public class PoisController : ControllerBase
         var newPoi = new Poi
         {
             Name = dto.Name,
-            Description = dto.Description,
+            Description = dto.Description ?? string.Empty,
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
             OwnerId = dto.OwnerId,
@@ -250,6 +254,26 @@ public class PoisController : ControllerBase
 
         _context.ActivityLogs.Add(log);
 
+        // 3.1. Tạo thông báo cho tất cả Admin về yêu cầu duyệt POI mới
+        var adminIds = await _context.Users
+            .Where(u => u.Role == SmartTourGuide.Shared.Enums.UserRole.Admin)
+            .Select(u => u.Id)
+            .ToListAsync();
+
+        foreach (var adminId in adminIds)
+        {
+            _context.AdminNotifications.Add(new AdminNotification
+            {
+                AdminId = adminId,
+                PoiId = newPoi.Id,
+                OwnerUsername = currentUsername,
+                Title = "Yêu cầu duyệt POI",
+                Message = $"{currentUsername} yêu cầu duyệt địa điểm '{dto.Name}'.",
+                CreatedAt = DateTime.Now,
+                IsRead = false
+            });
+        }
+
         // 4. Lưu lại toàn bộ File Media và Log
         await _context.SaveChangesAsync();
 
@@ -287,7 +311,12 @@ public class PoisController : ControllerBase
             // MỚI: Lấy danh sách Audio Tiếng Việt (hoặc mặc định) KÈM THEO ID
             ExistingAudios = p.MediaAssets
                 .Where(m => m.Type == MediaType.AudioFile && (m.LanguageCode == "vi-VN" || string.IsNullOrEmpty(m.LanguageCode)))
-                .Select(m => new MediaAssetDto { Id = m.Id, Url = m.UrlOrContent })
+                .Select(m => new MediaAssetDto
+                {
+                    Id = m.Id,
+                    Url = m.UrlOrContent,
+                    LanguageCode = string.IsNullOrEmpty(m.LanguageCode) ? "vi-VN" : m.LanguageCode
+                })
                 .ToList()
         });
 
@@ -298,7 +327,10 @@ public class PoisController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeletePoi(int id)
     {
-        var poi = await _context.Pois.FindAsync(id);
+        // ✅ Include MediaAssets để lấy danh sách file cần xóa vật lý
+        var poi = await _context.Pois
+            .Include(p => p.MediaAssets)
+            .FirstOrDefaultAsync(p => p.Id == id);
         if (poi == null) return NotFound("Không tìm thấy địa điểm.");
 
         // --- CHECK TOUR ---
@@ -307,6 +339,24 @@ public class PoisController : ControllerBase
         if (isInAnyTour)
         {
             return BadRequest("Địa điểm này đang nằm trong một Tuyến Du Lịch (Tour). Vui lòng liên hệ Admin để gỡ địa điểm ra khỏi Tour trước khi xóa!");
+        }
+
+        // --- XÓA FILE VẬT LÝ TRONG WWWROOT ---
+        var webRootPath = string.IsNullOrEmpty(_env.WebRootPath)
+            ? Path.Combine(_env.ContentRootPath, "wwwroot")
+            : _env.WebRootPath;
+
+        foreach (var asset in poi.MediaAssets)
+        {
+            // TtsScript lưu text thuần, không có file vật lý → bỏ qua
+            if (asset.Type == MediaType.TtsScript) continue;
+            if (string.IsNullOrEmpty(asset.UrlOrContent)) continue;
+
+            var relativePath = asset.UrlOrContent.Replace("\\", "/").TrimStart('/');
+            var fullPath = Path.Combine(webRootPath, relativePath);
+
+            if (System.IO.File.Exists(fullPath))
+                System.IO.File.Delete(fullPath);
         }
 
         // --- XÓA TRANSLATIONS ---
@@ -365,17 +415,16 @@ public class PoisController : ControllerBase
 
         // 1. Cập nhật thông tin
         poi.Name = dto.Name;
-        poi.Description = dto.Description;
+        poi.Description = dto.Description ?? string.Empty;
         poi.Address = dto.Address ?? "N/A";
         poi.Latitude = dto.Latitude;
         poi.Longitude = dto.Longitude;
 
         // 2. Logic nghiệp vụ
-        if (poi.Status == PoiStatus.Active || poi.Status == PoiStatus.Rejected)
+        if (poi.Status != PoiStatus.Pending)
         {
             poi.Status = PoiStatus.Pending;
         }
-
         // 3. Upload file
         if (files != null && files.Count > 0)
         {
@@ -458,12 +507,24 @@ public class PoisController : ControllerBase
         var poi = await _context.Pois.FindAsync(id);
         if (poi == null) return NotFound();
 
+        // LẤY USERNAME NGƯỜI THỰC HIỆN (admin), không dùng chuỗi cứng "Admin"
+        var username = GetCurrentUsername();
+
         poi.Status = PoiStatus.Active;
 
-        await _context.SaveChangesAsync();
+        // Tạo thông báo cho chủ gian hàng khi POI được duyệt
+        _context.OwnerNotifications.Add(new OwnerNotification
+        {
+            OwnerId = poi.OwnerId,
+            PoiId = poi.Id,
+            AdminUsername = username,
+            Title = "POI đã được duyệt",
+            Message = $"{username} đã duyệt địa điểm '{poi.Name}'.",
+            CreatedAt = DateTime.Now,
+            IsRead = false
+        });
 
-        // 🔥 LẤY USERNAME NGƯỜI THỰC HIỆN (admin), không dùng chuỗi cứng "Admin"
-        var username = GetCurrentUsername();
+        await _context.SaveChangesAsync();
 
         // 🔥 LOG
         _context.ActivityLogs.Add(new ActivityLog
@@ -587,13 +648,25 @@ public class PoisController : ControllerBase
         var poi = await _context.Pois.FindAsync(id);
         if (poi == null) return NotFound("Không tìm thấy địa điểm.");
 
+        // Lấy username người thực hiện (admin)
+        var username = GetCurrentUsername();
+
         // Chuyển trạng thái sang Rejected
         poi.Status = PoiStatus.Rejected;
 
-        await _context.SaveChangesAsync();
+        // Tạo thông báo cho chủ gian hàng: từ chối do địa chỉ không khớp
+        _context.OwnerNotifications.Add(new OwnerNotification
+        {
+            OwnerId = poi.OwnerId,
+            PoiId = poi.Id,
+            AdminUsername = username,
+            Title = "POI bị từ chối",
+            Message = $"{username} đã từ chối địa điểm '{poi.Name}' do thông tin địa chỉ không khớp.",
+            CreatedAt = DateTime.Now,
+            IsRead = false
+        });
 
-        // 🔥 LẤY USERNAME NGƯỜI THỰC HIỆN (admin), không dùng chuỗi cứng "Admin"
-        var username = GetCurrentUsername();
+        await _context.SaveChangesAsync();
 
         // 🔥 GHI LOG
         _context.ActivityLogs.Add(new ActivityLog

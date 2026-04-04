@@ -1,0 +1,246 @@
+@using SmartTourGuide.Shared.DTOs
+@using MudBlazor
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Translate" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Bản dịch Tour: <strong>@TourName</strong></MudText>
+        </div>
+    </TitleContent>
+
+    <DialogContent>
+        <!-- CHỌN NGÔN NGỮ -->
+        <MudSelect T="string" Label="Chọn ngôn ngữ" @bind-Value="selectedLang"
+                   Variant="Variant.Outlined" AdornmentIcon="@Icons.Material.Filled.Language"
+                   AdornmentColor="Color.Primary" Class="mb-4"
+                   SelectedValuesChanged="OnLangChanged">
+            <MudSelectItem Value="@("en-US")">🇺🇸 English (en-US)</MudSelectItem>
+            <MudSelectItem Value="@("ja-JP")">🇯🇵 Japanese (ja-JP)</MudSelectItem>
+            <MudSelectItem Value="@("ko-KR")">🇰🇷 Korean (ko-KR)</MudSelectItem>
+            <MudSelectItem Value="@("zh-CN")">🇨🇳 Chinese Simplified (zh-CN)</MudSelectItem>
+            <MudSelectItem Value="@("fr-FR")">🇫🇷 French (fr-FR)</MudSelectItem>
+        </MudSelect>
+
+        @if (_loading)
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+        }
+        else
+        {
+            <!-- TRẠNG THÁI BẢN DỊCH HIỆN TẠI -->
+            @if (_isExisting)
+            {
+                <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-1" />
+                    Đã có bản dịch cho ngôn ngữ này. Chỉnh sửa và lưu để cập nhật.
+                </MudAlert>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Outlined.Info" Class="mr-1" />
+                    Chưa có bản dịch cho ngôn ngữ này. Nhập nội dung và nhấn Lưu để tạo mới.
+                </MudAlert>
+            }
+
+            <MudForm @ref="form">
+                <MudTextField @bind-Value="model.TranslatedName"
+                              Label="Tên Tour (Đã dịch)"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              RequiredError="Tên tour không được để trống"
+                              HelperText="@($"Tên gốc (vi-VN): {TourName}")"
+                              Class="mb-4" />
+
+                <MudTextField @bind-Value="model.TranslatedDescription"
+                              Label="Mô tả Tour (Đã dịch)"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              RequiredError="Mô tả không được để trống"
+                              Lines="5"
+                              HelperText="@($"Mô tả gốc (vi-VN): {TourDescription}")" />
+            </MudForm>
+
+            <!-- DANH SÁCH CÁC NGÔN NGỮ ĐÃ CÓ BẢN DỊCH -->
+            @if (_existingLanguages.Count > 0)
+            {
+                <MudDivider Class="my-4" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Ngôn ngữ đã có bản dịch:</MudText>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var lang in _existingLanguages)
+                    {
+                        <MudChip T="string" Color="@(lang == selectedLang ? Color.Primary : Color.Default)"
+                                 Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
+                            @GetLangLabel(lang)
+                        </MudChip>
+                    }
+                </div>
+            }
+        }
+    </DialogContent>
+
+    <DialogActions>
+        <!-- NÚT XÓA BẢN DỊCH (chỉ hiện khi đang có bản dịch) -->
+        @if (_isExisting && !_loading)
+        {
+            <MudButton Color="Color.Error"
+                       Variant="Variant.Text"
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="DeleteTranslation"
+                       Class="mr-auto">
+                Xóa bản dịch này
+            </MudButton>
+        }
+
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Đóng</MudButton>
+
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="Save"
+                   Disabled="_loading">
+            Lưu Bản Dịch
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialogRef { get; set; } = default!;
+
+    [Parameter] public int TourId { get; set; }
+    [Parameter] public string TourName { get; set; } = "";
+    [Parameter] public string TourDescription { get; set; } = "";
+
+    private string selectedLang = "en-US";
+    private SaveTourTranslationDto model = new()
+    {
+        LanguageCode = "en-US",
+        TranslatedName = "",
+        TranslatedDescription = "",
+        TourId = 0
+    };
+
+    private bool _loading = false;
+    private bool _isExisting = false;
+    private List<string> _existingLanguages = new();
+    private MudForm? form;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAllLanguages();
+        await LoadTranslation(selectedLang);
+    }
+
+    // Tải danh sách tất cả ngôn ngữ đã có bản dịch để hiển thị chip
+    private async Task LoadAllLanguages()
+    {
+        try
+        {
+            var all = await Http.GetFromJsonAsync<List<TourTranslationDto>>($"api/tour-translations/{TourId}");
+            _existingLanguages = all?.Select(t => t.LanguageCode).ToList() ?? new();
+        }
+        catch { }
+    }
+
+    private async Task OnLangChanged() => await LoadTranslation(selectedLang);
+
+    private async Task LoadTranslation(string lang)
+    {
+        _loading = true;
+        try
+        {
+            var result = await Http.GetFromJsonAsync<TourTranslationDto>($"api/tour-translations/{TourId}/{lang}");
+            if (result != null && result.Id > 0)
+            {
+                // Đã có bản dịch
+                model = new SaveTourTranslationDto
+                {
+                    TourId = TourId,
+                    LanguageCode = lang,
+                    TranslatedName = result.TranslatedName,
+                    TranslatedDescription = result.TranslatedDescription
+                };
+                _isExisting = true;
+            }
+            else
+            {
+                // Chưa có bản dịch -> reset form trống
+                model = new SaveTourTranslationDto
+                {
+                    TourId = TourId,
+                    LanguageCode = lang,
+                    TranslatedName = "",
+                    TranslatedDescription = ""
+                };
+                _isExisting = false;
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Lỗi tải bản dịch.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task Save()
+    {
+        await form!.Validate();
+        if (!form.IsValid) return;
+
+        model.TourId = TourId;
+        model.LanguageCode = selectedLang;
+
+        var response = await Http.PostAsJsonAsync("api/tour-translations", model);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add($"Đã lưu bản dịch [{GetLangLabel(selectedLang)}] thành công!", Severity.Success);
+            _isExisting = true;
+
+            // Cập nhật lại danh sách chip ngôn ngữ
+            if (!_existingLanguages.Contains(selectedLang))
+                _existingLanguages.Add(selectedLang);
+        }
+        else
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            Snackbar.Add($"Lỗi lưu bản dịch: {error}", Severity.Error);
+        }
+    }
+
+    private async Task DeleteTranslation()
+    {
+        var response = await Http.DeleteAsync($"api/tour-translations/{TourId}/{selectedLang}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add($"Đã xóa bản dịch [{GetLangLabel(selectedLang)}].", Severity.Warning);
+            _isExisting = false;
+            _existingLanguages.Remove(selectedLang);
+            model.TranslatedName = "";
+            model.TranslatedDescription = "";
+        }
+        else
+        {
+            Snackbar.Add("Xóa thất bại.", Severity.Error);
+        }
+    }
+
+    private string GetLangLabel(string code) => code switch
+    {
+        "en-US" => "🇺🇸 English",
+        "ja-JP" => "🇯🇵 Japanese",
+        "ko-KR" => "🇰🇷 Korean",
+        "zh-CN" => "🇨🇳 Chinese",
+        "fr-FR" => "🇫🇷 French",
+        _ => code
+    };
+
+    void Cancel() => MudDialogRef.Cancel();
+}

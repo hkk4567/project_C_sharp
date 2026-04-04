@@ -107,7 +107,10 @@ public class AssetsController : ControllerBase
             // asset.UrlOrContent dạng: "/uploads/audio/abc.mp3"
             // Cần chuyển thành đường dẫn tuyệt đối trong ổ cứng
             var relativePath = asset.UrlOrContent.TrimStart('/');
-            var fullPath = Path.Combine(_env.WebRootPath, relativePath);
+            var webRootPath = string.IsNullOrEmpty(_env.WebRootPath)
+                ? Path.Combine(_env.ContentRootPath, "wwwroot")
+                : _env.WebRootPath;
+            var fullPath = Path.Combine(webRootPath, relativePath);
 
             if (System.IO.File.Exists(fullPath))
             {

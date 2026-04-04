@@ -1,3 +1,5 @@
+namespace SmartTourGuide.Shared.DTOs;
+
 public class ActivityLogDto
 {
     public int Id { get; set; }

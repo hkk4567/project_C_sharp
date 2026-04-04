@@ -10,7 +10,9 @@
         <Grid RowDefinitions="Auto, *">
 
             <!-- Header -->
-            <HorizontalStackLayout Grid.Row="0" Margin="15" Spacing="10">
+            <HorizontalStackLayout Grid.Row="0"
+                                   Margin="15"
+                                   Spacing="10">
                 <Button Text="{x:Static strings:AppResources.BtnBack}"
                         Clicked="OnBackClicked"
                         BackgroundColor="Transparent"
@@ -36,7 +38,10 @@
                                 <RoundRectangle CornerRadius="15"/>
                             </Border.StrokeShape>
                             <Border.Shadow>
-                                <Shadow Brush="Black" Offset="0, 5" Radius="10" Opacity="0.1"/>
+                                <Shadow Brush="Black"
+                                        Offset="0, 5"
+                                        Radius="10"
+                                        Opacity="0.1"/>
                             </Border.Shadow>
 
                             <Grid RowDefinitions="150, Auto">
@@ -48,7 +53,8 @@
                                        BackgroundColor="#E0E0E0"/>
 
                                 <!-- Thông tin + Nút chọn -->
-                                <VerticalStackLayout Grid.Row="1" Padding="15">
+                                <VerticalStackLayout Grid.Row="1"
+                                                     Padding="15">
 
                                     <Label Text="{Binding Name}"
                                            FontSize="18"
@@ -69,7 +75,8 @@
                                         <HorizontalStackLayout Grid.Column="0"
                                                                Spacing="5"
                                                                VerticalOptions="Center">
-                                            <Label Text="📍" VerticalOptions="Center"/>
+                                            <Label Text="📍"
+                                                   VerticalOptions="Center"/>
                                             <Label Text="{Binding TotalPois, StringFormat={x:Static strings:AppResources.PoiCountFormat}}"
                                                    TextColor="#2196F3"
                                                    FontAttributes="Bold"
@@ -78,7 +85,7 @@
 
                                         <!-- Nút xem chi tiết lộ trình -->
                                         <Button Grid.Column="1"
-                                                Text="Xem lộ trình ›"
+                                                Text="{x:Static strings:AppResources.BtnViewItinerary}"
                                                 FontSize="13"
                                                 FontAttributes="Bold"
                                                 BackgroundColor="#FF9800"
@@ -126,21 +133,25 @@
                 HorizontalOptions="Fill"
                 Shadow="{Shadow Brush=Black, Offset='0,-8', Radius=20, Opacity=0.2}">
 
-            <Grid RowDefinitions="Auto, Auto, *, Auto" MaximumHeightRequest="480">
+            <Grid RowDefinitions="Auto, Auto, *, Auto"
+                  MaximumHeightRequest="480">
 
                 <!-- Handle bar -->
                 <BoxView Grid.Row="0"
-                         WidthRequest="40" HeightRequest="4"
+                         WidthRequest="40"
+                         HeightRequest="4"
                          CornerRadius="2"
                          Color="#E0E0E0"
                          HorizontalOptions="Center"
                          Margin="0,12,0,0"/>
 
                 <!-- Header panel -->
-                <Grid Grid.Row="1" ColumnDefinitions="*, Auto"
+                <Grid Grid.Row="1"
+                      ColumnDefinitions="*, Auto"
                       Padding="20,12,12,12">
-                    <VerticalStackLayout Grid.Column="0" Spacing="3">
-                        <Label Text="🗺️ Lộ trình"
+                    <VerticalStackLayout Grid.Column="0"
+                                         Spacing="3">
+                        <Label Text="{x:Static strings:AppResources.ItineraryTitle}"
                                FontSize="12"
                                TextColor="#FF9800"
                                FontAttributes="Bold"/>
@@ -162,7 +173,8 @@
                 </Grid>
 
                 <!-- Danh sách điểm dừng -->
-                <ScrollView Grid.Row="2" Margin="0,0,0,8">
+                <ScrollView Grid.Row="2"
+                            Margin="0,0,0,8">
                     <VerticalStackLayout x:Name="itineraryPoiList"
                                          Padding="20,0,20,0"
                                          Spacing="0"/>
@@ -171,7 +183,7 @@
                 <!-- Nút chọn tour này -->
                 <Button Grid.Row="3"
                         x:Name="btnSelectThisTour"
-                        Text="📍 Xem trên bản đồ"
+                        Text="{x:Static strings:AppResources.BtnShowOnMap}"
                         BackgroundColor="#FF9800"
                         TextColor="White"
                         FontAttributes="Bold"

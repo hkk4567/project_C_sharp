@@ -15,6 +15,10 @@
     <link rel="stylesheet" href="SmartTourGuide.Web.styles.css" />
     <link href="admin.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <!-- ✅ THÊM MỚI: Leaflet CSS cho bản đồ heatmap -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
     <HeadOutlet @rendermode="new InteractiveServerRenderMode(prerender: false)" />
 </head>
 
@@ -23,6 +27,15 @@
 
     <script src="_framework/blazor.web.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    
+    <!-- ✅ THÊM MỚI: Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- ✅ THÊM MỚI: Plugin vẽ heatmap lên Leaflet -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <!-- ✅ THÊM MỚI: File JS của mình (phải sau 2 script Leaflet ở trên) -->
+    <script src="js/ownerHeatmap.js"></script>
+    <script src="js/adminHeatmap.js"></script>
+    
     <script>
         window.blazorTts = {
         speak: function (text) {

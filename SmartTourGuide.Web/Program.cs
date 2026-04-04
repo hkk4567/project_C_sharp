@@ -34,15 +34,31 @@ builder.Services.AddCascadingAuthenticationState();
 // Đăng ký Provider quản lý trạng thái đăng nhập
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 
-// 4. Cấu hình HttpClient gọi API
-// Header X-User-Name được set thẳng trong Login.razor sau khi đăng nhập
-builder.Services.AddScoped(sp => new HttpClient
+// 4. Cấu hình HttpClient gọi API với custom handler để add X-User-Name header
+// 4. Cấu hình HttpClient gọi API với DelegatingHandler tự động add X-User-Name header
+builder.Services.AddScoped<HttpClientHeaderHandler>();
+
+builder.Services.AddScoped<HttpClient>(sp =>
 {
-    BaseAddress = new Uri("http://localhost:5277/")
+    var localStorage = sp.GetRequiredService<ILocalStorageService>();
+    var handler = new HttpClientHeaderHandler(localStorage)
+    {
+        InnerHandler = new HttpClientHandler()
+    };
+    var http = new HttpClient(handler)
+    {
+        BaseAddress = new Uri("http://localhost:5277/")
+    };
+    return http;
 });
 
 // 5. Đăng ký các Service nghiệp vụ
 builder.Services.AddScoped<PoiApiService>();
+builder.Services.AddScoped<AnalyticsApiService>();
+builder.Services.AddScoped<OwnerAnalyticsApiService>();
+builder.Services.AddScoped<OwnerNotificationService>();
+builder.Services.AddScoped<AdminNotificationService>();
+builder.Services.AddScoped<AdminNavbarThemeService>();
 builder.Services.AddScoped<IUserService, UserService>();
 var app = builder.Build();
 

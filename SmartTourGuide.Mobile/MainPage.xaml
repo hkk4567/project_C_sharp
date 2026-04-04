@@ -34,7 +34,7 @@
 
                 <!-- Nội dung thông báo (cập nhật bằng code) -->
                 <Label x:Name="OfflineBannerLabel"
-                       Text="Đang offline · Dùng dữ liệu đã lưu"
+                       Text="{x:Static res:AppResources.StatusBannerOffline}"
                        TextColor="White"
                        FontSize="13"
                        FontAttributes="Bold"
@@ -212,7 +212,7 @@
                     <VerticalStackLayout Grid.Column="1"
                                          Spacing="1"
                                          VerticalOptions="Center">
-                        <Label Text="Lộ trình"
+                        <Label Text="{x:Static res:AppResources.ItineraryTitle}"
                                FontSize="10"
                                TextColor="#F57C00"
                                FontAttributes="Bold"

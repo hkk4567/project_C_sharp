@@ -22,7 +22,7 @@ namespace SmartTourGuide.API.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("ActivityLog", b =>
+            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.ActivityLog", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -52,6 +52,52 @@ namespace SmartTourGuide.API.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ActivityLogs");
+                });
+
+            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.AdminNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AdminId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("OwnerUsername")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int?>("PoiId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminId");
+
+                    b.HasIndex("PoiId");
+
+                    b.HasIndex("AdminId", "IsRead", "CreatedAt");
+
+                    b.ToTable("AdminNotifications", (string)null);
                 });
 
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.GeofenceSetting", b =>
@@ -114,6 +160,52 @@ namespace SmartTourGuide.API.Migrations
                     b.ToTable("MediaAssets");
                 });
 
+            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.OwnerNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdminUsername")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("OwnerId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PoiId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
+
+                    b.HasIndex("PoiId");
+
+                    b.HasIndex("OwnerId", "IsRead", "CreatedAt");
+
+                    b.ToTable("OwnerNotifications", (string)null);
+                });
+
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.Poi", b =>
                 {
                     b.Property<int>("Id")
@@ -152,6 +244,36 @@ namespace SmartTourGuide.API.Migrations
                     b.HasIndex("OwnerId");
 
                     b.ToTable("Pois");
+                });
+
+            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.PoiListenLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("ListenDurationSec")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PoiId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PoiId");
+
+                    b.HasIndex("Timestamp");
+
+                    b.ToTable("PoiListenLogs");
                 });
 
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.PoiTranslation", b =>
@@ -247,6 +369,39 @@ namespace SmartTourGuide.API.Migrations
                     b.ToTable("TourDetails");
                 });
 
+            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.TourTranslation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<int>("TourId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TranslatedDescription")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("TranslatedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TourId", "LanguageCode")
+                        .IsUnique();
+
+                    b.ToTable("TourTranslations");
+                });
+
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -295,6 +450,9 @@ namespace SmartTourGuide.API.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("DeviceId")
+                        .HasColumnType("longtext");
+
                     b.Property<double>("Latitude")
                         .HasColumnType("double");
 
@@ -304,7 +462,7 @@ namespace SmartTourGuide.API.Migrations
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int>("UserId")
+                    b.Property<int?>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -314,6 +472,20 @@ namespace SmartTourGuide.API.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("UserLocationLogs");
+                });
+
+            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.AdminNotification", b =>
+                {
+                    b.HasOne("SmartTourGuide.API.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("AdminId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SmartTourGuide.API.Data.Entities.Poi", null)
+                        .WithMany()
+                        .HasForeignKey("PoiId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.GeofenceSetting", b =>
@@ -336,6 +508,20 @@ namespace SmartTourGuide.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Poi");
+                });
+
+            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.OwnerNotification", b =>
+                {
+                    b.HasOne("SmartTourGuide.API.Data.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SmartTourGuide.API.Data.Entities.Poi", null)
+                        .WithMany()
+                        .HasForeignKey("PoiId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.Poi", b =>
@@ -379,13 +565,25 @@ namespace SmartTourGuide.API.Migrations
                     b.Navigation("Tour");
                 });
 
-            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.UserLocationLog", b =>
+            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.TourTranslation", b =>
                 {
-                    b.HasOne("SmartTourGuide.API.Data.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
+                    b.HasOne("SmartTourGuide.API.Data.Entities.Tour", "Tour")
+                        .WithMany("TourTranslations")
+                        .HasForeignKey("TourId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Tour");
+                });
+
+            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.UserLocationLog", b =>
+                {
+                    b.HasOne("SmartTourGuide.API.Data.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.Poi", b =>
@@ -399,6 +597,8 @@ namespace SmartTourGuide.API.Migrations
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.Tour", b =>
                 {
                     b.Navigation("TourDetails");
+
+                    b.Navigation("TourTranslations");
                 });
 
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.User", b =>

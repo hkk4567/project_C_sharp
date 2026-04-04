@@ -18,7 +18,11 @@ namespace SmartTourGuide.API.Data
         public DbSet<Tour> Tours { get; set; }
         public DbSet<TourDetail> TourDetails { get; set; }
         public DbSet<PoiTranslation> PoiTranslations { get; set; }
+        public DbSet<TourTranslation> TourTranslations { get; set; }
         public DbSet<ActivityLog> ActivityLogs { get; set; }
+        public DbSet<PoiListenLog> PoiListenLogs { get; set; }
+        public DbSet<OwnerNotification> OwnerNotifications { get; set; }
+        public DbSet<AdminNotification> AdminNotifications { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -52,23 +56,21 @@ namespace SmartTourGuide.API.Data
 
             // --- Cấu hình User Location Log ---
             modelBuilder.Entity<UserLocationLog>(entity =>
-            {
-                // Chỉ định khóa chính
-                entity.HasKey(e => e.Id);
+                {
+                    // 1. Chỉ định khóa chính
+                    entity.HasKey(e => e.Id);
 
-                // Tạo Index cho UserId để tìm lịch sử của 1 người cho nhanh
-                entity.HasIndex(e => e.UserId);
+                    // 2. Tạo Index (Giữ nguyên vì nó tốt cho hiệu năng)
+                    entity.HasIndex(e => e.UserId);
+                    entity.HasIndex(e => e.Timestamp);
 
-                // Tạo Index cho Timestamp để lọc theo ngày tháng nhanh hơn
-                entity.HasIndex(e => e.Timestamp);
-
-                // Thiết lập khóa ngoại (nếu xóa User thì xóa luôn lịch sử đi lại cho sạch DB)
-                entity.HasOne<User>()
-                      .WithMany() // User không cần chứa list Log (vì quá nhiều)
-                      .HasForeignKey(e => e.UserId)
-                      .OnDelete(DeleteBehavior.Cascade);
-            });
-
+                    // 3. SỬA CHỖ NÀY: Thay HasOne<User>() bằng HasOne(e => e.User)
+                    entity.HasOne(e => e.User)           // Trỏ trực tiếp vào thuộc tính User trong Class
+                        .WithMany()                    // Một User có nhiều Logs
+                        .HasForeignKey(e => e.UserId)  // Dùng chung cột UserId này, không đẻ thêm cột ảo
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired(false);            // Cực kỳ quan trọng: Cho phép UserId là NULL (khách vãng lai)
+                });
             // --- CẤU HÌNH TOUR DETAIL (QUAN HỆ N-N) ---
 
             // 1. Tour xóa -> Chi tiết xóa theo (Cascade)
@@ -86,6 +88,66 @@ namespace SmartTourGuide.API.Data
                 .WithMany() // Poi entity không cần chứa list TourDetail ngược lại
                 .HasForeignKey(td => td.PoiId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // --- CẤU HÌNH TOUR TRANSLATION ---
+            modelBuilder.Entity<TourTranslation>(entity =>
+            {
+                // Mỗi Tour chỉ có 1 bản dịch cho 1 ngôn ngữ (unique index)
+                entity.HasIndex(t => new { t.TourId, t.LanguageCode }).IsUnique();
+
+                // Tour xóa -> Bản dịch xóa theo
+                entity.HasOne(t => t.Tour)
+                    .WithMany(tour => tour.TourTranslations)
+                    .HasForeignKey(t => t.TourId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+
+            // --- Cấu hình Poi Listen Log ---
+            modelBuilder.Entity<PoiListenLog>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.PoiId);
+                entity.HasIndex(e => e.Timestamp);
+            });
+
+            // --- Cấu hình Owner Notification ---
+            modelBuilder.Entity<OwnerNotification>(entity =>
+            {
+                entity.ToTable("OwnerNotifications");
+
+                entity.HasIndex(e => e.OwnerId);
+                entity.HasIndex(e => new { e.OwnerId, e.IsRead, e.CreatedAt });
+
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(e => e.OwnerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne<Poi>()
+                    .WithMany()
+                    .HasForeignKey(e => e.PoiId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // --- Cấu hình Admin Notification ---
+            modelBuilder.Entity<AdminNotification>(entity =>
+            {
+                entity.ToTable("AdminNotifications");
+
+                entity.HasIndex(e => e.AdminId);
+                entity.HasIndex(e => new { e.AdminId, e.IsRead, e.CreatedAt });
+
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(e => e.AdminId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne<Poi>()
+                    .WithMany()
+                    .HasForeignKey(e => e.PoiId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
         }
     }
 }

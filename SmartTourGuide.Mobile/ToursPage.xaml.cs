@@ -93,7 +93,7 @@ public partial class ToursPage : ContentPage
             var tourDetail = await _apiService.GetTourDetailsAsync(selectedTour.Id);
             if (tourDetail == null || tourDetail.Pois.Count == 0)
             {
-                await DisplayAlertAsync(AppResources.AlertInfo, "Tour chưa có điểm dừng nào.", "OK");
+                await DisplayAlertAsync(AppResources.AlertInfo, AppResources.MsgNoStops, AppResources.OkButton);
                 return;
             }
 
@@ -225,7 +225,7 @@ public partial class ToursPage : ContentPage
                     HorizontalOptions = LayoutOptions.Start,
                     Content = new Label
                     {
-                        Text = isFirst ? "🚩 Xuất phát" : "🏁 Kết thúc",
+                        Text = isFirst ? AppResources.BadgeStart : AppResources.BadgeEnd,
                         FontSize = 11,
                         TextColor = isFirst ? MauiColor.FromArgb("#388E3C") : MauiColor.FromArgb("#D32F2F"),
                         FontAttributes = FontAttributes.Bold

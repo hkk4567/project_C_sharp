@@ -13,8 +13,10 @@ public partial class MainPage
         if (_isPlaying) { StopAudio(); return; }
         if (_currentSelectedPoi == null) return;
 
+        PrepareListenSession(_currentSelectedPoi.Id, allowReuseCurrent: true);
+
         _isPlaying = true;
-        btnPlayAudio.Text = "⏹️ Dừng phát";
+        btnPlayAudio.Text = AppRes.BtnStop;
 
         _queueCts?.Cancel();
         _queueCts = new CancellationTokenSource();
@@ -25,7 +27,10 @@ public partial class MainPage
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("Lỗi", "Không thể phát âm thanh: " + ex.Message, "OK");
+            await DisplayAlertAsync(
+                AppRes.AlertError,
+                string.Format(AppRes.AudioPlayError, ex.Message),
+                AppRes.OkButton);
             StopAudio();
         }
     }
@@ -45,12 +50,20 @@ public partial class MainPage
 
         if (!_poiAudioIndex.TryGetValue(poi.Id, out int startIndex) || startIndex >= urls.Count)
             startIndex = 0;
+        // Ghi lại thời điểm bắt đầu phát
+        // Dùng để tính tổng thời gian nghe khi dừng hoặc hết audio
+        var playStartTime = DateTime.Now;
+        _playStartTime = playStartTime;
+        _currentAudioPoiId = poi.Id; // ✅ Lưu POI ID hiện tại
+        PrepareListenSession(poi.Id, allowReuseCurrent: true);
 
         for (int i = startIndex; i < urls.Count; i++)
         {
             if (ct.IsCancellationRequested)
             {
                 _poiAudioIndex[poi.Id] = i;
+                // ✅ LOG KHI USER CANCEL/STOP GIỮA CHỪNG VÀ KHI RỜI VÙNG
+                await LogAudioPlaybackAsync(poi.Id, playStartTime);
                 return;
             }
 
@@ -58,9 +71,9 @@ public partial class MainPage
             int total = urls.Count;
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                SetStatus($"🎵 {poi.Name}  ·  {displayIdx}/{total}", priority: 3);
+                SetStatus(string.Format(AppRes.StatusPlayingTrack, poi.Name, displayIdx, total), priority: 3);
                 if (btnPlayAudio != null && total > 1)
-                    btnPlayAudio.Text = $"⏹️ Dừng  ({displayIdx}/{total})";
+                    btnPlayAudio.Text = string.Format(AppRes.BtnStopWithCount, displayIdx, total);
             });
 
             string rawPath = urls[i].Replace("\\", "/").TrimStart('/');
@@ -74,6 +87,8 @@ public partial class MainPage
             {
                 int nextIdx = i + 1;
                 _poiAudioIndex[poi.Id] = nextIdx < urls.Count ? nextIdx : 0;
+                // ✅ LOG KHI USER DỪNG 1 AUDIO (không phải hết hàng)
+                await LogAudioPlaybackAsync(poi.Id, playStartTime);
                 return;
             }
             catch (Exception ex)
@@ -82,14 +97,17 @@ public partial class MainPage
             }
         }
 
+
         // Phát hết toàn bộ → reset về 0
         _poiAudioIndex[poi.Id] = 0;
+        await LogAudioPlaybackAsync(poi.Id, playStartTime);
+        _currentAudioPoiId = 0; // ✅ Reset POI ID
         _isPlaying = false;
         int played = urls.Count;
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            SetStatus($"✅ {poi.Name}  ·  Phát xong {played} audio", priority: 1, autoRevertMs: 3000);
-            if (btnPlayAudio != null) btnPlayAudio.Text = "🔊 Nghe lại";
+            SetStatus(string.Format(AppRes.StatusPlayDone, poi.Name, played), priority: 1, autoRevertMs: 3000);
+            if (btnPlayAudio != null) btnPlayAudio.Text = AppRes.BtnRelisten;
         });
     }
     private async Task PlayRemoteAudioAndWaitAsync(string url, CancellationToken ct = default)
@@ -139,6 +157,50 @@ public partial class MainPage
 
         await tcs.Task;
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  LOG AUDIO PLAYBACK (GỌI KHI STOP/CANCEL)
+    // ════════════════════════════════════════════════════════════════════════
+    /// <summary>
+    /// Ghi lại listen event khi user:
+    /// - Dừng audio bằng nút "⏹️ Dừng"
+    /// - Rời vùng POI lúc đang nghe (cancel token)
+    /// - Dừng 1 audio trong queue (OperationCanceledException)
+    /// 
+    /// Fire-and-forget — không block UI, lỗi mạng được lieca.
+    /// </summary>
+    private async Task LogAudioPlaybackAsync(int poiId, DateTime startTime)
+    {
+        try
+        {
+            if (_isGeofenceVisitActive && _loggedPoisInCurrentGeofenceVisit.Contains(poiId))
+                return;
+
+            var durationSec = (int)(DateTime.Now - startTime).TotalSeconds;
+            if (durationSec < 1) return; // Lọc bấm nhầm (< 1 giây)
+
+            if (_isGeofenceVisitActive)
+                _loggedPoisInCurrentGeofenceVisit.Add(poiId);
+
+            // Không await — fire and forget
+            _ = _apiService.LogPoiListenAsync(poiId, durationSec, _deviceId, _currentListenSessionId);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Log Playback] Lỗi: {ex.Message}");
+            // Không throw — log lỗi xong và tiếp tục
+        }
+    }
+
+    private void PrepareListenSession(int poiId, bool allowReuseCurrent)
+    {
+        if (allowReuseCurrent && _currentListenSessionPoiId == poiId && !string.IsNullOrWhiteSpace(_currentListenSessionId))
+            return;
+
+        _currentListenSessionPoiId = poiId;
+        _currentListenSessionId = Guid.NewGuid().ToString("N");
+    }
+
     // PauseForInterruption, ResumeFromInterruption
     // ════════════════════════════════════════════════════════════════════════
     //  TẠMM DỪNG / TIẾP TỤC KHI CÓ CUỘC GỌI / APP VÀO BACKGROUND
@@ -249,25 +311,63 @@ public partial class MainPage
     {
         if (string.IsNullOrWhiteSpace(text)) return;
 
-        _ttsCancellationToken = new CancellationTokenSource();
-        var locales = await TextToSpeech.GetLocalesAsync();
-        var vnLocale = locales.FirstOrDefault(l => l.Language == "vi");
+        var ttsCancellationToken = new CancellationTokenSource();
 
-        await TextToSpeech.SpeakAsync(text, new SpeechOptions
+        try
         {
-            Locale = vnLocale,
-            Pitch = 1.0f,
-            Volume = 1.0f
-        }, _ttsCancellationToken.Token);
+            // Hủy token cũ nếu đang có
+            _ttsCancellationToken?.Cancel();
+            _ttsCancellationToken?.Dispose();
+            _ttsCancellationToken = ttsCancellationToken;
 
-        _isPlaying = false;
-        btnPlayAudio.Text = "🗣️ Đọc lại";
+            var locales = await TextToSpeech.GetLocalesAsync();
+            if (ttsCancellationToken.IsCancellationRequested) return;
+
+            // Tìm tiếng Việt, nếu không có thì dùng locale mặc định (null)
+            var vnLocale = locales?.FirstOrDefault(l => l.Language == "vi");
+
+            await TextToSpeech.SpeakAsync(text, new SpeechOptions
+            {
+                Locale = vnLocale, // null = giọng mặc định của máy
+                Pitch = 1.0f,
+                Volume = 1.0f
+            }, ttsCancellationToken.Token);
+
+            if (!ttsCancellationToken.IsCancellationRequested)
+                _isPlaying = false;
+
+            // Kiểm tra null trước khi gán Text
+            if (!ttsCancellationToken.IsCancellationRequested && btnPlayAudio != null)
+                btnPlayAudio.Text = AppRes.BtnReadTtsAgain;
+        }
+        catch (OperationCanceledException)
+        {
+            // Bị hủy bình thường — không cần làm gì
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TTS] Lỗi: {ex.Message}");
+            _isPlaying = false;
+            if (btnPlayAudio != null)
+                btnPlayAudio.Text = AppRes.BtnReadTtsAgain;
+        }
+        finally
+        {
+            if (ReferenceEquals(_ttsCancellationToken, ttsCancellationToken))
+            {
+                _ttsCancellationToken = null;
+            }
+            ttsCancellationToken.Dispose();
+        }
     }
     // ════════════════════════════════════════════════════════════════════════
     //  DỪNG TẤT CẢ
     // ════════════════════════════════════════════════════════════════════════
     private void StopAudio()
     {
+        var wasPlaying = _isPlaying;
+        var selectedPoi = _currentSelectedPoi;
+
         _queueCts?.Cancel();
         _queueCts = null;
         _isPausedByInterruption = false;
@@ -289,21 +389,22 @@ public partial class MainPage
         }
 
         _isPlaying = false;
+        _currentAudioPoiId = 0;
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            if (_currentSelectedPoi?.AudioUrls?.Count > 0)
+            if (selectedPoi?.AudioUrls?.Count > 0)
             {
-                _poiAudioIndex.TryGetValue(_currentSelectedPoi.Id, out int idx);
-                int next = (idx < _currentSelectedPoi.AudioUrls.Count) ? idx + 1 : 1;
-                int total = _currentSelectedPoi.AudioUrls.Count;
+                _poiAudioIndex.TryGetValue(selectedPoi.Id, out int idx);
+                int next = (idx < selectedPoi.AudioUrls.Count) ? idx + 1 : 1;
+                int total = selectedPoi.AudioUrls.Count;
                 btnPlayAudio.Text = total > 1
-                    ? $"🔊 Nghe audio ({next}/{total})"
-                    : "🔊 Nghe File Ghi Âm";
+                    ? string.Format(AppRes.BtnListenAudioCount, next, total)
+                    : AppRes.BtnListenRecording;
             }
             else
             {
-                btnPlayAudio.Text = "🗣️ Đọc Tự Động (TTS)";
+                btnPlayAudio.Text = AppRes.BtnReadTts;
             }
         });
     }

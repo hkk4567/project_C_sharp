@@ -2,10 +2,22 @@ namespace SmartTourGuide.Mobile;
 
 public partial class MainPage
 {
-    // CheckGeofences, TriggerAutoAudio
+    private Label? StatusLabelCtrl => this.FindByName<Label>("statusLabel");
+
     // ════════════════════════════════════════════════════════════════════════
     //  GEOFENCE ENGINE
     // ════════════════════════════════════════════════════════════════════════
+    //
+    //  LOGIC AUDIO THEO VÙNG:
+    //  - Mỗi POI có index audio riêng (ví dụ: 0/3, 1/3, 2/3).
+    //  - Mỗi lần VÀO VÙNG → phát đúng 1 audio tại index hiện tại, rồi tăng index.
+    //    Dù nghe hết hay bị ngắt (cancel) khi rời vùng → index vẫn tăng.
+    //  - Khi index đã qua N/N (phát đủ vòng) VÀ người dùng RỜI VÙNG → bắt đầu CD, reset index.
+    //  - Trong thời gian CD: vào lại vùng sẽ không phát, hiển thị trạng thái còn bao nhiêu giây.
+    //  - CD là riêng biệt cho từng POI, không ảnh hưởng lẫn nhau.
+    //
+    // Trong file MainPage.Geofence.cs
+
     private async void CheckGeofences()
     {
         try
@@ -13,103 +25,179 @@ public partial class MainPage
             if (_isCheckingGeofences || _allPoisCache.Count == 0) return;
             _isCheckingGeofences = true;
 
+            var poisToCheck = _currentTour != null
+                            ? _allPoisCache.Where(p => _currentTour.Pois.Any(tp => tp.PoiId == p.Id)).ToList()
+                            : _allPoisCache;
+
+            var now = DateTime.UtcNow;
             var poisInRange = new List<PoiModel>();
-            foreach (var poi in _allPoisCache)
+
+            foreach (var poi in poisToCheck)
             {
                 var poiLoc = new MauiLocation.Location(poi.Latitude, poi.Longitude);
-                double dist = MauiLocation.Location.CalculateDistance(
-                    _currentUserLocation, poiLoc, DistanceUnits.Kilometers) * 1000;
+                double dist = MauiLocation.Location.CalculateDistance(_currentUserLocation, poiLoc, DistanceUnits.Kilometers) * 1000;
                 double radius = poi.TriggerRadius > 0 ? poi.TriggerRadius : 50;
                 if (dist <= radius) poisInRange.Add(poi);
             }
 
-            // Kịch bản A: Ra khỏi tất cả vùng
+            // Kịch bản rời vùng
             if (poisInRange.Count == 0)
             {
                 if (_currentlyPlayingGeofencePoi != null)
                 {
-                    var leftPoiName = _currentlyPlayingGeofencePoi.Name;
+                    _ = LogAudioPlaybackAsync(_currentlyPlayingGeofencePoi.Id, _playStartTime);
                     StopAudio();
                     _currentlyPlayingGeofencePoi = null;
-                    SetStatus($"👋 Rời vùng: {leftPoiName}", priority: 2, autoRevertMs: 2000);
+                    _isGeofenceVisitActive = false;
+                    _statusPriority = 0;
+                    SetStatus(AppRes.StatusGeofenceLeft, priority: 0, autoRevertMs: 2000);
                 }
                 return;
             }
 
-            // Kịch bản C: Ra khỏi vùng đang phát, còn vùng khác
-            if (_currentlyPlayingGeofencePoi != null)
+            var highestPriPoi = poisInRange.OrderByDescending(p => p.Priority).First();
+
+            // ✅ LOGIC MỚI: NẾU ĐỔI VÙNG THÌ DỪNG NGAY ÂM THANH CŨ
+            // Bất kể POI mới có đang CD hay không
+            if (_currentlyPlayingGeofencePoi != null && _currentlyPlayingGeofencePoi.Id != highestPriPoi.Id)
             {
-                bool stillInZone = poisInRange.Any(p => p.Id == _currentlyPlayingGeofencePoi.Id);
-                if (!stillInZone)
+                System.Diagnostics.Debug.WriteLine($"[Logic] Đổi vùng từ {_currentlyPlayingGeofencePoi.Name} sang {highestPriPoi.Name}. Dừng audio cũ.");
+
+                StopAudio(); // Dừng POI 1 ngay lập tức
+                _loggedPoisInCurrentGeofenceVisit.Clear();
+                _currentlyPlayingGeofencePoi = null; // Xóa trạng thái POI đang phát cũ
+                await Task.Delay(200); // Chờ một chút để hệ thống audio giải phóng
+            }
+
+            // ✅ CẬP NHẬT POPUP (Như đã làm ở câu trước)
+            if (_currentSelectedPoi?.Id != highestPriPoi.Id)
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    StopAudio();
-                    _currentlyPlayingGeofencePoi = null;
-                    await Task.Delay(300);
+                    _currentSelectedPoi = highestPriPoi;
+                    if (DetailPopupCtrl != null) DetailPopupCtrl.IsVisible = true;
+                    UpdatePopupContentOnly(highestPriPoi);
+                });
+            }
+
+            // ✅ KIỂM TRA COOLDOWN
+            int effectiveCd = highestPriPoi.CooldownInSeconds > 0 ? highestPriPoi.CooldownInSeconds : 5;
+            if (_poiLastTriggerAt.TryGetValue(highestPriPoi.Id, out var lastFinishTime))
+            {
+                var elapsed = (DateTime.UtcNow - lastFinishTime).TotalSeconds;
+                if (elapsed < effectiveCd)
+                {
+                    // TÍNH SỐ GIÂY CÒN LẠI
+                    int remaining = (int)(effectiveCd - elapsed);
+
+                    // HIỂN THỊ CD VỚI ƯU TIÊN CAO (Priority 2)
+                    // Dùng force: true để đảm bảo nó hiện ra kể cả khi vừa StopAudio
+                    SetStatus(string.Format(AppRes.StatusWaitReplay, highestPriPoi.Name, remaining),
+                              priority: 2, force: true);
+                    // Nếu đang CD thì thoát, không phát nhạc POI 2
+                    return;
                 }
             }
 
-            var highestPri = poisInRange.OrderByDescending(p => p.Priority).First();
-
-            // Kịch bản B: Bật / đổi nhạc
-            if (_currentlyPlayingGeofencePoi == null)
+            // ✅ PHÁT NHẠC POI 2 (Khi đã hết CD)
+            if (!_isPlaying) // Lúc này _isPlaying chắc chắn là false vì đã StopAudio ở trên
             {
-                _currentlyPlayingGeofencePoi = highestPri;
-                TriggerAutoAudio(highestPri);
-            }
-            else if (_currentlyPlayingGeofencePoi.Id != highestPri.Id)
-            {
-                if (highestPri.Priority > _currentlyPlayingGeofencePoi.Priority || !_isPlaying)
-                {
-                    StopAudio();
-                    await Task.Delay(300);
-                    _currentlyPlayingGeofencePoi = highestPri;
-                    TriggerAutoAudio(highestPri);
-                }
+                _currentlyPlayingGeofencePoi = highestPriPoi;
+                _isGeofenceVisitActive = true;
+                _ = TriggerGeofenceAudioQueue(highestPriPoi);
             }
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Lỗi Geofence: {ex.Message}");
-        }
-        finally
-        {
-            _isCheckingGeofences = false;
-        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[AudioQueue] Lỗi: {ex.Message}"); }
+        finally { _isCheckingGeofences = false; }
     }
-    private void TriggerAutoAudio(PoiModel poi)
+
+    private async Task TriggerGeofenceAudioQueue(PoiModel poi)
     {
+        // Lấy danh sách audio urls cho ngôn ngữ hiện tại
+        var urls = poi.AudioUrls;
+        if (urls == null || urls.Count == 0) return;
+
+        // Lấy index đang phát dở của POI này từ Dictionary
+        if (!_poiAudioIndex.TryGetValue(poi.Id, out int currentIndex))
+            currentIndex = 0;
+
+        _isPlaying = true;
+        _currentSelectedPoi = poi;
         _queueCts?.Cancel();
         _queueCts = new CancellationTokenSource();
+        var ct = _queueCts.Token;
 
-        _currentSelectedPoi = poi;
-        _isPlaying = true;
-
-        MainThread.BeginInvokeOnMainThread(() =>
+        try
         {
-            if (btnPlayAudio != null) btnPlayAudio.Text = "⏹️ Dừng phát";
-            if (DetailPopup != null && DetailPopup.IsVisible)
+            // Duyệt qua hàng đợi audio bắt đầu từ vị trí cũ
+            for (int i = currentIndex; i < urls.Count; i++)
             {
-                // Thay vì gọi ShowPoiDetail(poi) - vốn sẽ gọi StopAudio() gây lỗi,
-                // chúng ta chỉ cập nhật nội dung hiển thị.
-                UpdatePopupContentOnly(poi);
-            }
-        });
+                if (ct.IsCancellationRequested) break;
 
-        _ = PlayAudioQueueAsync(poi, _queueCts.Token).ContinueWith(t =>
-        {
-            if (t.IsFaulted)
-            {
-                var ex = t.Exception?.GetBaseException();
-                System.Diagnostics.Debug.WriteLine($"[TriggerAudio] Lỗi phát ngầm: {ex?.Message}");
+                int displayIdx = i + 1;
+                int total = urls.Count;
+                var fileStartTime = DateTime.Now;
 
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
+                    SetStatus(string.Format(AppRes.StatusPlayingTrackCompact, poi.Name, displayIdx, total), priority: 3);
                     if (btnPlayAudio != null)
-                        btnPlayAudio.Text = poi.AudioUrls?.Count > 0 ? "🔊 Nghe File Ghi Âm" : "🗣️ Đọc Tự Động (TTS)";
-                    SetStatus("Lỗi phát âm thanh tự động", priority: 2, autoRevertMs: 3000);
+                        btnPlayAudio.Text = string.Format(AppRes.BtnStopWithCountCompact, displayIdx, total);
+                });
+
+                string rawPath = urls[i].Replace("\\", "/").TrimStart('/');
+                string fullUrl = $"{BaseApiUrl.TrimEnd('/')}/{rawPath}";
+
+                try
+                {
+                    await PlayRemoteAudioAndWaitAsync(fullUrl, ct);
+
+                    // ✅ PHÁT XONG 1 FILE -> Cập nhật index ngay
+                    currentIndex = i + 1;
+                    _poiAudioIndex[poi.Id] = currentIndex;
+
+                    // Ghi log thời gian nghe
+                    _ = LogAudioPlaybackAsync(poi.Id, fileStartTime);
+                }
+                catch (OperationCanceledException)
+                {
+                    _ = LogAudioPlaybackAsync(poi.Id, fileStartTime);
+                    throw;
+                }
+            }
+
+            // ✅ KIỂM TRA NẾU ĐÃ PHÁT XONG TẤT CẢ FILE TRONG HÀNG ĐỢI
+            if (currentIndex >= urls.Count)
+            {
+                // 1. Reset index về 0 để vòng lặp sau quay lại từ đầu
+                _poiAudioIndex[poi.Id] = 0;
+
+                // 2. Ghi nhận thời điểm kết thúc để tính CD (Lấy giá trị CD từ DB ở vòng check sau)
+                _poiLastTriggerAt[poi.Id] = DateTime.UtcNow;
+
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    int cdSeconds = poi.CooldownInSeconds;
+                    SetStatus(string.Format(AppRes.StatusGeofenceDoneWait, poi.Name, cdSeconds),
+                              priority: 2, autoRevertMs: 3000);
+                    if (btnPlayAudio != null) btnPlayAudio.Text = AppRes.BtnRelisten;
                 });
             }
-        }, TaskContinuationOptions.OnlyOnFaulted);
+        }
+        catch (OperationCanceledException)
+        {
+            // Rời vùng -> i giữ nguyên để lần sau quay lại phát tiếp file này
+            return;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AudioQueue] Lỗi: {ex.Message}");
+        }
+        finally
+        {
+            _isPlaying = false;
+            _isGeofenceVisitActive = false;
+        }
     }
     // UpdateNearestPoiHighlight
     // ════════════════════════════════════════════════════════════════════════
@@ -117,9 +205,8 @@ public partial class MainPage
     // ════════════════════════════════════════════════════════════════════════
     private void UpdateNearestPoiHighlight()
     {
+        var mapView = MapViewCtrl;
         if (_allPoisCache.Count == 0 || mapView?.Pins == null || mapView.Pins.Count == 0) return;
-
-        // Khi đang hiển thị Tour, không highlight nearest — tránh đổi màu pin tour
         if (_currentTour != null) return;
 
         PoiModel? nearestPoi = null;
@@ -139,7 +226,7 @@ public partial class MainPage
             ? $"{minDistanceM / 1000:F1} km"
             : $"{minDistanceM:F0} m";
 
-        SetStatus($"📍 Gần nhất: {nearestPoi.Name} · {distanceText}", priority: 0);
+        SetStatus(string.Format(AppRes.StatusNearestPoi, nearestPoi.Name, distanceText), priority: 0);
 
         if (_nearestHighlightedPoi?.Id != nearestPoi.Id)
         {
@@ -160,6 +247,7 @@ public partial class MainPage
             });
         }
     }
+
     // SetStatus, ShowIdleStatus
     // ════════════════════════════════════════════════════════════════════════
     //  STATUS BAR MANAGER
@@ -172,7 +260,11 @@ public partial class MainPage
         _statusRevertCts = null;
         _statusPriority = priority;
 
-        MainThread.BeginInvokeOnMainThread(() => statusLabel.Text = text);
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            var statusLabel = StatusLabelCtrl;
+            if (statusLabel != null) statusLabel.Text = text;
+        });
 
         if (autoRevertMs > 0)
         {
@@ -190,14 +282,18 @@ public partial class MainPage
             });
         }
     }
+
     private void ShowIdleStatus()
     {
         if (_isPlaying || _nearestHighlightedPoi == null) return;
+        var statusLabel = StatusLabelCtrl;
+        if (statusLabel == null) return;
+
         var poiLoc = new MauiLocation.Location(
             _nearestHighlightedPoi.Latitude, _nearestHighlightedPoi.Longitude);
         double dist = MauiLocation.Location.CalculateDistance(
             _currentUserLocation, poiLoc, DistanceUnits.Kilometers) * 1000;
         string distText = dist >= 1000 ? $"{dist / 1000:F1} km" : $"{dist:F0} m";
-        statusLabel.Text = $"📍 Gần nhất: {_nearestHighlightedPoi.Name} · {distText}";
+        statusLabel.Text = string.Format(AppRes.StatusNearestPoi, _nearestHighlightedPoi.Name, distText);
     }
 }

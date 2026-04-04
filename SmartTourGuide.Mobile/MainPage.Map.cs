@@ -2,18 +2,30 @@ namespace SmartTourGuide.Mobile;
 
 public partial class MainPage
 {
+    private Mapsui.UI.Maui.MapView? MapViewCtrl => this.FindByName<Mapsui.UI.Maui.MapView>("mapView");
+    private Label? LblPoiNameCtrl => this.FindByName<Label>("lblPoiName");
+    private Label? LblAddressCtrl => this.FindByName<Label>("lblAddress");
+    private Label? LblDescriptionCtrl => this.FindByName<Label>("lblDescription");
+    private Button? BtnPlayAudioCtrl => this.FindByName<Button>("btnPlayAudio");
+    private Border? DetailPopupCtrl => this.FindByName<Border>("DetailPopup");
+    private Label? LblTourNameCtrl => this.FindByName<Label>("lblTourName");
+    private HorizontalStackLayout? TourPoiListCtrl => this.FindByName<HorizontalStackLayout>("tourPoiList");
+    private Border? TourInfoPanelCtrl => this.FindByName<Border>("TourInfoPanel");
+
     // LoadPoisOnMap, CreateGeofenceLayer, ShowPoiDetail
     private async Task LoadPoisOnMap()
     {
-        SetStatus(SmartTourGuide.Mobile.Resources.Strings.AppResources.StatusLoading, priority: 2, force: true);
+        SetStatus(AppRes.StatusLoading, priority: 2, force: true);
         try
         {
             var pois = await _apiService.GetPoisAsync(_currentLanguageCode);
             _allPoisCache = pois;
             _nearestHighlightedPoi = null;
+            var mapView = MapViewCtrl;
+            if (mapView == null) return;
             mapView.Pins.Clear();
 
-            ClearMapLayers("Geofences", "TourRoute");
+            ClearMapLayers("Geofences");
 
             mapView.Map.Layers.Insert(1, CreateGeofenceLayer(pois));
 
@@ -31,14 +43,12 @@ public partial class MainPage
                 });
             }
 
-            SetStatus(string.Format(
-                SmartTourGuide.Mobile.Resources.Strings.AppResources.StatusLoaded, pois.Count),
+            SetStatus(string.Format(AppRes.StatusLoaded, pois.Count),
                 priority: 2, autoRevertMs: 3000, force: true);
         }
         catch (Exception ex)
         {
-            SetStatus(string.Format(
-                SmartTourGuide.Mobile.Resources.Strings.AppResources.StatusError, ex.Message),
+            SetStatus(string.Format(AppRes.StatusError, ex.Message),
                 priority: 4, force: true, autoRevertMs: 4000);
         }
     }
@@ -76,9 +86,18 @@ public partial class MainPage
     private void ShowPoiDetail(PoiModel poi)
     {
         _currentSelectedPoi = poi;
-        lblPoiName.Text = poi.Name;
-        lblAddress.Text = poi.Address;
-        lblDescription.Text = string.IsNullOrEmpty(poi.Description) ? "Chưa có mô tả." : poi.Description;
+        var lblPoiName = LblPoiNameCtrl;
+        var lblAddress = LblAddressCtrl;
+        var lblDescription = LblDescriptionCtrl;
+        var btnPlayAudio = BtnPlayAudioCtrl;
+        var detailPopup = DetailPopupCtrl;
+
+        if (lblPoiName != null) lblPoiName.Text = poi.Name;
+        if (lblAddress != null) lblAddress.Text = poi.Address;
+        if (lblDescription != null)
+            lblDescription.Text = string.IsNullOrEmpty(poi.Description)
+                ? AppRes.NoDescription
+                : poi.Description;
 
         _ = LoadPoiImageAsync(poi);
 
@@ -89,57 +108,75 @@ public partial class MainPage
             _poiAudioIndex.TryGetValue(poi.Id, out int idx);
             int next = (idx < poi.AudioUrls.Count) ? idx + 1 : 1;
             int total = poi.AudioUrls.Count;
-            btnPlayAudio.Text = total > 1
-                ? $"🔊 Nghe audio ({next}/{total})"
-                : "🔊 Nghe File Ghi Âm";
+            if (btnPlayAudio != null)
+            {
+                btnPlayAudio.Text = total > 1
+                    ? string.Format(AppRes.BtnListenAudioCount, next, total)
+                    : AppRes.BtnListenRecording;
+            }
         }
         else
         {
-            btnPlayAudio.Text = "🗣️ Đọc Tự Động (TTS)";
+            if (btnPlayAudio != null)
+                btnPlayAudio.Text = AppRes.BtnReadTts;
         }
 
-        MainThread.BeginInvokeOnMainThread(() => DetailPopup.IsVisible = true);
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            if (detailPopup != null) detailPopup.IsVisible = true;
+        });
     }
-    // RenderTourOnMap, GetRoadRouteAsync, DecodePolyline6
+
     // ════════════════════════════════════════════════════════════════════════
-    //  TOUR — VẼ LỘ TRÌNH TRÊN BẢN ĐỒ
+    //  TOUR — HIỂN THỊ CÁC ĐIỂM DỪNG TRÊN BẢN ĐỒ (không vẽ tuyến đường)
     // ════════════════════════════════════════════════════════════════════════
     public async Task RenderTourOnMap(TourModel tour)
     {
         if (!await _mapLock.WaitAsync(500))
         {
-            await DisplayAlertAsync("Thông báo", "Hệ thống đang xử lý tour trước, vui lòng đợi chút!", "OK");
+            await DisplayAlertAsync(AppRes.AlertNotice, AppRes.MsgTourBusy, AppRes.OkButton);
             return;
         }
         try
         {
             _currentTour = tour;
+
+            // Nếu đang phát audio POI không thuộc tour → dừng ngay
+            if (_currentlyPlayingGeofencePoi != null &&
+                !tour.Pois.Any(tp => tp.PoiId == _currentlyPlayingGeofencePoi.Id))
+            {
+                StopAudio();
+                _currentlyPlayingGeofencePoi = null;
+            }
+
             await Task.Delay(300);
+            var mapView = MapViewCtrl;
             if (mapView?.Map == null) return;
 
-            var allPois = await _apiService.GetPoisAsync();
+            var allPois = _allPoisCache.Count > 0
+                ? _allPoisCache
+                : await _apiService.GetPoisAsync(_currentLanguageCode);
             var orderedPois = tour.Pois.OrderBy(p => p.OrderIndex).ToList();
             int total = orderedPois.Count;
-
-            // ── Gọi OSRM lấy đường đi thực tế (ngoài MainThread) ────────
-            // OSRM public demo — miễn phí, không cần API key, dùng dữ liệu OSM
-            List<Coordinate>? roadCoords = null;
-            if (total >= 2)
-            {
-                SetStatus("🗺️ Đang tính lộ trình...", priority: 2, force: true);
-                roadCoords = await GetRoadRouteAsync(orderedPois);
-            }
+            var tourStart = _currentUserLocation;
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 mapView.Pins.Clear();
-
-                // Xóa Geofences + TourRoute layer cũ
-                ClearMapLayers("Geofences", "TourRoute");
+                var tourPoiIds = orderedPois.Select(p => p.PoiId).ToHashSet();
+                var tourPoisOnly = allPois.Where(p => tourPoiIds.Contains(p.Id)).ToList();
+                // Xóa Geofences layer cũ
+                ClearMapLayers("Geofences");
+                mapView.Map.Layers.Insert(1, CreateGeofenceLayer(tourPoisOnly));
 
                 double minX = double.MaxValue, minY = double.MaxValue,
                        maxX = double.MinValue, maxY = double.MinValue;
                 bool hasPoints = false;
+
+                var tourStartSmc = SphericalMercator.FromLonLat(tourStart.Longitude, tourStart.Latitude);
+                minX = Math.Min(minX, tourStartSmc.x); minY = Math.Min(minY, tourStartSmc.y);
+                maxX = Math.Max(maxX, tourStartSmc.x); maxY = Math.Max(maxY, tourStartSmc.y);
+                hasPoints = true;
 
                 // ── Pins có số thứ tự + màu phân cấp ─────────────────────
                 for (int idx = 0; idx < orderedPois.Count; idx++)
@@ -159,49 +196,11 @@ public partial class MainPage
                     {
                         Position = new Mapsui.UI.Maui.Position(poi.Latitude, poi.Longitude),
                         Label = $"{idx + 1}. {poi.PoiName}",
-                        Address = $"Điểm dừng {idx + 1}/{total}",
+                        Address = string.Format(AppRes.StopCountFormat, idx + 1, total),
                         Color = pinColor,
                         Scale = idx == 0 || idx == total - 1 ? 0.70f : 0.55f,
                         Tag = allPois.FirstOrDefault(p => p.Id == poi.PoiId)
                     });
-                }
-
-                // ── Vẽ lộ trình theo đường đi thực tế ────────────────────
-                if (total >= 2)
-                {
-                    // Nếu OSRM trả về → dùng đường thực; nếu lỗi → fallback đường thẳng
-                    var coords = roadCoords ?? orderedPois.Select(p =>
-                    {
-                        var smc = SphericalMercator.FromLonLat(p.Longitude, p.Latitude);
-                        return new Coordinate(smc.x, smc.y);
-                    }).ToList();
-
-                    bool isRealRoute = roadCoords != null;
-
-                    var lineString = new NetTopologySuite.Geometries.LineString(coords.ToArray());
-                    var routeFeature = new GeometryFeature(lineString);
-                    routeFeature.Styles.Add(new VectorStyle
-                    {
-                        Line = new Mapsui.Styles.Pen
-                        {
-                            // Đường thực: xanh dương đậm, nét liền
-                            // Fallback (thẳng): cam đậm, nét đứt
-                            Color = isRealRoute
-                                         ? new Mapsui.Styles.Color(25, 118, 210, 220)   // Blue 700
-                                         : new Mapsui.Styles.Color(255, 152, 0, 200), // Orange
-                            Width = isRealRoute ? 4 : 3,
-                            PenStyle = isRealRoute ? PenStyle.Solid : PenStyle.Dash
-                        },
-                        Fill = null
-                    });
-
-                    var routeLayer = new MemoryLayer
-                    {
-                        Name = "TourRoute",
-                        Features = new List<IFeature> { routeFeature },
-                        Style = null
-                    };
-                    mapView.Map.Layers.Insert(1, routeLayer);
                 }
 
                 // ── Zoom vừa khung tất cả POI ─────────────────────────────
@@ -226,87 +225,17 @@ public partial class MainPage
         catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Lỗi RenderTour: {ex.Message}"); }
         finally { _mapLock.Release(); }
     }
-    // ════════════════════════════════════════════════════════════════════════
-    //  OSRM ROUTING — lấy đường đi thực tế qua các POI
-    // ════════════════════════════════════════════════════════════════════════
-    /// <summary>
-    /// Gọi OSRM public API để lấy tuyến đường thực tế qua tất cả các POI.
-    /// OSRM dùng dữ liệu OpenStreetMap — miễn phí, không cần API key.
-    /// Trả về null nếu network lỗi (caller sẽ fallback về đường thẳng).
-    /// </summary>
-    private async Task<List<Coordinate>?> GetRoadRouteAsync(List<TourDetailModel> orderedPois)
-    {
-        try
-        {
-            // Ghép tọa độ: lon,lat;lon,lat;... (OSRM dùng lon trước lat)
-            // BẮT BUỘC dùng InvariantCulture — tránh dấu phẩy thập phân theo locale device
-            // vd: locale vi-VN sẽ format 21,016492 thay vì 21.016492 → OSRM trả 400
-            var ic = System.Globalization.CultureInfo.InvariantCulture;
-            var coords = string.Join(";",
-                orderedPois.Select(p =>
-                    $"{p.Longitude.ToString("F6", ic)},{p.Latitude.ToString("F6", ic)}"));
 
-            // OSRM public demo server — driving profile, full geometry dạng polyline6
-            var url = $"https://router.project-osrm.org/route/v1/driving/{coords}" +
-                      "?overview=full&geometries=polyline6&continue_straight=false";
-
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            client.DefaultRequestHeaders.Add("User-Agent", "SmartTourGuide/1.0");
-
-            var response = await client.GetStringAsync(url);
-            var json = System.Text.Json.JsonDocument.Parse(response);
-            var root = json.RootElement;
-
-            // Kiểm tra OSRM trả về OK
-            if (root.GetProperty("code").GetString() != "Ok") return null;
-
-            // Lấy encoded polyline của toàn bộ tuyến
-            var encodedPolyline = root
-                .GetProperty("routes")[0]
-                .GetProperty("geometry")
-                .GetString();
-
-            if (string.IsNullOrEmpty(encodedPolyline)) return null;
-
-            // Giải mã Polyline6 → danh sách tọa độ GPS
-            var gpsPoints = DecodePolyline6(encodedPolyline);
-
-            // Chuyển GPS → tọa độ bản đồ Mapsui (SphericalMercator)
-            return gpsPoints.Select(pt =>
-            {
-                var smc = SphericalMercator.FromLonLat(pt.lon, pt.lat);
-                return new Coordinate(smc.x, smc.y);
-            }).ToList();
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[OSRM] Lỗi routing: {ex.Message}");
-            return null; // Fallback về đường thẳng
-        }
-    }
-    /// <summary>
-    /// Giải mã Google Encoded Polyline6 (precision=6) thành list (lat, lon).
-    /// OSRM dùng precision 6 thay vì 5 như Google Maps.
-    /// </summary>
-    private static List<(double lat, double lon)> DecodePolyline6(string encoded)
-    {
-        var result = new List<(double, double)>();
-        int index = 0;
-        int lat = 0;
-        int lon = 0;
-
-        while (index < encoded.Length)
-        {
-            lat += DecodePolylineChunk(encoded, ref index);
-            lon += DecodePolylineChunk(encoded, ref index);
-            result.Add((lat / 1e6, lon / 1e6));
-        }
-        return result;
-    }
     // ShowTourInfoPanel, OnCloseTourPanelClicked
     /// <summary>Hiện panel tóm tắt lộ trình ở góc dưới bản đồ.</summary>
     private void ShowTourInfoPanel(TourModel tour, List<TourDetailModel> orderedPois)
     {
+        var lblTourName = LblTourNameCtrl;
+        var tourPoiList = TourPoiListCtrl;
+        var tourInfoPanel = TourInfoPanelCtrl;
+
+        if (lblTourName == null || tourPoiList == null || tourInfoPanel == null) return;
+
         lblTourName.Text = tour.Name ?? "Tour";
         tourPoiList.Children.Clear();
 
@@ -359,16 +288,17 @@ public partial class MainPage
                 });
         }
 
-        TourInfoPanel.IsVisible = true;
+        tourInfoPanel.IsVisible = true;
     }
-    /// <summary>Đóng TourInfoPanel và xóa route layer khỏi bản đồ.</summary>
+    /// <summary>Đóng TourInfoPanel nhưng giữ route layer để user xem tuyến đi lâu hơn.</summary>
     private async void OnCloseTourPanelClicked(object? sender, EventArgs e)
     {
-        TourInfoPanel.IsVisible = false;
-        _currentTour = null;
+        var tourInfoPanel = TourInfoPanelCtrl;
+        if (tourInfoPanel != null) tourInfoPanel.IsVisible = false;
 
-        // LoadPoisOnMap vẽ lại toàn bộ POI + Geofence circles
-        await LoadPoisOnMap();
+        // reset tour state và load lại POI bình thường
+        _currentTour = null;
+        await LoadPoisWithOfflineFallbackAsync();
     }
     // OnMapClicked_SimulateWalk
     // ════════════════════════════════════════════════════════════════════════
@@ -376,8 +306,17 @@ public partial class MainPage
     // ════════════════════════════════════════════════════════════════════════
     private void OnMapClicked_SimulateWalk(object? sender, MapClickedEventArgs e)
     {
-        _currentUserLocation = new MauiLocation.Location(e.Point.Latitude, e.Point.Longitude);
+        var mapView = MapViewCtrl;
+        if (mapView == null) return;
 
+        _currentUserLocation = new MauiLocation.Location(e.Point.Latitude, e.Point.Longitude);
+        _isManualLocationOverride = true;
+        // Gửi vị trí lên server để lưu tuyến di chuyển ẩn danh
+        // Dùng cho heatmap và analytics
+        _ = _apiService.SendLocationAsync(
+            e.Point.Latitude,
+            e.Point.Longitude,
+            _deviceId);  // ← Device ID ẩn danh
         MainThread.BeginInvokeOnMainThread(() =>
         {
             mapView.MyLocationLayer.UpdateMyLocation(
@@ -396,18 +335,25 @@ public partial class MainPage
     {
         if (poi == null) return;
 
+        var lblPoiName = LblPoiNameCtrl;
+        var lblAddress = LblAddressCtrl;
+        var lblDescription = LblDescriptionCtrl;
+        var btnPlayAudio = BtnPlayAudioCtrl;
+
         // Kiểm tra null cho từng control XAML để an toàn tuyệt đối
         if (lblPoiName != null) lblPoiName.Text = poi.Name;
         if (lblAddress != null) lblAddress.Text = poi.Address;
         if (lblDescription != null)
-            lblDescription.Text = string.IsNullOrEmpty(poi.Description) ? "Chưa có mô tả." : poi.Description;
+            lblDescription.Text = string.IsNullOrEmpty(poi.Description)
+                ? AppRes.NoDescription
+                : poi.Description;
 
         _ = LoadPoiImageAsync(poi);
 
         // Cập nhật text nút bấm mà không dừng audio hiện tại
         if (btnPlayAudio != null)
         {
-            btnPlayAudio.Text = "⏹️ Dừng phát";
+            btnPlayAudio.Text = AppRes.BtnStop;
         }
     }
 }
