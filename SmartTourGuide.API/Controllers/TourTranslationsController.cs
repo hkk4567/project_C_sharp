@@ -21,6 +21,17 @@ public class TourTranslationsController : ControllerBase
         _context = context;
     }
 
+    private string GetCurrentUsername()
+    {
+        var name = User.Identity?.Name;
+        if (!string.IsNullOrEmpty(name)) return name;
+
+        var headerName = HttpContext.Request.Headers["X-User-Name"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(headerName)) return headerName;
+
+        return "Unknown";
+    }
+
     // ─────────────────────────────────────────────────────────────
     // 1. GET tất cả bản dịch của 1 Tour
     //    GET: api/tour-translations/{tourId}
@@ -100,6 +111,8 @@ public class TourTranslationsController : ControllerBase
         // Tìm bản dịch đã có (nếu có -> Update, chưa có -> Insert)
         var existing = await _context.TourTranslations
             .FirstOrDefaultAsync(t => t.TourId == dto.TourId && t.LanguageCode == dto.LanguageCode);
+        var isNewTranslation = existing == null;
+        var tour = await _context.Tours.FirstOrDefaultAsync(t => t.Id == dto.TourId);
 
         if (existing == null)
         {
@@ -113,23 +126,37 @@ public class TourTranslationsController : ControllerBase
                 Tour = null!
             };
             _context.TourTranslations.Add(newTrans);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(
-                nameof(GetByLanguage),
-                new { tourId = newTrans.TourId, langCode = newTrans.LanguageCode },
-                new { message = "Đã tạo bản dịch mới thành công.", id = newTrans.Id }
-            );
+            existing = newTrans;
         }
         else
         {
             // --- UPDATE ---
             existing.TranslatedName = dto.TranslatedName.Trim();
             existing.TranslatedDescription = dto.TranslatedDescription.Trim();
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Đã cập nhật bản dịch thành công.", id = existing.Id });
         }
+
+        var username = GetCurrentUsername();
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            ActivityType = "SaveTourTranslation",
+            Description = $"{username} {(isNewTranslation ? "đã thêm" : "đã cập nhật")} ngôn ngữ {dto.LanguageCode} cho Tour '{tour?.Name ?? dto.TourId.ToString()}'",
+            UserName = username,
+            Timestamp = DateTime.Now,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown"
+        });
+
+        await _context.SaveChangesAsync();
+
+        if (isNewTranslation)
+        {
+            return CreatedAtAction(
+                nameof(GetByLanguage),
+                new { tourId = existing.TourId, langCode = existing.LanguageCode },
+                new { message = "Đã tạo bản dịch mới thành công.", id = existing.Id }
+            );
+        }
+
+        return Ok(new { message = "Đã cập nhật bản dịch thành công.", id = existing.Id });
     }
 
     // ─────────────────────────────────────────────────────────────

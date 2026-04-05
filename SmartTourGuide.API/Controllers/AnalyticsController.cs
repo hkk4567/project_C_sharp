@@ -270,6 +270,66 @@ public class AnalyticsController : ControllerBase
         });
     }
 
+    [HttpGet("admin/summary")]
+    public async Task<ActionResult<AdminDashboardSummaryDto>> GetAdminSummary()
+    {
+        var sinceWeek = DateTime.UtcNow.Date.AddDays(-6);
+
+        var totalPois = await _context.Pois.CountAsync();
+        var pendingPois = await _context.Pois.CountAsync(p => p.Status == PoiStatus.Pending);
+        var totalUsers = await _context.Users.CountAsync();
+        var lockedUsers = await _context.Users.CountAsync(u => u.IsLocked);
+        var totalTours = await _context.Tours.CountAsync();
+
+        var weeklyGrouped = await _context.PoiListenLogs
+            .Where(l => l.Timestamp >= sinceWeek)
+            .GroupBy(l => l.Timestamp.Date)
+            .Select(g => new AdminDailyCountDto
+            {
+                Date = g.Key,
+                Count = g.Count()
+            })
+            .ToListAsync();
+
+        var weeklyMap = weeklyGrouped.ToDictionary(x => x.Date, x => x.Count);
+        var weeklySeries = new List<AdminDailyCountDto>();
+
+        for (var date = sinceWeek; date <= DateTime.UtcNow.Date; date = date.AddDays(1))
+        {
+            weeklySeries.Add(new AdminDailyCountDto
+            {
+                Date = date,
+                Count = weeklyMap.TryGetValue(date, out var count) ? count : 0
+            });
+        }
+
+        var recentActivities = await _context.ActivityLogs
+            .OrderByDescending(a => a.Timestamp)
+            .Take(5)
+            .Select(a => new ActivityLogDto
+            {
+                Id = a.Id,
+                ActivityType = a.ActivityType,
+                Description = a.Description,
+                UserName = a.UserName,
+                Timestamp = a.Timestamp,
+                IpAddress = a.IpAddress
+            })
+            .ToListAsync();
+
+        return Ok(new AdminDashboardSummaryDto
+        {
+            TotalPois = totalPois,
+            PendingPois = pendingPois,
+            TotalUsers = totalUsers,
+            LockedUsers = lockedUsers,
+            TotalTours = totalTours,
+            TotalListenEventsWeek = weeklySeries.Sum(x => x.Count),
+            WeeklyListenSeries = weeklySeries,
+            RecentActivities = recentActivities
+        });
+    }
+
     [HttpGet("owner/{ownerId:int}/avg-listen-time")]
     public async Task<ActionResult<List<AvgListenTimeDto>>> GetOwnerAvgListenTime(int ownerId, [FromQuery] int top = 20)
     {
