@@ -2,6 +2,18 @@
 
 public partial class MainPage : ContentPage
 {
+    private readonly record struct LanguageOption(string Code, string DisplayName, string PickerLabel, string FlagEmoji);
+
+    private static readonly IReadOnlyList<LanguageOption> SupportedLanguages = new[]
+    {
+        new LanguageOption("vi-VN", "Tiếng Việt", "🇻🇳 Tiếng Việt", "🇻🇳"),
+        new LanguageOption("en-US", "English", "🇺🇸 English", "🇺🇸"),
+        new LanguageOption("zh-CN", "中文", "🇨🇳 中文", "🇨🇳"),
+        new LanguageOption("ja-JP", "日本語", "🇯🇵 日本語", "🇯🇵"),
+        new LanguageOption("fr-FR", "Français", "🇫🇷 Français", "🇫🇷"),
+        new LanguageOption("ko-KR", "한국어", "🇰🇷 한국어", "🇰🇷"),
+    };
+
     // ════════════════════════════════════════════════════════════════════════
     //  CONSTRUCTOR
     // ════════════════════════════════════════════════════════════════════════
@@ -116,7 +128,7 @@ public partial class MainPage : ContentPage
 
     private void UpdateLanguageButtonUI()
     {
-        btnLanguage.Text = _currentLanguageCode == "en-US" ? "🇺🇸 English" : "🇻🇳 Tiếng Việt";
+        btnLanguage.Text = GetLanguageOption(_currentLanguageCode).PickerLabel;
     }
 
     private async void OnChangeLanguageClicked(object? sender, EventArgs e)
@@ -124,11 +136,14 @@ public partial class MainPage : ContentPage
         StopAudio();
         string action = await DisplayActionSheetAsync(
             "Chọn ngôn ngữ / Select Language", "Hủy/Cancel", null,
-            "🇻🇳 Tiếng Việt", "🇺🇸 English");
+            SupportedLanguages.Select(x => x.PickerLabel).ToArray());
 
         string selectedCode = _currentLanguageCode;
-        if (action == "🇻🇳 Tiếng Việt") selectedCode = "vi-VN";
-        else if (action == "🇺🇸 English") selectedCode = "en-US";
+        var selectedLanguage = SupportedLanguages.FirstOrDefault(x => x.PickerLabel == action);
+        if (!string.IsNullOrWhiteSpace(selectedLanguage.Code))
+        {
+            selectedCode = selectedLanguage.Code;
+        }
 
         if (selectedCode != _currentLanguageCode &&
             action != "Hủy/Cancel" && !string.IsNullOrEmpty(action))
@@ -137,11 +152,19 @@ public partial class MainPage : ContentPage
             Preferences.Set("AppLanguage", _currentLanguageCode);
             SetAppLanguage(_currentLanguageCode);
 
+            UpdateLanguageButtonUI();
+
             if (Application.Current?.Windows.Count > 0)
                 Application.Current.Windows[0].Page = new MainPage();
             else if (this.Window != null)
                 this.Window.Page = new MainPage();
         }
+    }
+
+    private static LanguageOption GetLanguageOption(string langCode)
+    {
+        var option = SupportedLanguages.FirstOrDefault(x => x.Code == langCode);
+        return string.IsNullOrWhiteSpace(option.Code) ? SupportedLanguages[0] : option;
     }
 
     // ════════════════════════════════════════════════════════════════════════

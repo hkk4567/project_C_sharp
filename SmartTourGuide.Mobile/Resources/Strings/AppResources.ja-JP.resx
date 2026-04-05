@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AlertError" xml:space="preserve"><value>エラー</value></data>
+  <data name="AlertInfo" xml:space="preserve"><value>情報</value></data>
+  <data name="AlertNotice" xml:space="preserve"><value>お知らせ</value></data>
+  <data name="BtnBack" xml:space="preserve"><value>🔙 戻る</value></data>
+  <data name="BtnLanguage" xml:space="preserve"><value>🌐 言語</value></data>
+  <data name="BtnListen" xml:space="preserve"><value>🔊 音声ガイドを聞く</value></data>
+  <data name="BtnMyLocation" xml:space="preserve"><value>📍 現在地</value></data>
+  <data name="BtnReadTts" xml:space="preserve"><value>🗣️ 自動読み上げ（TTS）</value></data>
+  <data name="BtnReload" xml:space="preserve"><value>目的地を再読み込み</value></data>
+  <data name="BtnSelectTour" xml:space="preserve"><value>🗺️ ツアーを選択</value></data>
+  <data name="BtnStop" xml:space="preserve"><value>⏹️ 再生停止</value></data>
+  <data name="CloseButton" xml:space="preserve"><value>閉じる</value></data>
+  <data name="ConnectionError" xml:space="preserve"><value>接続エラー</value></data>
+  <data name="ConnectionErrorMessage" xml:space="preserve"><value>サーバーに接続できません。ネットワークまたは API アドレスを確認してください。</value></data>
+  <data name="MapTitle" xml:space="preserve"><value>観光マップ</value></data>
+  <data name="NoDescription" xml:space="preserve"><value>説明はありません。</value></data>
+  <data name="NoToursAvailable" xml:space="preserve"><value>現在、利用できるツアーはありません。</value></data>
+  <data name="OkButton" xml:space="preserve"><value>OK</value></data>
+  <data name="PoiCountFormat" xml:space="preserve"><value>{0} 件の地点を含む</value></data>
+  <data name="RetryButton" xml:space="preserve"><value>再試行</value></data>
+  <data name="SelectTourHeader" xml:space="preserve"><value>行程を選択してください</value></data>
+  <data name="StatusError" xml:space="preserve"><value>エラー: {0}</value></data>
+  <data name="StatusFindingLocation" xml:space="preserve"><value>位置を検索中...</value></data>
+  <data name="StatusFound" xml:space="preserve"><value>位置を取得しました！</value></data>
+  <data name="StatusGpsError" xml:space="preserve"><value>GPS エラーです。位置情報を有効にしてください！</value></data>
+  <data name="StatusLanguageChanged" xml:space="preserve"><value>言語を変更しました</value></data>
+  <data name="StatusLoaded" xml:space="preserve"><value>{0} 件の地点を読み込みました。</value></data>
+  <data name="StatusGeofenceDoneWait" xml:space="preserve"><value>✅ 完了 {0}。{1}秒休憩</value></data>
+    <data name="StatusWaitReplay" xml:space="preserve"><value>⏳ {0} · 再生待ち: {1}秒</value></data>
+  <data name="StatusLoading" xml:space="preserve"><value>データを読み込み中...</value></data>
+  <data name="SystemError" xml:space="preserve"><value>システムエラー</value></data>
+  <data name="SystemErrorMessage" xml:space="preserve"><value>エラーが発生しました: {0}</value></data>
+  <data name="ToursPageTitle" xml:space="preserve"><value>ツアー一覧</value></data>
+  <data name="AudioPlayError" xml:space="preserve"><value>音声を再生できません: {0}</value></data>
+  <data name="StatusNearestPoi" xml:space="preserve"><value>📍 最近: {0} · {1}</value></data>
+</root>
