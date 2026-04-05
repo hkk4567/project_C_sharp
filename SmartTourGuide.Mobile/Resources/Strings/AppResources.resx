@@ -159,6 +159,12 @@
   <data name="MapTitle" xml:space="preserve">
     <value>Bản đồ du lịch</value>
   </data>
+  <data name="PoiDetailTitle" xml:space="preserve">
+    <value>Chi tiết địa điểm</value>
+  </data>
+  <data name="PoiDescriptionLabel" xml:space="preserve">
+    <value>Mô tả</value>
+  </data>
   <data name="NoDescription" xml:space="preserve">
     <value>Chưa có mô tả.</value>
   </data>

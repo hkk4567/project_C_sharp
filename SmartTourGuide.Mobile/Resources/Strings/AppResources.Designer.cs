@@ -235,6 +235,18 @@ namespace SmartTourGuide.Mobile.Resources.Strings
             get { return ResourceManager.GetString("MapTitle", resourceCulture); }
         }
 
+        /// <summary>Looks up a localized string similar to Chi tiết điểm đến.</summary>
+        public static string PoiDetailTitle
+        {
+            get { return ResourceManager.GetString("PoiDetailTitle", resourceCulture); }
+        }
+
+        /// <summary>Looks up a localized string similar to Mô tả.</summary>
+        public static string PoiDescriptionLabel
+        {
+            get { return ResourceManager.GetString("PoiDescriptionLabel", resourceCulture); }
+        }
+
         /// <summary>Looks up a localized string similar to Hệ thống đang xử lý tour trước, vui lòng đợi chút!</summary>
         public static string MsgTourBusy
         {

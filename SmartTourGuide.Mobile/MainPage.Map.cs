@@ -11,6 +11,9 @@ public partial class MainPage
     private Label? LblTourNameCtrl => this.FindByName<Label>("lblTourName");
     private HorizontalStackLayout? TourPoiListCtrl => this.FindByName<HorizontalStackLayout>("tourPoiList");
     private Border? TourInfoPanelCtrl => this.FindByName<Border>("TourInfoPanel");
+    private Entry? PoiSearchBarCtrl => this.FindByName<Entry>("poiSearchBar");
+    private CollectionView? PoiSearchSuggestionsCtrl => this.FindByName<CollectionView>("poiSearchSuggestions");
+    private Border? SearchSuggestionsPanelCtrl => this.FindByName<Border>("SearchSuggestionsPanel");
 
     // LoadPoisOnMap, CreateGeofenceLayer, ShowPoiDetail
     private async Task LoadPoisOnMap()
@@ -45,6 +48,8 @@ public partial class MainPage
 
             SetStatus(string.Format(AppRes.StatusLoaded, pois.Count),
                 priority: 2, autoRevertMs: 3000, force: true);
+
+            MainThread.BeginInvokeOnMainThread(() => UpdatePoiSearchSuggestions(PoiSearchBarCtrl?.Text));
         }
         catch (Exception ex)
         {
@@ -83,6 +88,40 @@ public partial class MainPage
         }
         return new MemoryLayer { Name = "Geofences", Features = features, Style = null };
     }
+
+    private MemoryLayer CreateTourRouteLayer(IReadOnlyList<MauiLocation.Location> routePoints)
+    {
+        var routeCoordinates = new List<Coordinate>(routePoints.Count);
+
+        foreach (var point in routePoints)
+        {
+            var mercator = SphericalMercator.FromLonLat(point.Longitude, point.Latitude);
+            routeCoordinates.Add(new Coordinate(mercator.x, mercator.y));
+        }
+
+        var features = new List<IFeature>();
+        if (routeCoordinates.Count >= 2)
+        {
+            var routeFeature = new GeometryFeature(new LineString(routeCoordinates.ToArray()));
+            routeFeature.Styles.Add(new VectorStyle
+            {
+                Line = new Mapsui.Styles.Pen
+                {
+                    Color = new Mapsui.Styles.Color(33, 150, 243, 230),
+                    Width = 6
+                }
+            });
+            features.Add(routeFeature);
+        }
+
+        return new MemoryLayer
+        {
+            Name = "TourRoute",
+            Features = features,
+            Style = null
+        };
+    }
+
     private void ShowPoiDetail(PoiModel poi)
     {
         _currentSelectedPoi = poi;
@@ -128,7 +167,7 @@ public partial class MainPage
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  TOUR — HIỂN THỊ CÁC ĐIỂM DỪNG TRÊN BẢN ĐỒ (không vẽ tuyến đường)
+    //  TOUR — HIỂN THỊ CÁC ĐIỂM DỪNG TRÊN BẢN ĐỒ + tuyến đường
     // ════════════════════════════════════════════════════════════════════════
     public async Task RenderTourOnMap(TourModel tour)
     {
@@ -168,6 +207,11 @@ public partial class MainPage
                 // Xóa Geofences layer cũ
                 ClearMapLayers("Geofences");
                 mapView.Map.Layers.Insert(1, CreateGeofenceLayer(tourPoisOnly));
+                ClearMapLayers("TourRoute");
+                var routePoints = new List<MauiLocation.Location> { tourStart };
+                routePoints.AddRange(orderedPois.Select(p => new MauiLocation.Location(p.Latitude, p.Longitude)));
+                if (routePoints.Count > 1)
+                    mapView.Map.Layers.Add(CreateTourRouteLayer(routePoints));
 
                 double minX = double.MaxValue, minY = double.MaxValue,
                        maxX = double.MinValue, maxY = double.MinValue;
@@ -290,13 +334,14 @@ public partial class MainPage
 
         tourInfoPanel.IsVisible = true;
     }
-    /// <summary>Đóng TourInfoPanel nhưng giữ route layer để user xem tuyến đi lâu hơn.</summary>
+    /// <summary>Đóng TourInfoPanel và xóa luôn tuyến tour trên bản đồ.</summary>
     private async void OnCloseTourPanelClicked(object? sender, EventArgs e)
     {
         var tourInfoPanel = TourInfoPanelCtrl;
         if (tourInfoPanel != null) tourInfoPanel.IsVisible = false;
 
         // reset tour state và load lại POI bình thường
+        ClearMapLayers("TourRoute");
         _currentTour = null;
         await LoadPoisWithOfflineFallbackAsync();
     }
@@ -313,10 +358,7 @@ public partial class MainPage
         _isManualLocationOverride = true;
         // Gửi vị trí lên server để lưu tuyến di chuyển ẩn danh
         // Dùng cho heatmap và analytics
-        _ = _apiService.SendLocationAsync(
-            e.Point.Latitude,
-            e.Point.Longitude,
-            _deviceId);  // ← Device ID ẩn danh
+        _ = SendLocationIfNeededAsync(e.Point.Latitude, e.Point.Longitude);  // ← Device ID ẩn danh
         MainThread.BeginInvokeOnMainThread(() =>
         {
             mapView.MyLocationLayer.UpdateMyLocation(

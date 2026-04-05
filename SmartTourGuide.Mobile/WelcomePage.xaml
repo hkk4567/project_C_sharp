@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SmartTourGuide.Mobile.WelcomePage"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             BackgroundColor="#0B1220">
+
+    <Grid>
+        <Grid.Background>
+            <LinearGradientBrush StartPoint="0,0"
+                                 EndPoint="1,1">
+                <GradientStop Color="#0B1220"
+                              Offset="0.0"/>
+                <GradientStop Color="#111827"
+                              Offset="0.48"/>
+                <GradientStop Color="#1F2937"
+                              Offset="1.0"/>
+            </LinearGradientBrush>
+        </Grid.Background>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="24,24"
+                                 Spacing="18"
+                                 HorizontalOptions="Center"
+                                 VerticalOptions="Center">
+
+                <Label Text="Chào mừng"
+                       FontSize="14"
+                       FontAttributes="Bold"
+                       TextColor="#D1D5DB"
+                       HorizontalOptions="Center"
+                       CharacterSpacing="1.4"/>
+
+                <Border WidthRequest="320"
+                        MaximumWidthRequest="350"
+                        HorizontalOptions="Center"
+                        BackgroundColor="#F8FAFC"
+                        Stroke="#8A7CF6"
+                        StrokeThickness="4"
+                        Padding="10">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="28"/>
+                    </Border.StrokeShape>
+                    <Border.Shadow>
+                        <Shadow Brush="Black"
+                                Offset="0,12"
+                                Radius="24"
+                                Opacity="0.24"/>
+                    </Border.Shadow>
+
+                    <Border BackgroundColor="#FFF7ED"
+                            StrokeThickness="0"
+                            Padding="0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="20"/>
+                        </Border.StrokeShape>
+
+                        <Grid RowDefinitions="*,Auto"
+                              HeightRequest="500">
+
+                            <Grid Grid.Row="0">
+                                <Grid.Background>
+                                    <LinearGradientBrush StartPoint="0,0"
+                                                         EndPoint="0,1">
+                                        <GradientStop Color="#6B3417"
+                                                      Offset="0.0"/>
+                                        <GradientStop Color="#A85A25"
+                                                      Offset="0.38"/>
+                                        <GradientStop Color="#F59E0B"
+                                                      Offset="1.0"/>
+                                    </LinearGradientBrush>
+                                </Grid.Background>
+
+                                <Grid RowDefinitions="Auto,*,Auto,Auto"
+                                      Padding="18,20,18,18"
+                                      RowSpacing="12">
+                                    <Label Text="BẢN ĐỒ DU LỊCH"
+                                           FontSize="10"
+                                           TextColor="#FDF2E9"
+                                           FontAttributes="Bold"
+                                           CharacterSpacing="2"
+                                           HorizontalOptions="Start"/>
+
+                                    <VerticalStackLayout Grid.Row="1"
+                                                         Spacing="2"
+                                                         VerticalOptions="Center">
+                                        <Label Text="Khám phá"
+                                               FontSize="30"
+                                               FontAttributes="Bold"
+                                               TextColor="White"
+                                               LineBreakMode="WordWrap"/>
+                                        <Label Text="quán ngon"
+                                               FontSize="30"
+                                               FontAttributes="Bold"
+                                               TextColor="White"/>
+                                        <Label Text="quanh bạn"
+                                               FontSize="30"
+                                               FontAttributes="Bold"
+                                               TextColor="#FF9E1B"/>
+                                    </VerticalStackLayout>
+
+                                    <Label Grid.Row="2"
+                                           Text="Tìm kiếm những địa điểm ăn uống và hành trình phù hợp theo ngôn ngữ bạn chọn."
+                                           FontSize="12"
+                                           TextColor="#FFF8F0"
+                                           LineBreakMode="WordWrap"
+                                           MaxLines="4"
+                                           Opacity="0.88"/>
+
+                                    <Grid Grid.Row="3"
+                                          VerticalOptions="End"
+                                          Padding="0,6,0,0">
+                                        <Button x:Name="btnStart"
+                                                Text="Bắt đầu ngay"
+                                                Clicked="OnStartClicked"
+                                                FontAttributes="Bold"
+                                                FontSize="15"
+                                                HeightRequest="48"
+                                                WidthRequest="200"
+                                                CornerRadius="18"
+                                                BackgroundColor="#FF8A00"
+                                                TextColor="#1A1A1A"
+                                                Padding="24,0"
+                                                HorizontalOptions="Center"/>
+                                    </Grid>
+                                </Grid>
+
+                                <BoxView HeightRequest="24"
+                                         VerticalOptions="End"
+                                         BackgroundColor="#F8FAFC"
+                                         Opacity="0.92"/>
+                            </Grid>
+
+                            <Grid Grid.Row="1"
+                                  HeightRequest="64"
+                                  BackgroundColor="#F8FAFC"
+                                  Padding="0,14,0,18"
+                                  HorizontalOptions="Center">
+                                <HorizontalStackLayout Spacing="8"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center">
+                                    <BoxView WidthRequest="18"
+                                             HeightRequest="4"
+                                             Color="#F59E0B"
+                                             CornerRadius="2"/>
+                                    <BoxView WidthRequest="4"
+                                             HeightRequest="4"
+                                             Color="#CBD5E1"
+                                             CornerRadius="2"/>
+                                    <BoxView WidthRequest="4"
+                                             HeightRequest="4"
+                                             Color="#CBD5E1"
+                                             CornerRadius="2"/>
+                                </HorizontalStackLayout>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </Border>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Label Grid.Row="2"
+               Text="© SmartTourGuide"
+               Margin="0,0,0,18"
+               TextColor="#CBD5E1"
+               FontSize="12"
+               HorizontalOptions="Center"/>
+    </Grid>
+</ContentPage>

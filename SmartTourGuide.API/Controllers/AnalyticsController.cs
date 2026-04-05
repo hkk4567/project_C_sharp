@@ -493,37 +493,32 @@ public class AnalyticsController : ControllerBase
         if (requester == null) return Unauthorized("Chưa đăng nhập.");
         if (!CanAccessOwnerData(requester, ownerId)) return Forbid();
 
-        var safeHours = Math.Clamp(hours, 1, 720);
         var safeMaxPoints = Math.Clamp(maxPoints, 5, 500);
-        var since = DateTime.UtcNow.AddHours(-safeHours);
-        var hotspots = await _context.PoiListenLogs
-            .Where(l => l.Timestamp >= since)
-            .Join(_context.Pois.Where(p => p.OwnerId == ownerId),
-                log => log.PoiId,
+        var hotspots = await _context.Pois
+            .Where(p => p.OwnerId == ownerId)
+            .GroupJoin(
+                _context.PoiListenLogs,
                 poi => poi.Id,
-                (log, poi) => new
+                log => log.PoiId,
+                (poi, logs) => new
                 {
                     poi.Id,
                     poi.Name,
                     poi.Latitude,
-                    poi.Longitude
+                    poi.Longitude,
+                    HitCount = logs.Count()
                 })
-            .GroupBy(x => new
-            {
-                x.Id,
-                x.Name,
-                x.Latitude,
-                x.Longitude
-            })
-            .Select(g => new OwnerHeatmapPointDto
-            {
-                Name = g.Key.Name,
-                Latitude = g.Key.Latitude,
-                Longitude = g.Key.Longitude,
-                HitCount = g.Count()
-            })
             .OrderByDescending(x => x.HitCount)
+            .ThenBy(x => x.Name)
             .Take(safeMaxPoints)
+            .Select(x => new OwnerHeatmapPointDto
+            {
+                PoiId = x.Id,
+                Name = x.Name,
+                Latitude = x.Latitude,
+                Longitude = x.Longitude,
+                HitCount = x.HitCount
+            })
             .ToListAsync();
 
         return Ok(hotspots);

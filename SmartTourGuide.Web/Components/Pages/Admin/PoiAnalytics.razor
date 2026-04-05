@@ -281,6 +281,9 @@
 
     private async Task DrawHeatmapAsync()
     {
+        if (_heatmap.Count == 0)
+            return;
+
         var centerLat = _heatmap.Average(p => p.Latitude);
         var centerLng = _heatmap.Average(p => p.Longitude);
 

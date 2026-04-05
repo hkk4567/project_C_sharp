@@ -1,4 +1,6 @@
-﻿namespace SmartTourGuide.Mobile;
+﻿using AppResources = global::SmartTourGuide.Mobile.Resources.Strings.AppResources;
+
+namespace SmartTourGuide.Mobile;
 
 public partial class MainPage : ContentPage
 {
@@ -23,6 +25,8 @@ public partial class MainPage : ContentPage
         SetAppLanguage(_currentLanguageCode);
 
         InitializeComponent();
+        UpdateLocalizedPoiDetailTexts();
+        InitializePoiSearchUi();
 
         // Tạm dừng / tiếp tục audio khi có cuộc gọi hoặc app vào background
         WeakReferenceMessenger.Default.Register<AppSleepMessage>(this,
@@ -67,7 +71,10 @@ public partial class MainPage : ContentPage
         base.OnAppearing();
         await CheckPermissions();
         await PreWarmAudioAsync();
-        await LoadCurrentLocation();
+
+        // Giữ nguyên vị trí A nếu user đã chọn thủ công, tránh bị kéo về vị trí mặc định
+        if (!_isManualLocationOverride)
+            await LoadCurrentLocation();
 
         // ← SỬA: dùng hàm mới thay LoadPoisOnMap()
         await LoadPoisWithOfflineFallbackAsync();
@@ -101,10 +108,7 @@ public partial class MainPage : ContentPage
                                     location.Latitude,
                                     location.Longitude));
                         });
-                        _ = _apiService.SendLocationAsync(
-                            location.Latitude,
-                            location.Longitude,
-                            _deviceId);
+                        _ = SendLocationIfNeededAsync(location.Latitude, location.Longitude);
                     }
                 }
                 catch { }
@@ -123,12 +127,21 @@ public partial class MainPage : ContentPage
         Thread.CurrentThread.CurrentUICulture = culture;
         CultureInfo.DefaultThreadCurrentCulture = culture;
         CultureInfo.DefaultThreadCurrentUICulture = culture;
-        SmartTourGuide.Mobile.Resources.Strings.AppResources.Culture = culture;
+        AppResources.Culture = culture;
     }
 
     private void UpdateLanguageButtonUI()
     {
         btnLanguage.Text = GetLanguageOption(_currentLanguageCode).PickerLabel;
+    }
+
+    private void UpdateLocalizedPoiDetailTexts()
+    {
+        if (lblPoiDetailTitle != null)
+            lblPoiDetailTitle.Text = AppResources.PoiDetailTitle;
+
+        if (lblDescriptionHeader != null)
+            lblDescriptionHeader.Text = AppResources.PoiDescriptionLabel;
     }
 
     private async void OnChangeLanguageClicked(object? sender, EventArgs e)
@@ -152,6 +165,7 @@ public partial class MainPage : ContentPage
             Preferences.Set("AppLanguage", _currentLanguageCode);
             SetAppLanguage(_currentLanguageCode);
 
+            UpdateLocalizedPoiDetailTexts();
             UpdateLanguageButtonUI();
 
             if (Application.Current?.Windows.Count > 0)
@@ -189,6 +203,46 @@ public partial class MainPage : ContentPage
         });
     }
 
+    private async Task SendLocationIfNeededAsync(double latitude, double longitude)
+    {
+        try
+        {
+            var currentLocation = new MauiLocation.Location(latitude, longitude);
+
+            if (_lastReportedLocation != null)
+            {
+                var elapsed = DateTime.UtcNow - _lastReportedLocationAt;
+                var distanceMeters = MauiLocation.Location.CalculateDistance(
+                    _lastReportedLocation,
+                    currentLocation,
+                    DistanceUnits.Kilometers) * 1000;
+
+                // Chặn bắn log liên tục nếu vị trí gần như không đổi
+                if (elapsed < TimeSpan.FromSeconds(10) && distanceMeters < 25)
+                    return;
+            }
+
+            if (!await _locationSendLock.WaitAsync(0))
+                return;
+
+            try
+            {
+                _lastReportedLocation = currentLocation;
+                _lastReportedLocationAt = DateTime.UtcNow;
+
+                _ = _apiService.SendLocationAsync(latitude, longitude, _deviceId);
+            }
+            finally
+            {
+                _locationSendLock.Release();
+            }
+        }
+        catch
+        {
+            // Không ảnh hưởng luồng UI nếu log lỗi
+        }
+    }
+
     private async Task LoadCurrentLocation()
     {
         try
@@ -213,6 +267,8 @@ public partial class MainPage : ContentPage
                         new Mapsui.UI.Maui.Position(location.Latitude, location.Longitude));
                     mapView.Map?.Navigator.CenterOnAndZoomTo(mPoint, 1.5, duration: 500);
                 });
+
+                await SendLocationIfNeededAsync(location.Latitude, location.Longitude);
 
                 System.Diagnostics.Debug.WriteLine(
                     $"✅ GPS: {location.Latitude}, {location.Longitude}");
@@ -261,6 +317,7 @@ public partial class MainPage : ContentPage
     {
         // ✅ FIX: luôn reset tour bất kể panel có visible hay không
         TourInfoPanel.IsVisible = false;
+        ClearMapLayers("TourRoute");
         _currentTour = null;
 
         await LoadPoisWithOfflineFallbackAsync();

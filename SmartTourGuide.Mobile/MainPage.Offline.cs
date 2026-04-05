@@ -230,6 +230,8 @@ public partial class MainPage
 
             mapView.RefreshGraphics();
         });
+
+        MainThread.BeginInvokeOnMainThread(() => UpdatePoiSearchSuggestions(PoiSearchBarCtrl?.Text));
     }
 
     // ════════════════════════════════════════════════════════════════════════

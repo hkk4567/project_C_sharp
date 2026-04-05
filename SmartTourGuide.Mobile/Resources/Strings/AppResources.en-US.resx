@@ -159,6 +159,12 @@
   <data name="MapTitle" xml:space="preserve">
     <value>Tourist Map</value>
   </data>
+  <data name="PoiDetailTitle" xml:space="preserve">
+    <value>Place details</value>
+  </data>
+  <data name="PoiDescriptionLabel" xml:space="preserve">
+    <value>Description</value>
+  </data>
   <data name="NoDescription" xml:space="preserve">
     <value>No description available.</value>
   </data>

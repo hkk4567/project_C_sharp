@@ -71,8 +71,23 @@ window.adminHeatmap = (() => {
 
         if (!points || points.length === 0) return;
 
+        const coordinateBuckets = new Map();
+
         points.forEach(point => {
             const hitCount = point.hitCount ?? 0;
+            const lat = Number(point.latitude ?? 0);
+            const lng = Number(point.longitude ?? 0);
+            const coordinateKey = `${lat.toFixed(6)}:${lng.toFixed(6)}`;
+            const bucketIndex = coordinateBuckets.get(coordinateKey) ?? 0;
+            coordinateBuckets.set(coordinateKey, bucketIndex + 1);
+
+            // Tách nhẹ các điểm bị chồng tọa độ để người dùng vẫn thấy đủ POI.
+            // Dịch chuyển rất nhỏ, không làm sai ý nghĩa vị trí trên map.
+            const offsetDistance = bucketIndex * 0.00018;
+            const offsetAngle = bucketIndex * (Math.PI / 3);
+            const displayLat = lat + Math.cos(offsetAngle) * offsetDistance;
+            const displayLng = lng + Math.sin(offsetAngle) * offsetDistance;
+
             const marker = L.circleMarker([point.latitude, point.longitude], {
                 radius: 11,
                 fillColor: '#e53935',
@@ -83,10 +98,13 @@ window.adminHeatmap = (() => {
             });
 
             const pointName = escapeHtml(point.name || 'POI');
+            const poiId = point.poiId != null ? `#${point.poiId}` : '';
             marker.bindTooltip(
-                `<b style="font-size:13px;color:#e53935">${pointName}</b><br/>Lượt ghé: ${hitCount}`,
+                `<b style="font-size:13px;color:#e53935">${pointName} ${poiId}</b><br/>Lượt nghe: ${hitCount}`,
                 { permanent: false, direction: 'top', offset: [0, -12] }
             );
+
+            marker.setLatLng([displayLat, displayLng]);
 
             marker.addTo(map);
             heatmapMarkers.push(marker);

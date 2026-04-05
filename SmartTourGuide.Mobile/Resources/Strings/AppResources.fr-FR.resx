@@ -19,6 +19,8 @@
   <data name="ConnectionError" xml:space="preserve"><value>Erreur de connexion</value></data>
   <data name="ConnectionErrorMessage" xml:space="preserve"><value>Impossible de se connecter au serveur. Vérifiez le réseau ou l'adresse API.</value></data>
   <data name="MapTitle" xml:space="preserve"><value>Carte touristique</value></data>
+  <data name="PoiDetailTitle" xml:space="preserve"><value>Détails du lieu</value></data>
+  <data name="PoiDescriptionLabel" xml:space="preserve"><value>Description</value></data>
   <data name="NoDescription" xml:space="preserve"><value>Aucune description.</value></data>
   <data name="NoToursAvailable" xml:space="preserve"><value>Aucun circuit disponible pour le moment.</value></data>
   <data name="OkButton" xml:space="preserve"><value>OK</value></data>

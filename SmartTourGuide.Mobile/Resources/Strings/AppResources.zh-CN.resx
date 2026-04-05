@@ -19,6 +19,8 @@
   <data name="ConnectionError" xml:space="preserve"><value>连接错误</value></data>
   <data name="ConnectionErrorMessage" xml:space="preserve"><value>无法连接到服务器。请检查网络或 API 地址。</value></data>
   <data name="MapTitle" xml:space="preserve"><value>旅游地图</value></data>
+  <data name="PoiDetailTitle" xml:space="preserve"><value>地点详情</value></data>
+  <data name="PoiDescriptionLabel" xml:space="preserve"><value>描述</value></data>
   <data name="NoDescription" xml:space="preserve"><value>暂无描述。</value></data>
   <data name="NoToursAvailable" xml:space="preserve"><value>当前没有可用路线。</value></data>
   <data name="OkButton" xml:space="preserve"><value>确定</value></data>
