@@ -62,10 +62,28 @@ public class MainActivity : MauiAppCompatActivity
 
         try
         {
-            if (IPlatformApplication.Current?.Services
-                    ?.GetService<App>() is { } app)
+            var uri = new Uri(uriString);
+            // Kiểm tra xem có đúng là đường dẫn /poi/ hay không
+            if (uri.AbsolutePath.Contains("/poi/"))
             {
-                app.HandleDeepLink(new Uri(uriString));
+                var segments = uri.AbsolutePath.Split('/');
+                var lastSegment = segments.LastOrDefault();
+
+                if (int.TryParse(lastSegment, out int poiId))
+                {
+                    // Delay một chút để chắc chắn MainPage đã khởi tạo xong và đăng ký Messenger
+                    Task.Run(async () =>
+                    {
+                        await Task.Delay(2000);
+                        MainThread.BeginInvokeOnMainThread(() =>
+                        {
+                            // Gửi tin nhắn tới MainPage (đã code ở file MainPage.DeepLink.cs)
+                            CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(
+                                new DeepLinkPoiMessage(poiId, true));
+                            System.Diagnostics.Debug.WriteLine($"[DeepLink] Đã gửi tin nhắn cho POI: {poiId}");
+                        });
+                    });
+                }
             }
         }
         catch (Exception ex)

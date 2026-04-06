@@ -8,6 +8,10 @@ namespace SmartTourGuide.Mobile.Models;
 /// </summary>
 public class DeepLinkPoiMessage : ValueChangedMessage<DeepLinkPoiPayload>
 {
+    public DeepLinkPoiMessage(int poiId, bool autoPlay)
+       : base(new DeepLinkPoiPayload { PoiId = poiId, AutoPlay = autoPlay })
+    {
+    }
     public DeepLinkPoiMessage(DeepLinkPoiPayload payload) : base(payload) { }
 
     public DeepLinkPoiMessage() : base(new DeepLinkPoiPayload()) { }

@@ -12,6 +12,7 @@ public partial class MainPage
         WeakReferenceMessenger.Default
             .Register<DeepLinkPoiMessage>(this, async (_, msg) =>
             {
+                System.Diagnostics.Debug.WriteLine($"[DeepLink] Nhận tin nhắn xử lý POI ID: {msg.PoiId}");
                 await HandleDeepLinkPoiAsync(msg.PoiId, msg.AutoPlay);
             });
     }
@@ -40,20 +41,24 @@ public partial class MainPage
                     return;
                 }
 
-                // 2. Di chuyển bản đồ Mapsui đến POI (Sửa _mapView thành mapView)
+                // 2. Cập nhật biến POI hiện tại (Cực kỳ quan trọng để phát nhạc)
+                _currentSelectedPoi = poi;
+
+                // 3. Di chuyển bản đồ đến POI
+                var mapView = MapViewCtrl; // Kiểm tra lại tên x:Name trong XAML của bạn
                 if (mapView?.Map?.Navigator != null)
                 {
                     var smc = Mapsui.Projections.SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
-                    mapView.Map.Navigator.CenterOnAndZoomTo(new Mapsui.MPoint(smc.x, smc.y), 1.5, 800);
+                    mapView.Map.Navigator.CenterOnAndZoomTo(new Mapsui.MPoint(smc.x, smc.y), 1.5, 1000);
                 }
 
-                // 3. Hiển thị Popup chi tiết
+                // 4. Hiển thị Popup chi tiết
                 ShowPoiDetail(poi);
 
-                // 4. Tự động phát nhạc nếu yêu cầu
-                if (autoPlay && poi.AudioUrls?.Count > 0)
+                // 5. Tự động phát nhạc
+                if (autoPlay)
                 {
-                    await Task.Delay(1000); // Chờ UI ổn định
+                    await Task.Delay(500); // Chờ Popup hiện lên mượt mà
                     OnPlayAudioClicked(null, EventArgs.Empty);
                 }
             }
@@ -68,9 +73,14 @@ public partial class MainPage
     {
         try
         {
-            // Dùng _apiService đã có trong Fields.cs
+            // Lấy toàn bộ danh sách POI mới nhất và cập nhật cache luôn
             var allPois = await _apiService.GetPoisAsync(_currentLanguageCode);
-            return allPois?.FirstOrDefault(p => p.Id == poiId);
+            if (allPois != null)
+            {
+                _allPoisCache = allPois.ToList();
+                return _allPoisCache.FirstOrDefault(p => p.Id == poiId);
+            }
+            return null;
         }
         catch
         {

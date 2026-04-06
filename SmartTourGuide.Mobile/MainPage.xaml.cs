@@ -60,7 +60,17 @@ public partial class MainPage : ContentPage
 
         // ← SỬA: dùng hàm mới thay LoadPoisOnMap()
         await LoadPoisWithOfflineFallbackAsync();
+        if (App.PendingDeepLinkPoiId.HasValue)
+        {
+            int targetPoiId = App.PendingDeepLinkPoiId.Value;
+            bool autoPlay = App.PendingDeepLinkAutoPlay;
 
+            // Xóa ID để không bị lặp lại khi chuyển qua lại các trang
+            App.PendingDeepLinkPoiId = null;
+
+            // Gọi hàm hiển thị Popup và phát nhạc
+            await HandleDeepLinkPoiAsync(targetPoiId, autoPlay);
+        }
         // ← THÊM: lắng nghe thay đổi mạng
         RegisterConnectivityChanged();
 
