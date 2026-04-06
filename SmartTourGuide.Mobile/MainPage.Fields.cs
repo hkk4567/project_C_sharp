@@ -4,7 +4,7 @@ public partial class MainPage : ContentPage
 {
     private readonly PoiApiService _apiService;
     private MemoryLayer _geofenceLayer;
-    private const string BaseApiUrl = "http://10.0.2.2:5277";
+    private const string BaseApiUrl = "https://2tlcgj8k-7058.asse.devtunnels.ms";
 
     // ── AUDIO CƠ BẢN ────────────────────────────────────────────────────────
     private IAudioPlayer? _audioPlayer;

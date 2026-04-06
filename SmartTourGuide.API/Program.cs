@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using SmartTourGuide.API.Data;
 using SmartTourGuide.API.Services;
-
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.AspNetCore.HttpOverrides;
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. Đăng ký các dịch vụ (Services) ---
@@ -33,8 +34,40 @@ builder.Services.AddCors(options =>
                         .AllowAnyHeader());
 });
 
+// Cấu hình để ASP.NET Core tin tưởng thông tin từ Proxy/Tunnel
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                               ForwardedHeaders.XForwardedProto |
+                               ForwardedHeaders.XForwardedHost;
+    // Bỏ qua giới hạn IP để nhận được header từ Microsoft Dev Tunnels
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 var app = builder.Build();
-app.UseStaticFiles();
+//  Kích hoạt Middleware đọc Header từ Tunnel (Phải để ngay sau khi Build)
+app.UseForwardedHeaders();
+// ─── Static Files ────────────────────────────────────────────────────────────
+// Cấu hình StaticFiles để phục vụ thư mục .well-known
+// (tên bắt đầu bằng dấu chấm bị ẩn theo mặc định)
+var fileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+    Path.Combine(builder.Environment.WebRootPath ??
+                 Path.Combine(builder.Environment.ContentRootPath, "wwwroot")));
+
+// Cần map content type đặc biệt cho apple-app-site-association (không có extension)
+var contentTypeProvider = new FileExtensionContentTypeProvider();
+contentTypeProvider.Mappings[".json"] = "application/json";
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = fileProvider,
+    RequestPath = "",
+    // Cho phép phục vụ file trong thư mục .well-known
+    ServeUnknownFileTypes = true,
+    DefaultContentType = "application/json",
+    ContentTypeProvider = contentTypeProvider
+});
+
 // --- 2. Cấu hình Pipeline (Middleware) ---
 
 // Bật Swagger UI

@@ -4,5 +4,18 @@
       "commandName": "Project",
       "nativeDebugging": false
     }
+  },
+  "https": {
+    "commandName": "Project",
+    "dotnetRunMessages": true,
+    "launchBrowser": true,
+    "launchUrl": "swagger",
+    "applicationUrl": "https://localhost:7058;http://localhost:5277",
+    "environmentVariables": {
+      "ASPNETCORE_ENVIRONMENT": "Development"
+    },
+    "devTunnelEnabled": true,
+    "devTunnelName": "smarttour-api",
+    "devTunnelAccess": "public"
   }
 }

@@ -1,0 +1,395 @@
+@page "/owner/qr-management"
+@using SmartTourGuide.Shared.DTOs
+@using SmartTourGuide.Shared.Enums
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>Quản lý QR Code</PageTitle>
+
+<div class="qr-page">
+    <div class="page-header">
+        <h1>🔲 Quản lý QR Code</h1>
+        <p class="subtitle">Tạo mã QR cho từng điểm tham quan. Khách quét QR sẽ tự động mở App và phát audio.</p>
+    </div>
+
+    <!-- Tunnel URL Config Card -->
+    <div class="config-card">
+        <div class="config-header">
+            <span class="config-icon">🌐</span>
+            <div>
+                <h3>URL Dev Tunnel / Ngrok</h3>
+                <p>Bắt buộc có HTTPS. Lấy URL từ Visual Studio → View → Other Windows → Dev Tunnels.</p>
+            </div>
+        </div>
+        <div class="input-row">
+            <input @bind="TunnelUrl"
+                   @bind:event="oninput"
+                   type="url"
+                   class="tunnel-input"
+                   placeholder="https://abc123.devtunnels.ms" />
+            <button class="btn-verify" @onclick="VerifyTunnel" disabled="@(string.IsNullOrWhiteSpace(TunnelUrl))">
+                @if (_verifying) { <span class="spinner"></span> } else { <span>Kiểm tra</span> }
+            </button>
+        </div>
+        @if (_tunnelStatus != null)
+        {
+            <div class="tunnel-status @(_tunnelOk ? "ok" : "err")">
+                @(_tunnelOk ? "✅" : "❌") @_tunnelStatus
+            </div>
+        }
+    </div>
+
+    <!-- POI List -->
+    @if (_loading)
+    {
+        <div class="loading-state">
+            <div class="spinner-lg"></div>
+            <p>Đang tải danh sách điểm tham quan...</p>
+        </div>
+    }
+    else if (_pois == null || _pois.Count == 0)
+    {
+        <div class="empty-state">
+            <span>📍</span>
+            <p>Bạn chưa có điểm tham quan nào được duyệt.</p>
+        </div>
+    }
+    else
+    {
+        <div class="poi-grid">
+            @foreach (var poi in _pois)
+            {
+                <div class="poi-card @(SelectedPoiId == poi.Id ? "selected" : "")">
+                    <div class="poi-info" @onclick="() => SelectPoi(poi)">
+                        @if (poi.ImageUrls?.Count > 0)
+                        {
+                            <img src="@poi.ImageUrls[0]" class="poi-thumb" alt="@poi.Name" />
+                        }
+                        else
+                        {
+                            <div class="poi-thumb-placeholder">📍</div>
+                        }
+                        <div class="poi-meta">
+                            <h4>@poi.Name</h4>
+                            <span class="poi-addr">@poi.Address</span>
+                            <span class="status-badge @poi.Status.ToLower()">@poi.Status</span>
+                        </div>
+                    </div>
+
+                    <div class="poi-actions">
+                        <button class="btn-generate"
+                                @onclick="() => GenerateQr(poi.Id)"
+                                disabled="@(string.IsNullOrWhiteSpace(TunnelUrl) || _generatingId == poi.Id)">
+                            @if (_generatingId == poi.Id)
+                            {
+                                <span class="spinner"></span>
+                                <span>Đang tạo...</span>
+                            }
+                            else
+                            {
+                                <span>🔲 Tạo mã QR</span>
+                            }
+                        </button>
+                    </div>
+
+                    <!-- QR Preview Panel -->
+                    @if (_qrPreviews.TryGetValue(poi.Id, out var qrData) && qrData != null)
+                    {
+                        <div class="qr-preview-panel">
+                            <div class="qr-preview-inner">
+                                <img src="@qrData.ImageDataUrl"
+                                     class="qr-image"
+                                     alt="QR Code for @poi.Name" />
+                                <div class="qr-meta-info">
+                                    <span class="qr-url-label">Deep Link URL:</span>
+                                    <code class="qr-url">@qrData.DeepLinkUrl</code>
+                                </div>
+                            </div>
+                            <div class="qr-actions">
+                                <button class="btn-download" @onclick="() => DownloadQr(poi.Id, poi.Name)">
+                                    ⬇️ Tải PNG
+                                </button>
+                                <button class="btn-copy" @onclick="() => CopyLink(qrData.DeepLinkUrl)">
+                                    📋 Copy Link
+                                </button>
+                                <button class="btn-print" @onclick="() => PrintQr(poi.Id)">
+                                    🖨️ In
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    @if (_errorMessage != null)
+    {
+        <div class="error-toast" @onclick="() => _errorMessage = null">
+            ⚠️ @_errorMessage
+        </div>
+    }
+
+    @if (_successMessage != null)
+    {
+        <div class="success-toast">
+            ✅ @_successMessage
+        </div>
+    }
+</div>
+
+<!-- Hidden canvas for print -->
+<div id="print-area" style="display:none">
+    <div id="print-content"></div>
+</div>
+
+<style>
+.qr-page { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+.page-header { margin-bottom: 24px; }
+.page-header h1 { font-size: 26px; font-weight: 700; color: var(--bs-dark); }
+.page-header .subtitle { color: #666; margin-top: 4px; }
+
+/* Config card */
+.config-card { background: #f0f6ff; border: 1px solid #c9dff8; border-radius: 16px; padding: 20px; margin-bottom: 28px; }
+.config-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.config-icon { font-size: 28px; line-height: 1; }
+.config-header h3 { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
+.config-header p { font-size: 13px; color: #555; margin: 0; }
+.input-row { display: flex; gap: 8px; }
+.tunnel-input { flex: 1; padding: 10px 14px; border: 1.5px solid #c9dff8; border-radius: 10px; font-size: 14px; }
+.tunnel-input:focus { outline: none; border-color: #2a5298; }
+.btn-verify { padding: 10px 18px; background: #2a5298; color: #fff; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
+.btn-verify:disabled { opacity: .5; cursor: default; }
+.tunnel-status { margin-top: 8px; font-size: 13px; padding: 6px 12px; border-radius: 8px; }
+.tunnel-status.ok  { background: #e8f5e9; color: #2e7d32; }
+.tunnel-status.err { background: #fdecea; color: #c62828; }
+
+/* POI grid */
+.poi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
+.poi-card { background: #fff; border: 1.5px solid #e8e8e8; border-radius: 16px; overflow: hidden; transition: border-color .2s, box-shadow .2s; }
+.poi-card.selected { border-color: #2a5298; box-shadow: 0 0 0 3px rgba(42,82,152,.1); }
+.poi-info { display: flex; gap: 14px; padding: 16px; cursor: pointer; }
+.poi-thumb { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
+.poi-thumb-placeholder { width: 72px; height: 72px; background: #f0f0f0; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
+.poi-meta h4 { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+.poi-addr { font-size: 12px; color: #888; display: block; margin-bottom: 6px; }
+.status-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: .3px; }
+.status-badge.active   { background: #e8f5e9; color: #2e7d32; }
+.status-badge.pending  { background: #fff8e1; color: #f57f17; }
+.status-badge.rejected { background: #fdecea; color: #c62828; }
+
+/* POI actions */
+.poi-actions { padding: 0 16px 14px; }
+.btn-generate { width: 100%; padding: 11px; background: linear-gradient(135deg,#2a5298,#4a90d9); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: opacity .2s; }
+.btn-generate:hover:not(:disabled) { opacity: .9; }
+.btn-generate:disabled { opacity: .5; cursor: default; }
+
+/* QR Preview */
+.qr-preview-panel { border-top: 1.5px dashed #e8e8e8; padding: 20px 16px 16px; background: #fafafa; animation: slideIn .25s ease; }
+@@keyframes slideIn { from { opacity:0; transform:translateY(-8px) } to { opacity:1; transform:translateY(0) } }
+.qr-preview-inner { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 14px; }
+.qr-image { width: 160px; height: 160px; image-rendering: pixelated; border: 8px solid #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.1); flex-shrink: 0; }
+.qr-meta-info { flex: 1; }
+.qr-url-label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 6px; }
+.qr-url { font-size: 12px; background: #f0f0f0; padding: 8px 10px; border-radius: 8px; display: block; word-break: break-all; color: #333; line-height: 1.5; }
+.qr-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-download { padding: 9px 16px; background: #2a5298; color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
+.btn-copy { padding: 9px 16px; background: #f5f5f7; color: #333; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
+.btn-print { padding: 9px 16px; background: #f5f5f7; color: #333; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
+
+/* Loading / empty */
+.loading-state, .empty-state { text-align: center; padding: 60px 20px; color: #888; }
+.loading-state p, .empty-state p { margin-top: 12px; }
+.empty-state span { font-size: 48px; }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff3; border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
+.spinner-lg { display: inline-block; width: 36px; height: 36px; border: 3px solid #e0e0e0; border-top-color: #2a5298; border-radius: 50%; animation: spin .7s linear infinite; }
+@@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Toasts */
+.error-toast, .success-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 12px; font-weight: 600; z-index: 9999; animation: fadeUp .3s ease; max-width: 400px; text-align: center; }
+.error-toast   { background: #fdecea; color: #c62828; border: 1px solid #f09595; cursor: pointer; }
+.success-toast { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+@@keyframes fadeUp { from { opacity:0; transform: translateX(-50%) translateY(10px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+</style>
+
+@code {
+    // ─── State ─────────────────────────────────────────────────────────────
+    private string TunnelUrl { get; set; } = "";
+    private List<PoiDto>? _pois;
+    private bool _loading = true;
+    private bool _verifying = false;
+    private bool _tunnelOk = false;
+    private string? _tunnelStatus;
+    private string? _errorMessage;
+    private string? _successMessage;
+    private int _generatingId = -1;
+    private int SelectedPoiId = -1;
+
+    // poiId → QR preview data
+    private Dictionary<int, QrPreviewData?> _qrPreviews = new();
+
+    // Inject current user's owner ID (thực tế lấy từ AuthState / localStorage)
+    [Parameter] public int OwnerId { get; set; } = 1;
+
+    // ─── Lifecycle ─────────────────────────────────────────────────────────
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPois();
+    }
+
+    private async Task LoadPois()
+    {
+        _loading = true;
+        try
+        {
+            var all = await Http.GetFromJsonAsync<List<PoiDto>>($"api/pois/owner/{OwnerId}");
+            // Chỉ hiện POI Active & Pending (Rejected không cần QR)
+            _pois = all?.Where(p => p.Status != "Rejected").ToList() ?? new();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Không thể tải danh sách POI: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    // ─── Tunnel verify ──────────────────────────────────────────────────────
+    private async Task VerifyTunnel()
+    {
+        if (string.IsNullOrWhiteSpace(TunnelUrl)) return;
+        _verifying = true;
+        _tunnelStatus = null;
+
+        try
+        {
+            var url = TunnelUrl.TrimEnd('/') + "/.well-known/assetlinks.json";
+            var response = await Http.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                _tunnelOk = true;
+                _tunnelStatus = $"Kết nối thành công! assetlinks.json trả về {(int)response.StatusCode}.";
+            }
+            else
+            {
+                _tunnelOk = false;
+                _tunnelStatus = $"Tunnel hoạt động nhưng assetlinks.json trả về {(int)response.StatusCode}. " +
+                                "Đảm bảo file đã có trong wwwroot/.well-known/.";
+            }
+        }
+        catch
+        {
+            _tunnelOk = false;
+            _tunnelStatus = "Không thể kết nối tới Tunnel URL. Hãy kiểm tra lại URL và đảm bảo Tunnel đang chạy.";
+        }
+        finally
+        {
+            _verifying = false;
+        }
+    }
+
+    // ─── QR Generation ─────────────────────────────────────────────────────
+    private async Task GenerateQr(int poiId)
+    {
+        if (string.IsNullOrWhiteSpace(TunnelUrl))
+        {
+            _errorMessage = "Vui lòng nhập Tunnel URL trước.";
+            return;
+        }
+
+        _generatingId = poiId;
+        _errorMessage = null;
+
+        try
+        {
+            var encodedUrl = Uri.EscapeDataString(TunnelUrl.TrimEnd('/'));
+            var apiUrl = $"api/qr/{poiId}?tunnelUrl={encodedUrl}";
+
+            var response = await Http.GetAsync(apiUrl);
+            if (!response.IsSuccessStatusCode)
+            {
+                _errorMessage = $"API lỗi: {(int)response.StatusCode}";
+                return;
+            }
+
+            // Lấy Deep Link URL từ header trả về
+            var deepLinkUrl = response.Headers.TryGetValues("X-Deep-Link-Url", out var vals)
+                ? vals.FirstOrDefault() ?? ""
+                : $"{TunnelUrl.TrimEnd('/')}/poi/{poiId}";
+
+            // Chuyển PNG bytes → base64 data URL để hiển thị trong <img>
+            var pngBytes = await response.Content.ReadAsByteArrayAsync();
+            var base64 = Convert.ToBase64String(pngBytes);
+            var dataUrl = $"data:image/png;base64,{base64}";
+
+            _qrPreviews[poiId] = new QrPreviewData
+            {
+                ImageDataUrl = dataUrl,
+                DeepLinkUrl  = deepLinkUrl,
+                PngBytes     = pngBytes
+            };
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Lỗi tạo QR: {ex.Message}";
+        }
+        finally
+        {
+            _generatingId = -1;
+        }
+    }
+
+    // ─── Download ──────────────────────────────────────────────────────────
+    private async Task DownloadQr(int poiId, string poiName)
+    {
+        if (!_qrPreviews.TryGetValue(poiId, out var data) || data == null) return;
+
+        var fileName = $"QR-{SanitizeFileName(poiName)}.png";
+        await JS.InvokeVoidAsync("downloadFile", data.ImageDataUrl, fileName);
+    }
+
+    // ─── Copy link ─────────────────────────────────────────────────────────
+    private async Task CopyLink(string url)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", url);
+            ShowSuccess("Đã copy link!");
+        }
+        catch
+        {
+            _errorMessage = "Không thể copy. Hãy copy thủ công từ ô hiển thị URL.";
+        }
+    }
+
+    // ─── Print ─────────────────────────────────────────────────────────────
+    private async Task PrintQr(int poiId)
+    {
+        if (!_qrPreviews.TryGetValue(poiId, out var data) || data == null) return;
+        await JS.InvokeVoidAsync("printQrCode", data.ImageDataUrl);
+    }
+
+    private void SelectPoi(PoiDto poi) => SelectedPoiId = poi.Id;
+
+    private static string SanitizeFileName(string name) =>
+        string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
+
+    private async void ShowSuccess(string msg)
+    {
+        _successMessage = msg;
+        StateHasChanged();
+        await Task.Delay(2500);
+        _successMessage = null;
+        StateHasChanged();
+    }
+
+    // ─── Inner DTO ─────────────────────────────────────────────────────────
+    private class QrPreviewData
+    {
+        public string ImageDataUrl { get; set; } = "";
+        public string DeepLinkUrl  { get; set; } = "";
+        public byte[] PngBytes     { get; set; } = Array.Empty<byte>();
+    }
+}

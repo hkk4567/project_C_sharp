@@ -53,6 +53,7 @@ public partial class MainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        RegisterDeepLinkHandler();
         await CheckPermissions();
         await PreWarmAudioAsync();
         await LoadCurrentLocation();
@@ -99,6 +100,17 @@ public partial class MainPage : ContentPage
             };
             _geofenceTimer.Start();
         }
+    }
+
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+
+        // Hủy đăng ký Deep Link để tránh lỗi bộ nhớ (Memory Leak)
+        UnregisterDeepLinkHandler();
+
+        // Nếu muốn dừng hẳn nhạc khi thoát trang, có thể gọi thêm:
+        // StopAudio();
     }
 
     // ════════════════════════════════════════════════════════════════════════
