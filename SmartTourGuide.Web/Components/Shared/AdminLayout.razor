@@ -501,7 +501,7 @@
     int _adminUnreadNotificationCount = 0;
     List<AdminNotificationItem> _adminNotifications = new();
     bool _notificationPollingStarted = false;
-    private PeriodicTimer? _notificationTimer;
+    private Task? _pollingTask;                      // lưu lại để await khi dispose
     private CancellationTokenSource? _notificationCts;
     private string _adminNavbarColor = AdminNavbarThemeService.DefaultColorHex;
     private string _adminNavbarTextColor = "#ffffff";
@@ -572,6 +572,15 @@
 
     private async Task Logout()
     {
+        // PHẢI cancel polling TRƯỚC khi NavigateTo vì forceLoad: true
+        // làm browser reload ngay, circuit bị cắt đứt, polling task vẫn chạy
+        // trên server và gọi InvokeAsync trên circuit đã chết → throw
+        _notificationCts?.Cancel();
+        if (_pollingTask is not null)
+        {
+            try { await _pollingTask; } catch { }
+        }
+
         await LocalStorage.ClearAsync();
         await ((CustomAuthStateProvider)AuthStateProvider).NotifyUserLogout();
         Nav.NavigateTo("/", forceLoad: true);
@@ -625,22 +634,36 @@
         _notificationPollingStarted = true;
 
         _notificationCts = new CancellationTokenSource();
-        _ = Task.Run(() => PollNotificationsAsync(_notificationCts.Token));
+        // FIX: lưu task vào field thay vì fire-and-forget "_ = Task.Run(...)"
+        // để DisposeAsync có thể await nó và đảm bảo task kết thúc sạch sẽ
+        _pollingTask = PollNotificationsAsync(_notificationCts.Token);
     }
 
     private async Task PollNotificationsAsync(CancellationToken token)
     {
-        _notificationTimer = new PeriodicTimer(TimeSpan.FromSeconds(15));
-        try
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        while (true)
         {
-            while (await _notificationTimer.WaitForNextTickAsync(token))
+            // WaitForNextTickAsync ném OperationCanceledException khi token bị cancel.
+            // Bắt ngay tại đây — không để exception lan rộng — để VS không dừng debugger.
+            bool tick;
+            try
+            {
+                tick = await timer.WaitForNextTickAsync(token);
+            }
+            catch (OperationCanceledException)
+            {
+                break; // logout / dispose → thoát vòng lặp sạch sẽ, không throw
+            }
+
+            if (!tick) break;
+
+            try
             {
                 await InvokeAsync(async () => await LoadAdminNotificationsAsync());
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // Bỏ qua khi dispose layout.
+            catch (ObjectDisposedException) { break; }
+            catch { /* bỏ qua lỗi mạng tạm thời */ }
         }
     }
 
@@ -721,12 +744,20 @@
         return createdAt.ToString("dd/MM/yyyy HH:mm");
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         AdminNavbarThemeService.ThemeChanged -= HandleNavbarThemeChanged;
         _notificationCts?.Cancel();
-        _notificationTimer?.Dispose();
+
+        // FIX: await polling task sau khi cancel để đảm bảo nó kết thúc
+        // hoàn toàn trước khi component bị giải phóng — tránh race condition
+        if (_pollingTask is not null)
+        {
+            try { await _pollingTask; }
+            catch (OperationCanceledException) { }
+            catch { }
+        }
+
         _notificationCts?.Dispose();
-        return ValueTask.CompletedTask;
     }
 }

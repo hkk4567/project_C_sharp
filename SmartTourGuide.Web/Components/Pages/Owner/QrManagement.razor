@@ -3,6 +3,7 @@
 @using SmartTourGuide.Shared.Enums
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
 <PageTitle>Quản lý QR Code</PageTitle>
 
@@ -26,7 +27,7 @@
                    @bind:event="oninput"
                    type="url"
                    class="tunnel-input"
-                   placeholder="https://abc123.devtunnels.ms" />
+                   placeholder="https://2tlcgj8k-7058.asse.devtunnels.ms" />
             <button class="btn-verify" @onclick="VerifyTunnel" disabled="@(string.IsNullOrWhiteSpace(TunnelUrl))">
                 @if (_verifying) { <span class="spinner"></span> } else { <span>Kiểm tra</span> }
             </button>
@@ -63,7 +64,7 @@
                     <div class="poi-info" @onclick="() => SelectPoi(poi)">
                         @if (poi.ImageUrls?.Count > 0)
                         {
-                            <img src="@poi.ImageUrls[0]" class="poi-thumb" alt="@poi.Name" />
+                            <img src="@($"{ApiUrl}{poi.ImageUrls[0]}")" class="poi-thumb" alt="@poi.Name" />
                         }
                         else
                         {
@@ -215,6 +216,7 @@
 @code {
     // ─── State ─────────────────────────────────────────────────────────────
     private string TunnelUrl { get; set; } = "";
+    private string ApiUrl = "http://localhost:5277"; // prefix cho relative image URL từ API
     private List<PoiDto>? _pois;
     private bool _loading = true;
     private bool _verifying = false;
@@ -228,13 +230,36 @@
     // poiId → QR preview data
     private Dictionary<int, QrPreviewData?> _qrPreviews = new();
 
-    // Inject current user's owner ID (thực tế lấy từ AuthState / localStorage)
-    [Parameter] public int OwnerId { get; set; } = 1;
+    // Owner ID lấy từ localStorage sau khi JS sẵn sàng
+    private int OwnerId = 0;
 
     // ─── Lifecycle ─────────────────────────────────────────────────────────
-    protected override async Task OnInitializedAsync()
+    // OnInitializedAsync KHÔNG gọi JS được khi Blazor đang prerender
+    // → dùng OnAfterRenderAsync(firstRender) để đọc localStorage
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!firstRender) return;
+
+        try
+        {
+            OwnerId = await LocalStorage.GetItemAsync<int>("userId");
+        }
+        catch
+        {
+            // localStorage chưa có userId → chưa đăng nhập
+            OwnerId = 0;
+        }
+
+        if (OwnerId <= 0)
+        {
+            _errorMessage = "Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.";
+            _loading = false;
+            StateHasChanged();
+            return;
+        }
+
         await LoadPois();
+        StateHasChanged();
     }
 
     private async Task LoadPois()

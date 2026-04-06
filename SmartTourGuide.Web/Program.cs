@@ -47,7 +47,8 @@ builder.Services.AddScoped<HttpClient>(sp =>
     };
     var http = new HttpClient(handler)
     {
-        BaseAddress = new Uri("http://localhost:5277/")
+        BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]
+                      ?? "http://localhost:5277/")
     };
     return http;
 });

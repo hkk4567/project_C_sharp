@@ -56,15 +56,19 @@ var fileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
 
 // Cần map content type đặc biệt cho apple-app-site-association (không có extension)
 var contentTypeProvider = new FileExtensionContentTypeProvider();
+// Đảm bảo các file json vẫn là json
 contentTypeProvider.Mappings[".json"] = "application/json";
+
+// [QUAN TRỌNG] Thêm dòng này để định nghĩa file APK
+contentTypeProvider.Mappings[".apk"] = "application/vnd.android.package-archive";
 
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = fileProvider,
     RequestPath = "",
-    // Cho phép phục vụ file trong thư mục .well-known
     ServeUnknownFileTypes = true,
-    DefaultContentType = "application/json",
+    // [SỬA TẠI ĐÂY] Đừng để mặc định là json nữa, hãy để null hoặc octet-stream
+    DefaultContentType = "application/octet-stream",
     ContentTypeProvider = contentTypeProvider
 });
 
