@@ -270,6 +270,66 @@ public class AnalyticsController : ControllerBase
         });
     }
 
+    [HttpGet("admin/summary")]
+    public async Task<ActionResult<AdminDashboardSummaryDto>> GetAdminSummary()
+    {
+        var sinceWeek = DateTime.UtcNow.Date.AddDays(-6);
+
+        var totalPois = await _context.Pois.CountAsync();
+        var pendingPois = await _context.Pois.CountAsync(p => p.Status == PoiStatus.Pending);
+        var totalUsers = await _context.Users.CountAsync();
+        var lockedUsers = await _context.Users.CountAsync(u => u.IsLocked);
+        var totalTours = await _context.Tours.CountAsync();
+
+        var weeklyGrouped = await _context.PoiListenLogs
+            .Where(l => l.Timestamp >= sinceWeek)
+            .GroupBy(l => l.Timestamp.Date)
+            .Select(g => new AdminDailyCountDto
+            {
+                Date = g.Key,
+                Count = g.Count()
+            })
+            .ToListAsync();
+
+        var weeklyMap = weeklyGrouped.ToDictionary(x => x.Date, x => x.Count);
+        var weeklySeries = new List<AdminDailyCountDto>();
+
+        for (var date = sinceWeek; date <= DateTime.UtcNow.Date; date = date.AddDays(1))
+        {
+            weeklySeries.Add(new AdminDailyCountDto
+            {
+                Date = date,
+                Count = weeklyMap.TryGetValue(date, out var count) ? count : 0
+            });
+        }
+
+        var recentActivities = await _context.ActivityLogs
+            .OrderByDescending(a => a.Timestamp)
+            .Take(5)
+            .Select(a => new ActivityLogDto
+            {
+                Id = a.Id,
+                ActivityType = a.ActivityType,
+                Description = a.Description,
+                UserName = a.UserName,
+                Timestamp = a.Timestamp,
+                IpAddress = a.IpAddress
+            })
+            .ToListAsync();
+
+        return Ok(new AdminDashboardSummaryDto
+        {
+            TotalPois = totalPois,
+            PendingPois = pendingPois,
+            TotalUsers = totalUsers,
+            LockedUsers = lockedUsers,
+            TotalTours = totalTours,
+            TotalListenEventsWeek = weeklySeries.Sum(x => x.Count),
+            WeeklyListenSeries = weeklySeries,
+            RecentActivities = recentActivities
+        });
+    }
+
     [HttpGet("owner/{ownerId:int}/avg-listen-time")]
     public async Task<ActionResult<List<AvgListenTimeDto>>> GetOwnerAvgListenTime(int ownerId, [FromQuery] int top = 20)
     {
@@ -433,37 +493,32 @@ public class AnalyticsController : ControllerBase
         if (requester == null) return Unauthorized("Chưa đăng nhập.");
         if (!CanAccessOwnerData(requester, ownerId)) return Forbid();
 
-        var safeHours = Math.Clamp(hours, 1, 720);
         var safeMaxPoints = Math.Clamp(maxPoints, 5, 500);
-        var since = DateTime.UtcNow.AddHours(-safeHours);
-        var hotspots = await _context.PoiListenLogs
-            .Where(l => l.Timestamp >= since)
-            .Join(_context.Pois.Where(p => p.OwnerId == ownerId),
-                log => log.PoiId,
+        var hotspots = await _context.Pois
+            .Where(p => p.OwnerId == ownerId)
+            .GroupJoin(
+                _context.PoiListenLogs,
                 poi => poi.Id,
-                (log, poi) => new
+                log => log.PoiId,
+                (poi, logs) => new
                 {
                     poi.Id,
                     poi.Name,
                     poi.Latitude,
-                    poi.Longitude
+                    poi.Longitude,
+                    HitCount = logs.Count()
                 })
-            .GroupBy(x => new
-            {
-                x.Id,
-                x.Name,
-                x.Latitude,
-                x.Longitude
-            })
-            .Select(g => new OwnerHeatmapPointDto
-            {
-                Name = g.Key.Name,
-                Latitude = g.Key.Latitude,
-                Longitude = g.Key.Longitude,
-                HitCount = g.Count()
-            })
             .OrderByDescending(x => x.HitCount)
+            .ThenBy(x => x.Name)
             .Take(safeMaxPoints)
+            .Select(x => new OwnerHeatmapPointDto
+            {
+                PoiId = x.Id,
+                Name = x.Name,
+                Latitude = x.Latitude,
+                Longitude = x.Longitude,
+                HitCount = x.HitCount
+            })
             .ToListAsync();
 
         return Ok(hotspots);

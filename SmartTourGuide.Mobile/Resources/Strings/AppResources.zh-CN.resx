@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AlertError" xml:space="preserve"><value>错误</value></data>
+  <data name="AlertInfo" xml:space="preserve"><value>信息</value></data>
+  <data name="AlertNotice" xml:space="preserve"><value>通知</value></data>
+  <data name="BtnBack" xml:space="preserve"><value>🔙 返回</value></data>
+  <data name="BtnLanguage" xml:space="preserve"><value>🌐 语言</value></data>
+  <data name="BtnListen" xml:space="preserve"><value>🔊 听导览</value></data>
+  <data name="BtnMyLocation" xml:space="preserve"><value>📍 我的位置</value></data>
+  <data name="BtnReadTts" xml:space="preserve"><value>🗣️ 自动朗读（TTS）</value></data>
+  <data name="BtnReload" xml:space="preserve"><value>重新加载目的地</value></data>
+  <data name="BtnSelectTour" xml:space="preserve"><value>🗺️ 选择路线</value></data>
+  <data name="BtnStop" xml:space="preserve"><value>⏹️ 停止播放</value></data>
+  <data name="CloseButton" xml:space="preserve"><value>关闭</value></data>
+  <data name="ConnectionError" xml:space="preserve"><value>连接错误</value></data>
+  <data name="ConnectionErrorMessage" xml:space="preserve"><value>无法连接到服务器。请检查网络或 API 地址。</value></data>
+  <data name="MapTitle" xml:space="preserve"><value>旅游地图</value></data>
+  <data name="PoiDetailTitle" xml:space="preserve"><value>地点详情</value></data>
+  <data name="PoiDescriptionLabel" xml:space="preserve"><value>描述</value></data>
+  <data name="NoDescription" xml:space="preserve"><value>暂无描述。</value></data>
+  <data name="NoToursAvailable" xml:space="preserve"><value>当前没有可用路线。</value></data>
+  <data name="OkButton" xml:space="preserve"><value>确定</value></data>
+  <data name="PoiCountFormat" xml:space="preserve"><value>包含 {0} 个地点</value></data>
+  <data name="RetryButton" xml:space="preserve"><value>重试</value></data>
+  <data name="SelectTourHeader" xml:space="preserve"><value>选择你的行程</value></data>
+  <data name="StatusError" xml:space="preserve"><value>错误：{0}</value></data>
+  <data name="StatusFindingLocation" xml:space="preserve"><value>正在查找你的位置...</value></data>
+  <data name="StatusFound" xml:space="preserve"><value>已找到你的位置！</value></data>
+  <data name="StatusGpsError" xml:space="preserve"><value>GPS 错误。请开启定位！</value></data>
+  <data name="StatusLanguageChanged" xml:space="preserve"><value>语言已切换</value></data>
+  <data name="StatusLoaded" xml:space="preserve"><value>已加载 {0} 个地点。</value></data>
+  <data name="StatusLoading" xml:space="preserve"><value>正在加载数据...</value></data>
+  <data name="SystemError" xml:space="preserve"><value>系统错误</value></data>
+  <data name="SystemErrorMessage" xml:space="preserve"><value>发生错误：{0}</value></data>
+  <data name="ToursPageTitle" xml:space="preserve"><value>路线列表</value></data>
+  <data name="AudioPlayError" xml:space="preserve"><value>无法播放音频：{0}</value></data>
+  <data name="StatusGeofenceDoneWait" xml:space="preserve"><value>✅ 完成 {0}。等待 {1} 秒</value></data>
+  <data name="StatusNearestPoi" xml:space="preserve"><value>📍 最近: {0} · {1}</value></data>
+  <data name="StatusWaitReplay" xml:space="preserve"><value>⏳ {0} · 等待重新播放: {1}秒</value></data>
+  <data name="BtnListenAudioCount" xml:space="preserve"><value>🔊 听音频 ({0}/{1})</value></data>
+  <data name="BtnListenRecording" xml:space="preserve"><value>🔊 听录音</value></data>
+  <data name="BtnReadTtsAgain" xml:space="preserve"><value>🗣️ 重新朗读</value></data>
+  <data name="BtnRelisten" xml:space="preserve"><value>🔊 重新收听</value></data>
+  <data name="BtnShowOnMap" xml:space="preserve"><value>📍 在地图上查看</value></data>
+  <data name="BtnStopWithCount" xml:space="preserve"><value>⏹️ 停止  ({0}/{1})</value></data>
+  <data name="BtnStopWithCountCompact" xml:space="preserve"><value>⏹️ 停止({0}/{1})</value></data>
+  <data name="BtnViewItinerary" xml:space="preserve"><value>查看行程 ›</value></data>
+  <data name="ItineraryTitle" xml:space="preserve"><value>🗺️ 行程</value></data>
+  <data name="MsgNoStops" xml:space="preserve"><value>此路线暂无停靠点。</value></data>
+  <data name="MsgTourBusy" xml:space="preserve"><value>系统正在处理其他路线，请稍候！</value></data>
+  <data name="PrefixOffline" xml:space="preserve"><value>📴 离线 · </value></data>
+  <data name="PrefixServerError" xml:space="preserve"><value>⚠️ 服务器错误 · </value></data>
+  <data name="StatusBannerNoNetwork" xml:space="preserve"><value>📴 无网络 — 暂无离线数据</value></data>
+  <data name="StatusBannerOffline" xml:space="preserve"><value>📴 离线 · 数据：{0}</value></data>
+  <data name="StatusBannerUnknownSync" xml:space="preserve"><value>未知</value></data>
+  <data name="StatusGeofenceLeft" xml:space="preserve"><value>👋 已离开播放区域</value></data>
+  <data name="StatusNeverSynced" xml:space="preserve"><value>从未同步</value></data>
+  <data name="StatusNoNetworkNoData" xml:space="preserve"><value>❌ 无网络且没有离线数据</value></data>
+  <data name="StatusOfflineWithCount" xml:space="preserve"><value>{0}{1} · {2} 个地点</value></data>
+  <data name="StatusPlayDone" xml:space="preserve"><value>✅ {0}  ·  已播放 {1} 个音频</value></data>
+  <data name="StatusPlayingTrack" xml:space="preserve"><value>🎵 {0}  ·  {1}/{2}</value></data>
+  <data name="StatusPlayingTrackCompact" xml:space="preserve"><value>🎵 {0} ({1}/{2})</value></data>
+  <data name="StatusSyncDone" xml:space="preserve"><value>✅ 同步完成 · {0} 个地点</value></data>
+  <data name="StatusSyncedAt" xml:space="preserve"><value>同步时间：{0}</value></data>
+  <data name="StatusSyncFailed" xml:space="preserve"><value>⚠️ 同步失败</value></data>
+  <data name="StatusSyncing" xml:space="preserve"><value>🔄 同步中...</value></data>
+  <data name="StopCountFormat" xml:space="preserve"><value>站点 {0}/{1}</value></data>
+  <data name="BadgeStart" xml:space="preserve"><value>🚩 出发</value></data>
+  <data name="BadgeEnd" xml:space="preserve"><value>🏁 终点</value></data>
+</root>

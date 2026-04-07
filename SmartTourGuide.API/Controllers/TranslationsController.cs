@@ -20,6 +20,17 @@ public class TranslationsController : ControllerBase
         _fileService = fileService;
     }
 
+    private string GetCurrentUsername()
+    {
+        var name = User.Identity?.Name;
+        if (!string.IsNullOrEmpty(name)) return name;
+
+        var headerName = HttpContext.Request.Headers["X-User-Name"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(headerName)) return headerName;
+
+        return "Unknown";
+    }
+
     // 1. GET: Lấy nội dung dịch (bao gồm list audio)
     [HttpGet("{poiId}/{langCode}")]
     public async Task<ActionResult<PoiTranslationDto>> GetTranslation(int poiId, string langCode)
@@ -70,12 +81,15 @@ public class TranslationsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SaveTranslation([FromForm] PoiTranslationDto dto, [FromForm] List<IFormFile> audioFiles)
     {
+        var isNewTranslation = false;
+
         // --- PHẦN 1: LƯU TEXT ---
         var trans = await _context.PoiTranslations
             .FirstOrDefaultAsync(x => x.PoiId == dto.PoiId && x.LanguageCode == dto.LanguageCode);
 
         if (trans == null)
         {
+            isNewTranslation = true;
             trans = new PoiTranslation
             {
                 PoiId = dto.PoiId,
@@ -117,6 +131,17 @@ public class TranslationsController : ControllerBase
         {
             poi.Status = PoiStatus.Pending;
         }
+
+        var username = GetCurrentUsername();
+        _context.ActivityLogs.Add(new ActivityLog
+        {
+            ActivityType = "SavePoiTranslation",
+            Description = $"{username} {(isNewTranslation ? "đã thêm" : "đã cập nhật")} ngôn ngữ {dto.LanguageCode} cho POI '{poi?.Name ?? dto.PoiId.ToString()}'",
+            UserName = username,
+            Timestamp = DateTime.Now,
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown"
+        });
+
         await _context.SaveChangesAsync();
         return Ok(new { message = "Lưu thành công!" });
     }

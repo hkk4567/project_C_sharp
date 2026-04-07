@@ -61,6 +61,7 @@ builder.Services.AddScoped<OwnerNotificationService>();
 builder.Services.AddScoped<AdminNotificationService>();
 builder.Services.AddScoped<AdminNavbarThemeService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<AdminDashboardService>();
 var app = builder.Build();
 
 // --- PHẦN 2: CẤU HÌNH PIPELINE (MIDDLEWARE) ---

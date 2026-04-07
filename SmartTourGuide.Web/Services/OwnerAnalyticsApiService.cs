@@ -23,7 +23,7 @@ public class OwnerAnalyticsApiService
         => await _http.GetFromJsonAsync<List<AvgListenTimeDto>>($"api/analytics/owner/{ownerId}/avg-listen-time?top={top}")
            ?? new List<AvgListenTimeDto>();
 
-    public async Task<List<OwnerDailyListenDto>> GetDailyListensAsync(int ownerId, int days = 7)
+    public async Task<List<OwnerDailyListenDto>?> GetDailyListensAsync(int ownerId, int days = 7)
         => await _http.GetFromJsonAsync<List<OwnerDailyListenDto>>($"api/analytics/owner/{ownerId}/daily-listens?days={days}")
            ?? new List<OwnerDailyListenDto>();
 

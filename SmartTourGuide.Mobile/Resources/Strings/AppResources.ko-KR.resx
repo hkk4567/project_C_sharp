@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AlertError" xml:space="preserve"><value>오류</value></data>
+  <data name="AlertInfo" xml:space="preserve"><value>정보</value></data>
+  <data name="AlertNotice" xml:space="preserve"><value>알림</value></data>
+  <data name="BtnBack" xml:space="preserve"><value>🔙 돌아가기</value></data>
+  <data name="BtnLanguage" xml:space="preserve"><value>🌐 언어</value></data>
+  <data name="BtnListen" xml:space="preserve"><value>🔊 안내 듣기</value></data>
+  <data name="BtnMyLocation" xml:space="preserve"><value>📍 내 위치</value></data>
+  <data name="BtnReadTts" xml:space="preserve"><value>🗣️ 자동 읽기(TTS)</value></data>
+  <data name="BtnReload" xml:space="preserve"><value>목적지 다시 불러오기</value></data>
+  <data name="BtnSelectTour" xml:space="preserve"><value>🗺️ 투어 선택</value></data>
+  <data name="BtnStop" xml:space="preserve"><value>⏹️ 재생 중지</value></data>
+  <data name="CloseButton" xml:space="preserve"><value>닫기</value></data>
+  <data name="ConnectionError" xml:space="preserve"><value>연결 오류</value></data>
+  <data name="ConnectionErrorMessage" xml:space="preserve"><value>서버에 연결할 수 없습니다. 네트워크 또는 API 주소를 확인하세요.</value></data>
+  <data name="MapTitle" xml:space="preserve"><value>관광 지도</value></data>
+  <data name="PoiDetailTitle" xml:space="preserve"><value>장소 정보</value></data>
+  <data name="PoiDescriptionLabel" xml:space="preserve"><value>설명</value></data>
+  <data name="NoDescription" xml:space="preserve"><value>설명이 없습니다.</value></data>
+  <data name="NoToursAvailable" xml:space="preserve"><value>현재 이용 가능한 투어가 없습니다.</value></data>
+  <data name="OkButton" xml:space="preserve"><value>확인</value></data>
+  <data name="PoiCountFormat" xml:space="preserve"><value>{0}개의 장소 포함</value></data>
+  <data name="RetryButton" xml:space="preserve"><value>다시 시도</value></data>
+  <data name="SelectTourHeader" xml:space="preserve"><value>여정을 선택하세요</value></data>
+  <data name="StatusError" xml:space="preserve"><value>오류: {0}</value></data>
+  <data name="StatusFindingLocation" xml:space="preserve"><value>위치를 찾는 중...</value></data>
+  <data name="StatusFound" xml:space="preserve"><value>위치를 찾았습니다!</value></data>
+  <data name="StatusGpsError" xml:space="preserve"><value>GPS 오류입니다. 위치를 켜세요!</value></data>
+  <data name="StatusLanguageChanged" xml:space="preserve"><value>언어가 변경되었습니다</value></data>
+  <data name="StatusLoaded" xml:space="preserve"><value>{0}개의 장소를 불러왔습니다.</value></data>
+  <data name="StatusLoading" xml:space="preserve"><value>데이터를 불러오는 중...</value></data>
+  <data name="SystemError" xml:space="preserve"><value>시스템 오류</value></data>
+  <data name="SystemErrorMessage" xml:space="preserve"><value>오류가 발생했습니다: {0}</value></data>
+  <data name="ToursPageTitle" xml:space="preserve"><value>투어 목록</value></data>
+  <data name="AudioPlayError" xml:space="preserve"><value>오디오를 재생할 수 없습니다: {0}</value></data>
+  <data name="StatusGeofenceDoneWait" xml:space="preserve"><value>✅ 완료 {0}. {1}초 대기</value></data>
+  <data name="StatusNearestPoi" xml:space="preserve"><value>📍 가장 가까운 곳: {0} · {1}</value></data>
+  <data name="StatusWaitReplay" xml:space="preserve"><value>⏳ {0} · 다시 재생 대기: {1}초</value></data>
+  <data name="BtnListenAudioCount" xml:space="preserve"><value>🔊 오디오 듣기 ({0}/{1})</value></data>
+  <data name="BtnListenRecording" xml:space="preserve"><value>🔊 녹음 듣기</value></data>
+  <data name="BtnReadTtsAgain" xml:space="preserve"><value>🗣️ 다시 읽기</value></data>
+  <data name="BtnRelisten" xml:space="preserve"><value>🔊 다시 듣기</value></data>
+  <data name="BtnShowOnMap" xml:space="preserve"><value>📍 지도에서 보기</value></data>
+  <data name="BtnStopWithCount" xml:space="preserve"><value>⏹️ 중지  ({0}/{1})</value></data>
+  <data name="BtnStopWithCountCompact" xml:space="preserve"><value>⏹️ 중지({0}/{1})</value></data>
+  <data name="BtnViewItinerary" xml:space="preserve"><value>일정 보기 ›</value></data>
+  <data name="ItineraryTitle" xml:space="preserve"><value>🗺️ 일정</value></data>
+  <data name="MsgNoStops" xml:space="preserve"><value>이 투어에는 아직 정류장이 없습니다.</value></data>
+  <data name="MsgTourBusy" xml:space="preserve"><value>시스템이 다른 투어를 처리 중입니다. 잠시 기다려 주세요!</value></data>
+  <data name="PrefixOffline" xml:space="preserve"><value>📴 오프라인 · </value></data>
+  <data name="PrefixServerError" xml:space="preserve"><value>⚠️ 서버 오류 · </value></data>
+  <data name="StatusBannerNoNetwork" xml:space="preserve"><value>📴 네트워크 없음 — 오프라인 데이터 없음</value></data>
+  <data name="StatusBannerOffline" xml:space="preserve"><value>📴 오프라인 · 데이터: {0}</value></data>
+  <data name="StatusBannerUnknownSync" xml:space="preserve"><value>알 수 없음</value></data>
+  <data name="StatusGeofenceLeft" xml:space="preserve"><value>👋 재생 구역을 벗어났습니다</value></data>
+  <data name="StatusNeverSynced" xml:space="preserve"><value>동기화 안 됨</value></data>
+  <data name="StatusNoNetworkNoData" xml:space="preserve"><value>❌ 네트워크 없음 및 오프라인 데이터 없음</value></data>
+  <data name="StatusOfflineWithCount" xml:space="preserve"><value>{0}{1} · {2}개의 장소</value></data>
+  <data name="StatusPlayDone" xml:space="preserve"><value>✅ {0}  ·  {1}개 오디오 재생 완료</value></data>
+  <data name="StatusPlayingTrack" xml:space="preserve"><value>🎵 {0}  ·  {1}/{2}</value></data>
+  <data name="StatusPlayingTrackCompact" xml:space="preserve"><value>🎵 {0} ({1}/{2})</value></data>
+  <data name="StatusSyncDone" xml:space="preserve"><value>✅ 동기화 완료 · {0}개의 장소</value></data>
+  <data name="StatusSyncedAt" xml:space="preserve"><value>동기화: {0}</value></data>
+  <data name="StatusSyncFailed" xml:space="preserve"><value>⚠️ 동기화 실패</value></data>
+  <data name="StatusSyncing" xml:space="preserve"><value>🔄 동기화 중...</value></data>
+  <data name="StopCountFormat" xml:space="preserve"><value>정류장 {0}/{1}</value></data>
+  <data name="BadgeStart" xml:space="preserve"><value>🚩 출발</value></data>
+  <data name="BadgeEnd" xml:space="preserve"><value>🏁 종료</value></data>
+</root>

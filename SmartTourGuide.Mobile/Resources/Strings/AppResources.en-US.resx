@@ -312,4 +312,10 @@
   <data name="BadgeEnd" xml:space="preserve">
     <value>🏁 End</value>
   </data>
+  <data name="PoiDetailTitle" xml:space="preserve">
+    <value>Location details</value>
+  </data>
+  <data name="PoiDescriptionLabel" xml:space="preserve">
+    <value>Description</value>
+  </data>
 </root>

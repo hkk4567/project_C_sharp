@@ -1,342 +1,420 @@
 @page "/owner/dashboard"
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@using SmartTourGuide.Shared.DTOs
+@using SmartTourGuide.Web.Services
 @attribute [Authorize(Roles = "BoothOwner")]
+@inject HttpClient Http
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject OwnerAnalyticsApiService AnalyticsService
+@inject OwnerNotificationService NotificationService
 
-<MudText Typo="Typo.h5" Class="mb-4" Style="font-weight: bold;">Tổng quan gian hàng</MudText>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 owner-dashboard-shell">
+    <MudPaper Elevation="0" Class="owner-hero pa-6 mb-6">
+        <MudText Typo="Typo.overline" Class="owner-kicker">Owner Overview</MudText>
+        <MudText Typo="Typo.h4" Class="owner-title">Tổng quan gian hàng</MudText>
+        <MudText Typo="Typo.body2" Class="owner-subtitle">Số liệu của riêng bạn được lấy từ hệ thống thật, gồm POI, lượt
+            ghé và lịch sử thao tác gần đây.</MudText>
+        </MudPaper>
 
-<style>
-    /* --- CSS CHO DASHBOARD HIỆN ĐẠI --- */
-    .dash-card {
-        background-color: var(--mud-palette-surface);
-        border: 1px solid var(--mud-palette-divider);
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        height: 100%;
-    }
-
-    .dash-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
-    }
-
-    /* Hộp chứa Icon */
-    .icon-box {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 20px;
-    }
-
-    .icon-primary { background: rgba(var(--mud-palette-primary-rgb), 0.1); color: var(--mud-palette-primary); }
-    .icon-warning { background: rgba(var(--mud-palette-warning-rgb), 0.1); color: var(--mud-palette-warning); }
-    .icon-success { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); }
-
-    /* Chữ số thống kê */
-    .stat-title {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--mud-palette-text-secondary);
-        margin-bottom: 8px;
-    }
-
-    .stat-value {
-        font-size: 2rem;
-        font-weight: 800;
-        color: var(--mud-palette-text-primary);
-        line-height: 1;
-    }
-
-    /* Badge tăng/giảm phần trăm */
-    .trend-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 10px;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 0.75rem;
-        gap: 4px;
-    }
-
-    .trend-up { background: rgba(var(--mud-palette-success-rgb), 0.1); color: var(--mud-palette-success); }
-    .trend-down { background: rgba(var(--mud-palette-error-rgb), 0.1); color: var(--mud-palette-error); }
-
-    /* Card Hoạt động gần đây */
-    .activity-list .mud-list-item {
-        padding: 16px 0 !important;
-        border-bottom: 1px dashed var(--mud-palette-divider);
-    }
-    .activity-list .mud-list-item:last-child {
-        border-bottom: none;
-    }
-
-    /* ========================================================= */
-    /* --- TỐI ƯU HIỂN THỊ CHỮ TRONG CHẾ ĐỘ TỐI (DARK MODE) ---  */
-    /* ========================================================= */
-    .mud-theme-dark .dash-card {
-        background-color: #111827 !important; 
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
-    }
-
-    .mud-theme-dark .stat-title {
-        color: #9ca3af !important; 
-        font-weight: 500 !important;
-    }
-
-    .mud-theme-dark .stat-value {
-        color: #f9fafb !important; 
-        text-shadow: 0 2px 10px rgba(255, 255, 255, 0.15); 
-    }
-
-    .mud-theme-dark .dash-card .mud-typography-h6,
-    .mud-theme-dark .dash-card .mud-typography-h5 {
-        color: #f3f4f6 !important;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8); 
-    }
-
-    .mud-theme-dark .activity-list .mud-typography-body2 {
-        color: #e5e7eb !important; 
-    }
-
-    .mud-theme-dark .activity-list .mud-text-secondary {
-        color: #9ca3af !important; 
-    }
-
-    .mud-theme-dark .activity-list .mud-list-item {
-        border-bottom: 1px dashed rgba(255, 255, 255, 0.1) !important;
-    }
-    body{
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
-    text-rendering:optimizeLegibility;
-    } 
-    /* Card */
-.dash-card{
-    background: var(--mud-palette-surface);
-    border-radius:16px;
-    padding:20px;
-    box-shadow:0 6px 20px rgba(0,0,0,0.08);
-}
-
-/* tiêu đề nhỏ */
-.stat-title{
-    font-size:14px;
-    font-weight:600;
-    color:var(--mud-palette-text-secondary);
-}
-
-/* số thống kê */
-.stat-value{
-    font-size:28px;
-    font-weight:800;
-    color:var(--mud-palette-text-primary);
-}
-
-/* trend */
-.trend-badge{
-    display:flex;
-    align-items:center;
-    gap:4px;
-    font-size:13px;
-    font-weight:700;
-}
-
-.trend-up{
-    color:#4ade80;
-}
-
-.trend-down{
-    color:#f87171;
-}
-
-/* icon box */
-.icon-box{
-    width:44px;
-    height:44px;
-    border-radius:12px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    margin-bottom:10px;
-}
-
-/* màu icon */
-.icon-primary{
-    background:rgba(59,130,246,0.15);
-    color:#3b82f6;
-}
-
-.icon-warning{
-    background:rgba(251,191,36,0.15);
-    color:#f59e0b;
-}
-
-.icon-success{
-    background:rgba(16,185,129,0.15);
-    color:#10b981;
-}
-
-/* activity */
-.activity-list .mud-list-item{
-    padding:10px 0;
-}
-
-/* text activity */
-.activity-list .mud-typography-body2{
-    color:var(--mud-palette-text-primary);
-    font-weight:600;
-}
-
-/* caption */
-.mud-typography-caption{
-    color:var(--mud-palette-text-secondary);
-}  
-
-</style>
-
-<MudGrid Class="mt-2">
-    <MudItem xs="12" sm="6" md="4">
-        <div class="dash-card">
-            <div class="icon-box icon-primary">
-                <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Medium" />
-            </div>
-            <div class="stat-title">Địa điểm của tôi</div>
-            <div class="d-flex justify-space-between align-end">
-                <div class="stat-value">5</div>
-                <div class="trend-badge trend-up">
-                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> 
-                    <span>+2 Mới</span>
-                </div>
-            </div>
-        </div>
-    </MudItem>
-
-    <MudItem xs="12" sm="6" md="4">
-        <div class="dash-card">
-            <div class="icon-box icon-warning">
-                <MudIcon Icon="@Icons.Material.Filled.StarRate" Size="Size.Medium" />
-            </div>
-            <div class="stat-title">Lượt đánh giá</div>
-            <div class="d-flex justify-space-between align-end">
-                <div class="stat-value">42</div>
-                <div class="trend-badge trend-up">
-                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" /> 
-                    <span>+15.3%</span>
-                </div>
-            </div>
-        </div>
-    </MudItem>
-
-    <MudItem xs="12" sm="6" md="4">
-        <div class="dash-card">
-            <div class="icon-box icon-success">
-                <MudIcon Icon="@Icons.Material.Filled.Visibility" Size="Size.Medium" />
-            </div>
-            <div class="stat-title">Tổng lượt xem</div>
-            <div class="d-flex justify-space-between align-end">
-                <div class="stat-value">1,250</div>
-                <div class="trend-badge trend-down">
-                    <MudIcon Icon="@Icons.Material.Filled.TrendingDown" Size="Size.Small" /> 
-                    <span>-2.1%</span>
-                </div>
-            </div>
-        </div>
-    </MudItem>
-
-    <MudItem xs="12" md="7">
-        <div class="dash-card" style="padding: 24px;">
-            <div class="d-flex justify-space-between align-start mb-2">
-                <div>
-                    <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-secondary); text-transform: uppercase; font-weight: 800; letter-spacing: 1px;">
-                        Tổng quan
-                    </MudText>
-                    <MudText Typo="Typo.h5" Style="font-weight: 800; color: var(--mud-palette-text-primary);">
-                        Lượt xem địa điểm
-                    </MudText>
-                </div>
-                <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="font-weight: bold;">
-                    Năm 2024
-                </MudChip>
-            </div>
-
-            <MudChart ChartType="ChartType.Line" 
-                      ChartSeries="@_chartSeries" 
-                      XAxisLabels="@_xAxisLabels" 
-                      Width="100%" 
-                      Height="320px" 
-                      ChartOptions="@_chartOptions" />
-        </div>
-    </MudItem>
-
-    <MudItem xs="12" md="5">
-        <div class="dash-card" style="padding: 24px;">
-            <div class="d-flex justify-space-between align-center mb-4">
-                <MudText Typo="Typo.h6" Style="font-weight: 800;">Hoạt động gần đây</MudText>
-                <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Style="font-weight: 600;">Xem tất cả</MudButton>
-            </div>
-            
-            <MudList T="string" Class="activity-list pa-0">
-                <MudListItem T="string">
-                    <div class="d-flex align-center gap-4">
-                        <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
-                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
-                        </MudAvatar>
-                        <div>
-                            <MudText Typo="Typo.body2" Style="font-weight: 600;">Admin vừa duyệt "Quán phở"</MudText>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">2 giờ trước</MudText>
+        @if (isLoading)
+        {
+            <MudPaper Class="pa-6" Style="border-radius: 18px;">
+                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Đang tải dữ liệu gian hàng...</MudText>
+            </MudPaper>
+        }
+        else if (!string.IsNullOrWhiteSpace(loadError))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled">@loadError</MudAlert>
+        }
+        else
+        {
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="3" Class="owner-stat owner-stat-poi pa-4">
+                        <div class="d-flex justify-space-between align-start">
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Class="owner-stat-label">Địa điểm của tôi</MudText>
+                                <MudText Typo="Typo.h3" Class="owner-stat-value">@summary.TotalPois</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Class="owner-stat-icon">
+                                <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Large" />
+                            </MudAvatar>
                         </div>
-                    </div>
-                </MudListItem>
+                        <MudText Typo="Typo.caption" Class="owner-stat-caption">Tổng POI thuộc quyền quản lý của bạn</MudText>
+                    </MudPaper>
+                </MudItem>
 
-                <MudListItem T="string">
-                    <div class="d-flex align-center gap-4">
-                        <MudAvatar Color="Color.Warning" Variant="Variant.Filled" Size="Size.Small">
-                            <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" />
-                        </MudAvatar>
-                        <div>
-                            <MudText Typo="Typo.body2" Style="font-weight: 600;">Trần B đánh giá 5 sao</MudText>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">5 giờ trước</MudText>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="3" Class="owner-stat owner-stat-visits pa-4">
+                        <div class="d-flex justify-space-between align-start">
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Class="owner-stat-label">Tổng lượt ghé</MudText>
+                                <MudText Typo="Typo.h3" Class="owner-stat-value">@summary.TotalListensMonth</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Class="owner-stat-icon">
+                                <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Large" />
+                            </MudAvatar>
                         </div>
-                    </div>
-                </MudListItem>
+                        <MudText Typo="Typo.caption" Class="owner-stat-caption">30 ngày gần nhất</MudText>
+                    </MudPaper>
+                </MudItem>
 
-                <MudListItem T="string">
-                    <div class="d-flex align-center gap-4">
-                        <MudAvatar Color="Color.Success" Variant="Variant.Filled" Size="Size.Small">
-                            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Size="Size.Small" />
-                        </MudAvatar>
-                        <div>
-                            <MudText Typo="Typo.body2" Style="font-weight: 600;">"Cà phê Chill" đạt 100 view</MudText>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">1 ngày trước</MudText>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="3" Class="owner-stat owner-stat-heard pa-4">
+                        <div class="d-flex justify-space-between align-start">
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Class="owner-stat-label">Địa điểm đã được ghé</MudText>
+                                <MudText Typo="Typo.h3" Class="owner-stat-value">@summary.DistinctPoisHeard</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Class="owner-stat-icon">
+                                <MudIcon Icon="@Icons.Material.Filled.PlayCircle" Size="Size.Large" />
+                            </MudAvatar>
                         </div>
-                    </div>
-                </MudListItem>
-            </MudList>
-        </div>
-    </MudItem>
-</MudGrid>
+                        <MudText Typo="Typo.caption" Class="owner-stat-caption">Số POI đã có lượt nghe thực tế</MudText>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="3" Class="owner-stat owner-stat-notify pa-4">
+                        <div class="d-flex justify-space-between align-start">
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Class="owner-stat-label">Thông báo mới</MudText>
+                                <MudText Typo="Typo.h3" Class="owner-stat-value">@unreadNotifications</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Info" Variant="Variant.Outlined" Class="owner-stat-icon">
+                                <MudIcon Icon="@Icons.Material.Filled.Notifications" Size="Size.Large" />
+                            </MudAvatar>
+                        </div>
+                        <MudText Typo="Typo.caption" Class="owner-stat-caption">Chưa đọc trong hộp thông báo</MudText>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" lg="8" Class="mt-4">
+                    <MudPaper Elevation="3" Class="pa-5 owner-panel owner-chart-panel">
+                        <MudText Typo="Typo.h6" Class="section-title mb-4">Tổng lượt ghé 7 ngày gần nhất</MudText>
+
+                        @if (chartSeries.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Chưa có dữ liệu lượt ghé trong 7 ngày gần đây.
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudChart ChartType="ChartType.Line" ChartSeries="@chartSeries" XAxisLabels="@chartLabels" Width="100%"
+                                      Height="380px" ChartOptions="@chartOptions" />
+                        }
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" lg="4" Class="mt-4">
+                    <MudPaper Elevation="3" Class="pa-5 owner-panel h-100">
+                        <div class="d-flex justify-space-between align-center mb-4">
+                            <MudText Typo="Typo.h6" Class="section-title">Hoạt động gần đây</MudText>
+                            <MudChip T="string" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
+                                @recentActivities.Count mục</MudChip>
+                            </div>
+
+                            @if (recentActivities.Count == 0)
+                            {
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">Chưa có hoạt động phù hợp.</MudText>
+                            }
+                            else
+                            {
+                                <MudTimeline TimelinePosition="TimelinePosition.Start" Class="ml-n6 owner-timeline">
+                                    @foreach (var activity in recentActivities)
+                                    {
+                                        <MudTimelineItem Color="@GetActivityColor(activity.ActivityType)" Size="Size.Small">
+                                            <ItemOpposite>
+                                                <MudText Typo="Typo.caption" Class="activity-time">@GetRelativeTime(activity.Timestamp)
+                                                </MudText>
+                                            </ItemOpposite>
+                                            <ItemContent>
+                                                <MudText Typo="Typo.body2" Class="activity-title">@GetActivityLabel(activity.ActivityType)
+                                                </MudText>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@activity.Description</MudText>
+                                            </ItemContent>
+                                        </MudTimelineItem>
+                                    }
+                                </MudTimeline>
+                            }
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            }
+        </MudContainer>
 
 @code {
-    // 1. Cấu hình trục X (Tên các tháng)
-    private string[] _xAxisLabels = { "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9" };
-
-    // 2. Dữ liệu các đường thẳng
-    private List<ChartSeries> _chartSeries = new List<ChartSeries>()
+    private readonly ChartOptions chartOptions = new()
     {
-        new ChartSeries() { Name = "Tổng lượt xem", Data = new double[] { 120, 200, 150, 250, 310, 280, 420, 390, 500 } },
-        new ChartSeries() { Name = "Lượt đánh giá", Data = new double[] { 10, 25, 15, 40, 35, 50, 45, 60, 85 } }
+        InterpolationOption = InterpolationOption.NaturalSpline,
+        LineStrokeWidth = 3,
+        YAxisLines = true,
+        YAxisTicks = 25
     };
 
-    // 3. Tùy chỉnh hiển thị biểu đồ
-    private ChartOptions _chartOptions = new ChartOptions()
+    private OwnerAnalyticsSummaryDto summary = new();
+    private List<OwnerDailyListenDto> dailyListens = new();
+    private List<ChartSeries> chartSeries = new();
+    private string[] chartLabels = Array.Empty<string>();
+    private List<ActivityLogDto> recentActivities = new();
+    private int unreadNotifications;
+    private int ownerId;
+    private string username = string.Empty;
+    private bool isLoading = true;
+    private string? loadError;
+
+    protected override async Task OnInitializedAsync()
     {
-        InterpolationOption = InterpolationOption.NaturalSpline, 
-        LineStrokeWidth = 4, 
-        YAxisLines = true, 
-        YAxisTicks = 100 
-    };
+        await LoadDashboardAsync();
+    }
+
+    private async Task LoadDashboardAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        try
+        {
+            username = await LocalStorage.GetItemAsync<string>("username") ?? string.Empty;
+            var ownerIdValue = await LocalStorage.GetItemAsync<string>("userId");
+            ownerId = int.TryParse(ownerIdValue, out var parsedOwnerId) ? parsedOwnerId : 0;
+
+            if (ownerId <= 0 || string.IsNullOrWhiteSpace(username))
+            {
+                loadError = "Không tìm thấy thông tin đăng nhập của owner.";
+                return;
+            }
+
+            var summaryTask = SafeAsync(() => AnalyticsService.GetSummaryAsync(ownerId));
+            var dailyTask = SafeAsync(() => AnalyticsService.GetDailyListensAsync(ownerId, 7));
+            var notificationTask = SafeAsync(() => NotificationService.GetOwnerNotificationsAsync());
+            var activityTask = LoadRecentActivitiesAsync(username);
+
+            await Task.WhenAll(summaryTask, dailyTask, notificationTask, activityTask);
+
+            summary = await summaryTask ?? new OwnerAnalyticsSummaryDto();
+            dailyListens = await dailyTask ?? new List<OwnerDailyListenDto>();
+            unreadNotifications = (await notificationTask)?.UnreadCount ?? 0;
+
+            var rawActivities = await activityTask;
+            recentActivities = FilterRelevantActivities(rawActivities)
+                .Take(5)
+                .ToList();
+
+            if (recentActivities.Count == 0)
+            {
+                recentActivities = rawActivities.Take(5).ToList();
+            }
+
+            BuildChart();
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Không tải được dashboard owner: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void BuildChart()
+    {
+        chartLabels = dailyListens.Select(x => x.Date.ToString("dd/MM")).ToArray();
+
+        chartSeries = new List<ChartSeries>
+        {
+            new()
+            {
+                Name = "Tổng lượt ghé",
+                Data = dailyListens.Select(x => (double)x.ListenCount).ToArray()
+            }
+        };
+    }
+
+    private static async Task<T?> SafeAsync<T>(Func<Task<T?>> action) where T : class
+    {
+        try
+        {
+            return await action();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<List<ActivityLogDto>> LoadRecentActivitiesAsync(string currentUsername)
+    {
+        var query = new Dictionary<string, string?>
+        {
+            ["user"] = currentUsername,
+            ["from"] = DateTime.Now.AddDays(-30).ToString("yyyy-MM-dd")
+        };
+
+        var url = QueryHelpers.AddQueryString("api/activitylogs", query);
+        return await SafeAsync(() => Http.GetFromJsonAsync<List<ActivityLogDto>>(url)) ?? new List<ActivityLogDto>();
+    }
+
+    private static IEnumerable<ActivityLogDto> FilterRelevantActivities(IEnumerable<ActivityLogDto> activities)
+    {
+        return activities.Where(activity =>
+            activity.ActivityType.Contains("CreatePOI", StringComparison.OrdinalIgnoreCase) ||
+            activity.ActivityType.Contains("UpdatePOI", StringComparison.OrdinalIgnoreCase) ||
+            activity.ActivityType.Contains("SavePoiTranslation", StringComparison.OrdinalIgnoreCase) ||
+            activity.ActivityType.Contains("SaveTourTranslation", StringComparison.OrdinalIgnoreCase) ||
+            activity.ActivityType.Contains("CreateTour", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static Color GetActivityColor(string activityType)
+    {
+        if (activityType.Contains("CreatePOI", StringComparison.OrdinalIgnoreCase)) return Color.Success;
+        if (activityType.Contains("UpdatePOI", StringComparison.OrdinalIgnoreCase)) return Color.Info;
+        if (activityType.Contains("SavePoiTranslation", StringComparison.OrdinalIgnoreCase)) return Color.Warning;
+        if (activityType.Contains("SaveTourTranslation", StringComparison.OrdinalIgnoreCase)) return Color.Warning;
+        if (activityType.Contains("CreateTour", StringComparison.OrdinalIgnoreCase)) return Color.Primary;
+
+        return Color.Info;
+    }
+
+    private static string GetActivityLabel(string activityType)
+    {
+        if (activityType.Contains("CreatePOI", StringComparison.OrdinalIgnoreCase)) return "Thêm địa điểm mới";
+        if (activityType.Contains("UpdatePOI", StringComparison.OrdinalIgnoreCase)) return "Cập nhật địa điểm";
+        if (activityType.Contains("SavePoiTranslation", StringComparison.OrdinalIgnoreCase)) return "Thêm / cập nhật ngôn ngữ cho POI";
+        if (activityType.Contains("SaveTourTranslation", StringComparison.OrdinalIgnoreCase)) return "Thêm / cập nhật ngôn ngữ cho Tour";
+        if (activityType.Contains("CreateTour", StringComparison.OrdinalIgnoreCase)) return "Tạo tour mới";
+
+        return activityType;
+    }
+
+    private static string GetRelativeTime(DateTime timestamp)
+    {
+        var diff = DateTime.Now - timestamp;
+
+        if (diff.TotalMinutes < 1) return "Vừa xong";
+        if (diff.TotalMinutes < 60) return $"{Math.Floor(diff.TotalMinutes)} phút trước";
+        if (diff.TotalHours < 24) return $"{Math.Floor(diff.TotalHours)} giờ trước";
+        if (diff.TotalDays < 7) return $"{Math.Floor(diff.TotalDays)} ngày trước";
+
+        return timestamp.ToString("dd/MM/yyyy");
+    }
 }
+
+<style>
+    .owner-dashboard-shell {
+        padding-bottom: 16px;
+    }
+
+    .owner-hero {
+        border-radius: 28px;
+        background:
+            radial-gradient(circle at top left, rgba(46, 125, 50, 0.18), transparent 32%),
+            radial-gradient(circle at top right, rgba(2, 136, 209, 0.16), transparent 30%),
+            linear-gradient(135deg, rgba(12, 20, 34, 0.98), rgba(19, 30, 45, 0.93));
+        color: #f8fafc;
+        box-shadow: 0 22px 54px rgba(15, 23, 42, 0.18);
+    }
+
+    .owner-kicker {
+        color: rgba(226, 232, 240, 0.72);
+        letter-spacing: 0.18em;
+        font-weight: 700;
+    }
+
+    .owner-title {
+        font-weight: 900;
+        margin-top: 4px;
+    }
+
+    .owner-subtitle {
+        color: rgba(226, 232, 240, 0.84);
+        max-width: 760px;
+    }
+
+    .owner-stat,
+    .owner-panel {
+        border-radius: 22px;
+        overflow: hidden;
+        border: 1px solid rgba(15, 23, 42, 0.06);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(248, 250, 252, 0.95));
+    }
+
+    .owner-chart-panel {
+        min-height: 520px;
+        padding-bottom: 28px;
+    }
+
+    .owner-stat {
+        min-height: 162px;
+    }
+
+    .owner-stat-poi {
+        border-top: 4px solid #1e88e5;
+    }
+
+    .owner-stat-visits {
+        border-top: 4px solid #2e7d32;
+    }
+
+    .owner-stat-heard {
+        border-top: 4px solid #ed6c02;
+    }
+
+    .owner-stat-notify {
+        border-top: 4px solid #0288d1;
+    }
+
+    .owner-stat-label {
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+    }
+
+    .owner-stat-value {
+        font-weight: 900;
+        color: #0f172a;
+        line-height: 1.05;
+        margin-top: 6px;
+    }
+
+    .owner-stat-icon {
+        width: 56px;
+        height: 56px;
+        border-width: 2px;
+        flex-shrink: 0;
+    }
+
+    .owner-stat-caption {
+        color: #64748b;
+        margin-top: 8px;
+    }
+
+    .section-title {
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .activity-title {
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .activity-time {
+        font-weight: 700;
+        color: #64748b;
+    }
+
+    .owner-timeline .mud-timeline-item {
+        margin-bottom: 4px;
+    }
+
+    @@media (max-width: 960px) {
+        .owner-hero {
+            border-radius: 22px;
+        }
+    }
+</style>

@@ -8,11 +8,10 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace SmartTourGuide.Mobile.Resources.Strings
-{
+namespace SmartTourGuide.Mobile.Resources.Strings {
     using System;
-
-
+    
+    
     /// <summary>
     ///   A strongly-typed resource class, for looking up localized strings, etc.
     /// </summary>
@@ -23,459 +22,645 @@ namespace SmartTourGuide.Mobile.Resources.Strings
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
-    public class AppResources
-    {
-
+    public class AppResources {
+        
         private static global::System.Resources.ResourceManager resourceMan;
-
+        
         private static global::System.Globalization.CultureInfo resourceCulture;
-
+        
         [global::System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        internal AppResources()
-        {
+        internal AppResources() {
         }
-
+        
         /// <summary>
         ///   Returns the cached ResourceManager instance used by this class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        public static global::System.Resources.ResourceManager ResourceManager
-        {
-            get
-            {
-                if (object.ReferenceEquals(resourceMan, null))
-                {
+        public static global::System.Resources.ResourceManager ResourceManager {
+            get {
+                if (object.ReferenceEquals(resourceMan, null)) {
                     global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("SmartTourGuide.Mobile.Resources.Strings.AppResources", typeof(AppResources).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
             }
         }
-
+        
         /// <summary>
         ///   Overrides the current thread's CurrentUICulture property for all
         ///   resource lookups using this strongly typed resource class.
         /// </summary>
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Advanced)]
-        public static global::System.Globalization.CultureInfo Culture
-        {
-            get
-            {
+        public static global::System.Globalization.CultureInfo Culture {
+            get {
                 return resourceCulture;
             }
-            set
-            {
+            set {
                 resourceCulture = value;
             }
         }
-
-        // ── Alerts & dialogs ─────────────────────────────────────────────────
-
-        /// <summary>Looks up a localized string similar to Lỗi.</summary>
-        public static string AlertError
-        {
-            get { return ResourceManager.GetString("AlertError", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Thông tin.</summary>
-        public static string AlertInfo
-        {
-            get { return ResourceManager.GetString("AlertInfo", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Thông báo.</summary>
-        public static string AlertNotice
-        {
-            get { return ResourceManager.GetString("AlertNotice", resourceCulture); }
-        }
-
-        // ── Buttons ──────────────────────────────────────────────────────────
-
-        /// <summary>Looks up a localized string similar to 🔙 Quay lại.</summary>
-        public static string BtnBack
-        {
-            get { return ResourceManager.GetString("BtnBack", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🌐 Ngôn ngữ.</summary>
-        public static string BtnLanguage
-        {
-            get { return ResourceManager.GetString("BtnLanguage", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🔊 Nghe Thuyết Minh.</summary>
-        public static string BtnListen
-        {
-            get { return ResourceManager.GetString("BtnListen", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🔊 Nghe audio ({0}/{1}).</summary>
-        public static string BtnListenAudioCount
-        {
-            get { return ResourceManager.GetString("BtnListenAudioCount", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🔊 Nghe File Ghi Âm.</summary>
-        public static string BtnListenRecording
-        {
-            get { return ResourceManager.GetString("BtnListenRecording", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 📍 Vị trí.</summary>
-        public static string BtnMyLocation
-        {
-            get { return ResourceManager.GetString("BtnMyLocation", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🗣️ Đọc Tự Động (TTS).</summary>
-        public static string BtnReadTts
-        {
-            get { return ResourceManager.GetString("BtnReadTts", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🗣️ Đọc lại.</summary>
-        public static string BtnReadTtsAgain
-        {
-            get { return ResourceManager.GetString("BtnReadTtsAgain", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Tải lại điểm đến.</summary>
-        public static string BtnReload
-        {
-            get { return ResourceManager.GetString("BtnReload", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🔊 Nghe lại.</summary>
-        public static string BtnRelisten
-        {
-            get { return ResourceManager.GetString("BtnRelisten", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🗺️ Chọn Tour.</summary>
-        public static string BtnSelectTour
-        {
-            get { return ResourceManager.GetString("BtnSelectTour", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to ⏹️ Dừng phát.</summary>
-        public static string BtnStop
-        {
-            get { return ResourceManager.GetString("BtnStop", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to ⏹️ Dừng  ({0}/{1}).</summary>
-        public static string BtnStopWithCount
-        {
-            get { return ResourceManager.GetString("BtnStopWithCount", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to ⏹️ Dừng ({0}/{1}).</summary>
-        public static string BtnStopWithCountCompact
-        {
-            get { return ResourceManager.GetString("BtnStopWithCountCompact", resourceCulture); }
-        }
-
-        // ── Common UI ────────────────────────────────────────────────────────
-
-        /// <summary>Looks up a localized string similar to Đóng.</summary>
-        public static string CloseButton
-        {
-            get { return ResourceManager.GetString("CloseButton", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to OK.</summary>
-        public static string OkButton
-        {
-            get { return ResourceManager.GetString("OkButton", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Thử lại.</summary>
-        public static string RetryButton
-        {
-            get { return ResourceManager.GetString("RetryButton", resourceCulture); }
-        }
-
-        // ── Errors & connection ──────────────────────────────────────────────
-
-        /// <summary>Looks up a localized string similar to Không thể phát âm thanh: {0}.</summary>
-        public static string AudioPlayError
-        {
-            get { return ResourceManager.GetString("AudioPlayError", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Lỗi kết nối.</summary>
-        public static string ConnectionError
-        {
-            get { return ResourceManager.GetString("ConnectionError", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Không thể kết nối đến máy chủ...</summary>
-        public static string ConnectionErrorMessage
-        {
-            get { return ResourceManager.GetString("ConnectionErrorMessage", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Lỗi hệ thống.</summary>
-        public static string SystemError
-        {
-            get { return ResourceManager.GetString("SystemError", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Đã xảy ra lỗi: {0}.</summary>
-        public static string SystemErrorMessage
-        {
-            get { return ResourceManager.GetString("SystemErrorMessage", resourceCulture); }
-        }
-
-        // ── Map & tours ──────────────────────────────────────────────────────
-
-        /// <summary>Looks up a localized string similar to Bản đồ du lịch.</summary>
-        public static string MapTitle
-        {
-            get { return ResourceManager.GetString("MapTitle", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Hệ thống đang xử lý tour trước, vui lòng đợi chút!</summary>
-        public static string MsgTourBusy
-        {
-            get { return ResourceManager.GetString("MsgTourBusy", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Chưa có mô tả.</summary>
-        public static string NoDescription
-        {
-            get { return ResourceManager.GetString("NoDescription", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Hiện tại chưa có tour nào được cập nhật.</summary>
-        public static string NoToursAvailable
-        {
-            get { return ResourceManager.GetString("NoToursAvailable", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Gồm {0} địa điểm.</summary>
-        public static string PoiCountFormat
-        {
-            get { return ResourceManager.GetString("PoiCountFormat", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Chọn hành trình của bạn.</summary>
-        public static string SelectTourHeader
-        {
-            get { return ResourceManager.GetString("SelectTourHeader", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Điểm dừng {0}/{1}.</summary>
-        public static string StopCountFormat
-        {
-            get { return ResourceManager.GetString("StopCountFormat", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Tuyến Du Lịch.</summary>
-        public static string ToursPageTitle
-        {
-            get { return ResourceManager.GetString("ToursPageTitle", resourceCulture); }
-        }
-
-        // ── Status bar ───────────────────────────────────────────────────────
-
-        /// <summary>Looks up a localized string similar to Lỗi: {0}.</summary>
-        public static string StatusError
-        {
-            get { return ResourceManager.GetString("StatusError", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Đang tìm bạn...</summary>
-        public static string StatusFindingLocation
-        {
-            get { return ResourceManager.GetString("StatusFindingLocation", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Đã tìm thấy vị trí của bạn!</summary>
-        public static string StatusFound
-        {
-            get { return ResourceManager.GetString("StatusFound", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Lỗi GPS. Hãy bật vị trí!</summary>
-        public static string StatusGpsError
-        {
-            get { return ResourceManager.GetString("StatusGpsError", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Đã đổi ngôn ngữ.</summary>
-        public static string StatusLanguageChanged
-        {
-            get { return ResourceManager.GetString("StatusLanguageChanged", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Đã tải {0} địa điểm.</summary>
-        public static string StatusLoaded
-        {
-            get { return ResourceManager.GetString("StatusLoaded", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Đang tải dữ liệu...</summary>
-        public static string StatusLoading
-        {
-            get { return ResourceManager.GetString("StatusLoading", resourceCulture); }
-        }
-
-        // ── Status: audio playback ───────────────────────────────────────────
-
-        /// <summary>Looks up a localized string similar to ✅ {0}  ·  Phát xong {1} audio.</summary>
-        public static string StatusPlayDone
-        {
-            get { return ResourceManager.GetString("StatusPlayDone", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🎵 {0}  ·  {1}/{2}.</summary>
-        public static string StatusPlayingTrack
-        {
-            get { return ResourceManager.GetString("StatusPlayingTrack", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🎵 {0} ({1}/{2}).</summary>
-        public static string StatusPlayingTrackCompact
-        {
-            get { return ResourceManager.GetString("StatusPlayingTrackCompact", resourceCulture); }
-        }
-
-        // ── Status: geofence ─────────────────────────────────────────────────
-
-        /// <summary>Looks up a localized string similar to ✅ Xong {0}. Nghỉ {1}s.</summary>
-        public static string StatusGeofenceDoneWait
-        {
-            get { return ResourceManager.GetString("StatusGeofenceDoneWait", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 👋 Đã rời vùng phát.</summary>
-        public static string StatusGeofenceLeft
-        {
-            get { return ResourceManager.GetString("StatusGeofenceLeft", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 📍 Gần nhất: {0} · {1}.</summary>
-        public static string StatusNearestPoi
-        {
-            get { return ResourceManager.GetString("StatusNearestPoi", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to ⏳ {0} · Chờ phát lại: {1}s.</summary>
-        public static string StatusWaitReplay
-        {
-            get { return ResourceManager.GetString("StatusWaitReplay", resourceCulture); }
-        }
-
-        // ── Status: offline / sync ───────────────────────────────────────────
-
-        /// <summary>Looks up a localized string similar to 📴 Không có mạng — Chưa có dữ liệu offline.</summary>
-        public static string StatusBannerNoNetwork
-        {
-            get { return ResourceManager.GetString("StatusBannerNoNetwork", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 📴 Đang offline · Dữ liệu: {0}.</summary>
-        public static string StatusBannerOffline
-        {
-            get { return ResourceManager.GetString("StatusBannerOffline", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to chưa rõ.</summary>
-        public static string StatusBannerUnknownSync
-        {
-            get { return ResourceManager.GetString("StatusBannerUnknownSync", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to ❌ Không có mạng và chưa có dữ liệu offline.</summary>
-        public static string StatusNoNetworkNoData
-        {
-            get { return ResourceManager.GetString("StatusNoNetworkNoData", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to {0}{1} · {2} địa điểm.</summary>
-        public static string StatusOfflineWithCount
-        {
-            get { return ResourceManager.GetString("StatusOfflineWithCount", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to ✅ Đồng bộ xong · {0} địa điểm.</summary>
-        public static string StatusSyncDone
-        {
-            get { return ResourceManager.GetString("StatusSyncDone", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Đồng bộ: {0}.</summary>
-        public static string StatusSyncedAt
-        {
-            get { return ResourceManager.GetString("StatusSyncedAt", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to ⚠️ Đồng bộ thất bại.</summary>
-        public static string StatusSyncFailed
-        {
-            get { return ResourceManager.GetString("StatusSyncFailed", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🔄 Đang đồng bộ...</summary>
-        public static string StatusSyncing
-        {
-            get { return ResourceManager.GetString("StatusSyncing", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Chưa đồng bộ.</summary>
-        public static string StatusNeverSynced
-        {
-            get { return ResourceManager.GetString("StatusNeverSynced", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 📴 Offline ·.</summary>
-        public static string PrefixOffline
-        {
-            get { return ResourceManager.GetString("PrefixOffline", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to ⚠️ Server lỗi ·.</summary>
-        public static string PrefixServerError
-        {
-            get { return ResourceManager.GetString("PrefixServerError", resourceCulture); }
-        }
-        // ── Tours Page ───────────────────────────────────────────────────────
-
-        /// <summary>Looks up a localized string similar to Xem lộ trình ›.</summary>
-        public static string BtnViewItinerary
-        {
-            get { return ResourceManager.GetString("BtnViewItinerary", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🗺️ Lộ trình.</summary>
-        public static string ItineraryTitle
-        {
-            get { return ResourceManager.GetString("ItineraryTitle", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 📍 Xem trên bản đồ.</summary>
-        public static string BtnShowOnMap
-        {
-            get { return ResourceManager.GetString("BtnShowOnMap", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to Tour chưa có điểm dừng nào..</summary>
-        public static string MsgNoStops
-        {
-            get { return ResourceManager.GetString("MsgNoStops", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🚩 Xuất phát.</summary>
-        public static string BadgeStart
-        {
-            get { return ResourceManager.GetString("BadgeStart", resourceCulture); }
-        }
-
-        /// <summary>Looks up a localized string similar to 🏁 Kết thúc.</summary>
-        public static string BadgeEnd
-        {
-            get { return ResourceManager.GetString("BadgeEnd", resourceCulture); }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Lỗi.
+        /// </summary>
+        public static string AlertError {
+            get {
+                return ResourceManager.GetString("AlertError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Thông tin.
+        /// </summary>
+        public static string AlertInfo {
+            get {
+                return ResourceManager.GetString("AlertInfo", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Thông báo.
+        /// </summary>
+        public static string AlertNotice {
+            get {
+                return ResourceManager.GetString("AlertNotice", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Không thể phát âm thanh: {0}.
+        /// </summary>
+        public static string AudioPlayError {
+            get {
+                return ResourceManager.GetString("AudioPlayError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🏁 Kết thúc.
+        /// </summary>
+        public static string BadgeEnd {
+            get {
+                return ResourceManager.GetString("BadgeEnd", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🚩 Xuất phát.
+        /// </summary>
+        public static string BadgeStart {
+            get {
+                return ResourceManager.GetString("BadgeStart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🔙 Quay lại.
+        /// </summary>
+        public static string BtnBack {
+            get {
+                return ResourceManager.GetString("BtnBack", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🌐 Ngôn ngữ.
+        /// </summary>
+        public static string BtnLanguage {
+            get {
+                return ResourceManager.GetString("BtnLanguage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🔊 Nghe Thuyết Minh.
+        /// </summary>
+        public static string BtnListen {
+            get {
+                return ResourceManager.GetString("BtnListen", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🔊 Nghe audio ({0}/{1}).
+        /// </summary>
+        public static string BtnListenAudioCount {
+            get {
+                return ResourceManager.GetString("BtnListenAudioCount", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🔊 Nghe File Ghi Âm.
+        /// </summary>
+        public static string BtnListenRecording {
+            get {
+                return ResourceManager.GetString("BtnListenRecording", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 📍 Vị trí.
+        /// </summary>
+        public static string BtnMyLocation {
+            get {
+                return ResourceManager.GetString("BtnMyLocation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🗣️ Đọc Tự Động (TTS).
+        /// </summary>
+        public static string BtnReadTts {
+            get {
+                return ResourceManager.GetString("BtnReadTts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🗣️ Đọc lại.
+        /// </summary>
+        public static string BtnReadTtsAgain {
+            get {
+                return ResourceManager.GetString("BtnReadTtsAgain", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🔊 Nghe lại.
+        /// </summary>
+        public static string BtnRelisten {
+            get {
+                return ResourceManager.GetString("BtnRelisten", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Tải lại điểm đến.
+        /// </summary>
+        public static string BtnReload {
+            get {
+                return ResourceManager.GetString("BtnReload", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🗺️ Chọn Tour.
+        /// </summary>
+        public static string BtnSelectTour {
+            get {
+                return ResourceManager.GetString("BtnSelectTour", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 📍 Xem trên bản đồ.
+        /// </summary>
+        public static string BtnShowOnMap {
+            get {
+                return ResourceManager.GetString("BtnShowOnMap", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ⏹️ Dừng phát.
+        /// </summary>
+        public static string BtnStop {
+            get {
+                return ResourceManager.GetString("BtnStop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ⏹️ Dừng  ({0}/{1}).
+        /// </summary>
+        public static string BtnStopWithCount {
+            get {
+                return ResourceManager.GetString("BtnStopWithCount", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ⏹️ Dừng ({0}/{1}).
+        /// </summary>
+        public static string BtnStopWithCountCompact {
+            get {
+                return ResourceManager.GetString("BtnStopWithCountCompact", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Xem lộ trình ›.
+        /// </summary>
+        public static string BtnViewItinerary {
+            get {
+                return ResourceManager.GetString("BtnViewItinerary", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Đóng.
+        /// </summary>
+        public static string CloseButton {
+            get {
+                return ResourceManager.GetString("CloseButton", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Lỗi kết nối.
+        /// </summary>
+        public static string ConnectionError {
+            get {
+                return ResourceManager.GetString("ConnectionError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Không thể kết nối đến máy chủ. Vui lòng kiểm tra mạng hoặc địa chỉ API..
+        /// </summary>
+        public static string ConnectionErrorMessage {
+            get {
+                return ResourceManager.GetString("ConnectionErrorMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🗺️ Lộ trình.
+        /// </summary>
+        public static string ItineraryTitle {
+            get {
+                return ResourceManager.GetString("ItineraryTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Bản đồ du lịch.
+        /// </summary>
+        public static string MapTitle {
+            get {
+                return ResourceManager.GetString("MapTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Tour chưa có điểm dừng nào..
+        /// </summary>
+        public static string MsgNoStops {
+            get {
+                return ResourceManager.GetString("MsgNoStops", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Hệ thống đang xử lý tour trước, vui lòng đợi chút!.
+        /// </summary>
+        public static string MsgTourBusy {
+            get {
+                return ResourceManager.GetString("MsgTourBusy", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Chưa có mô tả..
+        /// </summary>
+        public static string NoDescription {
+            get {
+                return ResourceManager.GetString("NoDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Hiện tại chưa có tour nào được cập nhật..
+        /// </summary>
+        public static string NoToursAvailable {
+            get {
+                return ResourceManager.GetString("NoToursAvailable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to OK.
+        /// </summary>
+        public static string OkButton {
+            get {
+                return ResourceManager.GetString("OkButton", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Gồm {0} địa điểm.
+        /// </summary>
+        public static string PoiCountFormat {
+            get {
+                return ResourceManager.GetString("PoiCountFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to mô tả chi tiết.
+        /// </summary>
+        public static string PoiDescriptionLabel {
+            get {
+                return ResourceManager.GetString("PoiDescriptionLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Chi tiết vị trí.
+        /// </summary>
+        public static string PoiDetailTitle {
+            get {
+                return ResourceManager.GetString("PoiDetailTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 📴 Offline · .
+        /// </summary>
+        public static string PrefixOffline {
+            get {
+                return ResourceManager.GetString("PrefixOffline", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ⚠️ Server lỗi · .
+        /// </summary>
+        public static string PrefixServerError {
+            get {
+                return ResourceManager.GetString("PrefixServerError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Thử lại.
+        /// </summary>
+        public static string RetryButton {
+            get {
+                return ResourceManager.GetString("RetryButton", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Chọn hành trình của bạn.
+        /// </summary>
+        public static string SelectTourHeader {
+            get {
+                return ResourceManager.GetString("SelectTourHeader", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 📴 Không có mạng — Chưa có dữ liệu offline.
+        /// </summary>
+        public static string StatusBannerNoNetwork {
+            get {
+                return ResourceManager.GetString("StatusBannerNoNetwork", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 📴 Đang offline · Dữ liệu: {0}.
+        /// </summary>
+        public static string StatusBannerOffline {
+            get {
+                return ResourceManager.GetString("StatusBannerOffline", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to chưa rõ.
+        /// </summary>
+        public static string StatusBannerUnknownSync {
+            get {
+                return ResourceManager.GetString("StatusBannerUnknownSync", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Lỗi: {0}.
+        /// </summary>
+        public static string StatusError {
+            get {
+                return ResourceManager.GetString("StatusError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Đang tìm bạn....
+        /// </summary>
+        public static string StatusFindingLocation {
+            get {
+                return ResourceManager.GetString("StatusFindingLocation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Đã tìm thấy vị trí của bạn!.
+        /// </summary>
+        public static string StatusFound {
+            get {
+                return ResourceManager.GetString("StatusFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ✅ Xong {0}. Nghỉ {1}s.
+        /// </summary>
+        public static string StatusGeofenceDoneWait {
+            get {
+                return ResourceManager.GetString("StatusGeofenceDoneWait", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 👋 Đã rời vùng phát.
+        /// </summary>
+        public static string StatusGeofenceLeft {
+            get {
+                return ResourceManager.GetString("StatusGeofenceLeft", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Lỗi GPS. Hãy bật vị trí!.
+        /// </summary>
+        public static string StatusGpsError {
+            get {
+                return ResourceManager.GetString("StatusGpsError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Đã đổi ngôn ngữ .
+        /// </summary>
+        public static string StatusLanguageChanged {
+            get {
+                return ResourceManager.GetString("StatusLanguageChanged", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Đã tải {0} địa điểm..
+        /// </summary>
+        public static string StatusLoaded {
+            get {
+                return ResourceManager.GetString("StatusLoaded", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Đang tải dữ liệu....
+        /// </summary>
+        public static string StatusLoading {
+            get {
+                return ResourceManager.GetString("StatusLoading", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 📍 Gần nhất: {0} · {1}.
+        /// </summary>
+        public static string StatusNearestPoi {
+            get {
+                return ResourceManager.GetString("StatusNearestPoi", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Chưa đồng bộ.
+        /// </summary>
+        public static string StatusNeverSynced {
+            get {
+                return ResourceManager.GetString("StatusNeverSynced", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ❌ Không có mạng và chưa có dữ liệu offline.
+        /// </summary>
+        public static string StatusNoNetworkNoData {
+            get {
+                return ResourceManager.GetString("StatusNoNetworkNoData", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0}{1} · {2} địa điểm.
+        /// </summary>
+        public static string StatusOfflineWithCount {
+            get {
+                return ResourceManager.GetString("StatusOfflineWithCount", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ✅ {0}  ·  Phát xong {1} audio.
+        /// </summary>
+        public static string StatusPlayDone {
+            get {
+                return ResourceManager.GetString("StatusPlayDone", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🎵 {0}  ·  {1}/{2}.
+        /// </summary>
+        public static string StatusPlayingTrack {
+            get {
+                return ResourceManager.GetString("StatusPlayingTrack", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🎵 {0} ({1}/{2}).
+        /// </summary>
+        public static string StatusPlayingTrackCompact {
+            get {
+                return ResourceManager.GetString("StatusPlayingTrackCompact", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ✅ Đồng bộ xong · {0} địa điểm.
+        /// </summary>
+        public static string StatusSyncDone {
+            get {
+                return ResourceManager.GetString("StatusSyncDone", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Đồng bộ: {0}.
+        /// </summary>
+        public static string StatusSyncedAt {
+            get {
+                return ResourceManager.GetString("StatusSyncedAt", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ⚠️ Đồng bộ thất bại.
+        /// </summary>
+        public static string StatusSyncFailed {
+            get {
+                return ResourceManager.GetString("StatusSyncFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 🔄 Đang đồng bộ....
+        /// </summary>
+        public static string StatusSyncing {
+            get {
+                return ResourceManager.GetString("StatusSyncing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ⏳ {0} · Chờ phát lại: {1}s.
+        /// </summary>
+        public static string StatusWaitReplay {
+            get {
+                return ResourceManager.GetString("StatusWaitReplay", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Điểm dừng {0}/{1}.
+        /// </summary>
+        public static string StopCountFormat {
+            get {
+                return ResourceManager.GetString("StopCountFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Lỗi hệ thống.
+        /// </summary>
+        public static string SystemError {
+            get {
+                return ResourceManager.GetString("SystemError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Đã xảy ra lỗi: {0}.
+        /// </summary>
+        public static string SystemErrorMessage {
+            get {
+                return ResourceManager.GetString("SystemErrorMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Tuyến Du Lịch.
+        /// </summary>
+        public static string ToursPageTitle {
+            get {
+                return ResourceManager.GetString("ToursPageTitle", resourceCulture);
+            }
         }
     }
 }
