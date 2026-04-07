@@ -177,6 +177,7 @@ INSERT INTO `tours` (`Id`, `Name`, `Description`, `ThumbnailUrl`, `EstimatedDura
 CREATE TABLE `userlocationlogs` (
   `Id` bigint(20) NOT NULL,
   `UserId` int(11) NOT NULL,
+  `DeviceId` longtext DEFAULT NULL,
   `Latitude` double NOT NULL,
   `Longitude` double NOT NULL,
   `Timestamp` datetime(6) NOT NULL

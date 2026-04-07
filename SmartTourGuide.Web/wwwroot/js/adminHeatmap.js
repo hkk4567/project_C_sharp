@@ -3,6 +3,14 @@ window.adminHeatmap = (() => {
     let heatLayer = null;
     let heatmapMarkers = [];
 
+    function resolveContainer(container) {
+        if (typeof container === 'string') {
+            return document.getElementById(container);
+        }
+
+        return container && container.nodeType === 1 ? container : null;
+    }
+
     function escapeHtml(value) {
         return String(value ?? '')
             .replaceAll('&', '&amp;')
@@ -12,7 +20,7 @@ window.adminHeatmap = (() => {
             .replaceAll("'", '&#39;');
     }
 
-    function init(containerId, centerLat, centerLng, zoom) {
+    async function init(container, centerLat, centerLng, zoom) {
         if (map) {
             map.remove();
             map = null;
@@ -20,7 +28,16 @@ window.adminHeatmap = (() => {
             heatmapMarkers = [];
         }
 
-        map = L.map(containerId, { zoomControl: true }).setView([centerLat, centerLng], zoom || 17);
+        let containerElement = resolveContainer(container);
+        if (!containerElement) {
+            await new Promise(requestAnimationFrame);
+            containerElement = resolveContainer(container);
+            if (!containerElement) {
+                return false;
+            }
+        }
+
+        map = L.map(containerElement, { zoomControl: true }).setView([centerLat, centerLng], zoom || 17);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',

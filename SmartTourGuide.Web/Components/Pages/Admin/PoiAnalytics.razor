@@ -1,4 +1,5 @@
 @page "/admin/poi-analytics"
+@using Microsoft.AspNetCore.Components
 @using SmartTourGuide.Shared.DTOs
 @using SmartTourGuide.Shared.Enums
 @layout AdminLayout
@@ -123,7 +124,7 @@
             }
             else
             {
-                <div id="admin-poi-heatmap-container"
+                <div @ref="_heatmapContainer" id="admin-poi-heatmap-container"
                      style="height: 420px; width: 100%; border-radius: 12px; overflow: hidden; z-index: 0;">
                 </div>
             }
@@ -145,6 +146,7 @@
     private int _selectedOwnerId = 0;
     private List<UserDto> _owners = new();
     private List<OwnerHeatmapPointDto> _heatmap = new();
+    private ElementReference _heatmapContainer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -155,7 +157,6 @@
     {
         if (!_heatmapLoading && _heatmap.Count > 0 && !_heatmapDrawn)
         {
-            _heatmapDrawn = true;
             await DrawHeatmapAsync();
         }
     }
@@ -287,15 +288,22 @@
         var centerLat = _heatmap.Average(p => p.Latitude);
         var centerLng = _heatmap.Average(p => p.Longitude);
 
-        await JS.InvokeVoidAsync(
+        var initialized = await JS.InvokeAsync<bool>(
             "adminHeatmap.init",
-            "admin-poi-heatmap-container",
+            _heatmapContainer,
             centerLat,
             centerLng,
             17);
 
+        if (!initialized)
+        {
+            return;
+        }
+
         await JS.InvokeVoidAsync("adminHeatmap.renderHeatmap", _heatmap);
         await JS.InvokeVoidAsync("adminHeatmap.renderHeatmapFlags", _heatmap);
         await JS.InvokeVoidAsync("adminHeatmap.invalidate");
+
+        _heatmapDrawn = true;
     }
 }
