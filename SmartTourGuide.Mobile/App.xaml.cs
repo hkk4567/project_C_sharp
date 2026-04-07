@@ -64,9 +64,13 @@ public partial class App : Application
                 AutoPlay = autoPlay
             });
 
-            if (Windows.Count > 0 && Windows[0].Page is AppShell shell)
+            var currentWindow = Application.Current?.Windows?.Count > 0 ? Application.Current.Windows[0] : null;
+            if (currentWindow?.Page is Shell shell)
             {
-                shell.GoToAsync("//MainPage");
+                shell.Dispatcher.Dispatch(async () =>
+                {
+                    await shell.GoToAsync("//MainPage", animate: false);
+                });
             }
         }
         catch (Exception ex)

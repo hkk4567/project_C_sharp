@@ -8,11 +8,6 @@
     Title="SmartTourGuide.Mobile">
 
     <ShellContent
-        Title="Welcome"
-        ContentTemplate="{DataTemplate local:WelcomePage}"
-        Route="WelcomePage"/>
-
-    <ShellContent
         Title="Main"
         ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage"/>

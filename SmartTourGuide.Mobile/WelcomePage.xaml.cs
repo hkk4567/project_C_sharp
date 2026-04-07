@@ -17,4 +17,18 @@ public partial class WelcomePage : ContentPage
 
         await Shell.Current.GoToAsync("//MainPage");
     }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+
+        // 🟢 NẾU APP ĐƯỢC MỞ TỪ QUÉT QR -> BỎ QUA TRANG NÀY VÀ VÀO THẲNG MAINPAGE
+        if (App.PendingDeepLinkPoiId.HasValue)
+        {
+            // Tùy theo cấu trúc AppShell của bạn, thường dùng route "//MainPage"
+            await Shell.Current.GoToAsync("//MainPage");
+            return;
+        }
+
+    }
 }

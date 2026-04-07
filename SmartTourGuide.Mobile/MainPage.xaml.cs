@@ -69,6 +69,7 @@ public partial class MainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        RegisterDeepLinkHandler();
         await CheckPermissions();
         await PreWarmAudioAsync();
 
@@ -115,8 +116,24 @@ public partial class MainPage : ContentPage
             };
             _geofenceTimer.Start();
         }
-    }
+        if (App.PendingDeepLinkPoiId.HasValue)
+        {
+            int poiId = App.PendingDeepLinkPoiId.Value;
+            bool autoPlay = App.PendingDeepLinkAutoPlay;
 
+            // Xóa biến tạm ngay lập tức để tránh bị lặp lại nếu user quay lại trang
+            App.PendingDeepLinkPoiId = null;
+
+            // Chờ 1 chút để bản đồ load xong hoàn toàn rồi mới trigger
+            await Task.Delay(500);
+            await HandleDeepLinkPoiAsync(poiId, autoPlay);
+        }
+    }
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        UnregisterDeepLinkHandler();
+    }
     // ════════════════════════════════════════════════════════════════════════
     //  NGÔN NGỮ
     // ════════════════════════════════════════════════════════════════════════
