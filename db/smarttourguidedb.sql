@@ -176,7 +176,6 @@ INSERT INTO `tours` (`Id`, `Name`, `Description`, `ThumbnailUrl`, `EstimatedDura
 
 CREATE TABLE `userlocationlogs` (
   `Id` bigint(20) NOT NULL,
-  `UserId` int(11) NOT NULL,
   `DeviceId` longtext DEFAULT NULL,
   `Latitude` double NOT NULL,
   `Longitude` double NOT NULL,
@@ -285,8 +284,7 @@ ALTER TABLE `tours`
 --
 ALTER TABLE `userlocationlogs`
   ADD PRIMARY KEY (`Id`),
-  ADD KEY `IX_UserLocationLogs_Timestamp` (`Timestamp`),
-  ADD KEY `IX_UserLocationLogs_UserId` (`UserId`);
+  ADD KEY `IX_UserLocationLogs_Timestamp` (`Timestamp`);
 
 --
 -- Indexes for table `users`
@@ -391,8 +389,6 @@ ALTER TABLE `tourdetails`
 --
 -- Constraints for table `userlocationlogs`
 --
-ALTER TABLE `userlocationlogs`
-  ADD CONSTRAINT `FK_UserLocationLogs_Users_UserId` FOREIGN KEY (`UserId`) REFERENCES `users` (`Id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

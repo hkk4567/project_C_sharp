@@ -22,13 +22,9 @@ public class TrackingController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> ReportLocation([FromBody] LocationLogDto dto)
     {
-        // Không check UserExists nữa vì ta cho phép khách vãng lai
-
         var log = new UserLocationLog
         {
-            // Nếu dto.UserId <= 0 thì lưu null
-            UserId = dto.UserId > 0 ? dto.UserId : null,
-            DeviceId = dto.DeviceId, // Frontend gửi UUID của máy lên
+            DeviceId = dto.DeviceId,
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
             Timestamp = dto.Timestamp == default ? DateTime.Now : dto.Timestamp
@@ -40,12 +36,15 @@ public class TrackingController : ControllerBase
         return Ok(new { message = "Đã cập nhật vị trí" });
     }
 
-    // 2. API Xem lịch sử di chuyển của 1 User (Dành cho Admin/Chủ gian hàng)
-    // GET: api/tracking/history/5?date=2023-10-20
-    [HttpGet("history/{userId}")]
-    public async Task<ActionResult<IEnumerable<LocationLogDto>>> GetHistory(int userId, [FromQuery] DateTime? date)
+    // 2. API Xem lịch sử di chuyển của 1 thiết bị
+    // GET: api/tracking/history/device-uuid?date=2023-10-20
+    [HttpGet("history/{deviceId}")]
+    public async Task<ActionResult<IEnumerable<LocationLogDto>>> GetHistory(string deviceId, [FromQuery] DateTime? date)
     {
-        var query = _context.UserLocationLogs.Where(x => x.UserId == userId);
+        if (string.IsNullOrWhiteSpace(deviceId))
+            return BadRequest("DeviceId is required.");
+
+        var query = _context.UserLocationLogs.Where(x => x.DeviceId == deviceId);
 
         if (date.HasValue)
             query = query.Where(x => x.Timestamp.Date == date.Value.Date);
@@ -55,8 +54,6 @@ public class TrackingController : ControllerBase
             .Take(100)
             .Select(x => new LocationLogDto
             {
-                // Sửa lỗi ép kiểu: Nếu UserId trong DB là null thì trả về 0
-                UserId = x.UserId ?? 0,
                 DeviceId = x.DeviceId,
                 Latitude = x.Latitude,
                 Longitude = x.Longitude,

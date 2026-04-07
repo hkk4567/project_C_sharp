@@ -168,7 +168,7 @@ public class AnalyticsController : ControllerBase
         return Ok(result);
     }
 
-    // 4.  Heatmap — Trả về danh sách tọa độ GPS ẩn danh (không có UserId)
+    // 4.  Heatmap — Trả về danh sách tọa độ GPS ẩn danh
     // GET: api/analytics/heatmap?hours=24
     [HttpGet("heatmap")]
     public async Task<ActionResult<List<LocationLogDto>>> GetHeatmap([FromQuery] int hours = 24)
@@ -178,7 +178,6 @@ public class AnalyticsController : ControllerBase
             .Where(x => x.Timestamp >= since)
             .Select(x => new LocationLogDto
             {
-                UserId = x.UserId ?? 0, // Trả về 0 cho khách vãng lai
                 DeviceId = x.DeviceId,
                 Latitude = x.Latitude,
                 Longitude = x.Longitude,
@@ -472,7 +471,6 @@ public class AnalyticsController : ControllerBase
 
         var result = filtered.Select(x => new LocationLogDto
         {
-            UserId = 0,
             Latitude = x.Latitude,
             Longitude = x.Longitude,
             Timestamp = x.Timestamp

@@ -61,15 +61,7 @@ namespace SmartTourGuide.API.Data
                     entity.HasKey(e => e.Id);
 
                     // 2. Tạo Index (Giữ nguyên vì nó tốt cho hiệu năng)
-                    entity.HasIndex(e => e.UserId);
                     entity.HasIndex(e => e.Timestamp);
-
-                    // 3. SỬA CHỖ NÀY: Thay HasOne<User>() bằng HasOne(e => e.User)
-                    entity.HasOne(e => e.User)           // Trỏ trực tiếp vào thuộc tính User trong Class
-                        .WithMany()                    // Một User có nhiều Logs
-                        .HasForeignKey(e => e.UserId)  // Dùng chung cột UserId này, không đẻ thêm cột ảo
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired(false);            // Cực kỳ quan trọng: Cho phép UserId là NULL (khách vãng lai)
                 });
             // --- CẤU HÌNH TOUR DETAIL (QUAN HỆ N-N) ---
 

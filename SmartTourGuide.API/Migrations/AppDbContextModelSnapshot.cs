@@ -462,14 +462,9 @@ namespace SmartTourGuide.API.Migrations
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<int?>("UserId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Timestamp");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("UserLocationLogs");
                 });
@@ -574,16 +569,6 @@ namespace SmartTourGuide.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Tour");
-                });
-
-            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.UserLocationLog", b =>
-                {
-                    b.HasOne("SmartTourGuide.API.Data.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.Poi", b =>
