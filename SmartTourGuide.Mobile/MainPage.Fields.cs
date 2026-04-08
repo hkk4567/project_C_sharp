@@ -63,6 +63,9 @@ public partial class MainPage : ContentPage
     // Tour đang hiển thị lộ trình (null = chế độ POI thường)
     private TourModel? _currentTour = null;
 
+    // Lưu ID các điểm POI đã đi qua trong Tour hiện tại
+    private readonly HashSet<int> _visitedTourPoiIds = new();
+
     // ID ẩn danh định danh thiết bị — sinh 1 lần, lưu vĩnh viễn
     // Không cần đăng nhập, mỗi điện thoại có 1 ID riêng để phân biệt khi thống kê nghe POI
     private string _deviceId = GetOrCreateDeviceId();

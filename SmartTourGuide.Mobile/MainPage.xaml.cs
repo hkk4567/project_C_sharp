@@ -9,11 +9,11 @@ public partial class MainPage : ContentPage
     private static readonly IReadOnlyList<LanguageOption> SupportedLanguages = new[]
     {
         new LanguageOption("vi-VN", "Tiếng Việt", "🇻🇳 Tiếng Việt", "🇻🇳"),
-        new LanguageOption("en-US", "English", "🇺🇸 English", "🇺🇸"),
-        new LanguageOption("zh-CN", "中文", "🇨🇳 中文", "🇨🇳"),
-        new LanguageOption("ja-JP", "日本語", "🇯🇵 日本語", "🇯🇵"),
-        new LanguageOption("fr-FR", "Français", "🇫🇷 Français", "🇫🇷"),
-        new LanguageOption("ko-KR", "한국어", "🇰🇷 한국어", "🇰🇷"),
+        new LanguageOption("en-US", "English",    "🇺🇸 English",     "🇺🇸"),
+        new LanguageOption("zh-CN", "中文",        "🇨🇳 中文",        "🇨🇳"),
+        new LanguageOption("ja-JP", "日本語",      "🇯🇵 日本語",      "🇯🇵"),
+        new LanguageOption("fr-FR", "Français",   "🇫🇷 Français",    "🇫🇷"),
+        new LanguageOption("ko-KR", "한국어",      "🇰🇷 한국어",      "🇰🇷"),
     };
 
     // ════════════════════════════════════════════════════════════════════════
@@ -28,7 +28,6 @@ public partial class MainPage : ContentPage
         UpdateLocalizedPoiDetailTexts();
         InitializePoiSearchUi();
 
-        // Tạm dừng / tiếp tục audio khi có cuộc gọi hoặc app vào background
         WeakReferenceMessenger.Default.Register<AppSleepMessage>(this,
             (r, m) => PauseForInterruption());
         WeakReferenceMessenger.Default.Register<AppResumeMessage>(this,
@@ -40,7 +39,7 @@ public partial class MainPage : ContentPage
             MainThread.BeginInvokeOnMainThread(async () =>
             {
                 await Task.Delay(500);
-                await RenderTourOnMap(tourDetail);
+                await RenderTourOnMap(tourDetail, isInitialLoad: true);
             });
         });
 
@@ -73,92 +72,70 @@ public partial class MainPage : ContentPage
         await CheckPermissions();
         await PreWarmAudioAsync();
 
-        // Giữ nguyên vị trí A nếu user đã chọn thủ công, tránh bị kéo về vị trí mặc định
         if (!_isManualLocationOverride)
             await LoadCurrentLocation();
 
-        // ← SỬA: dùng hàm mới thay LoadPoisOnMap()
         await LoadPoisWithOfflineFallbackAsync();
-
-        // ← THÊM: lắng nghe thay đổi mạng
         RegisterConnectivityChanged();
 
+        // ── GPS real-time: thay thế GetLastKnownLocationAsync() polling ────
+        await StartLocationListeningAsync();
+
+        // ── Timer chỉ còn nhiệm vụ check geofence (GPS đã tách riêng) ──────
         if (_geofenceTimer == null)
         {
             _geofenceTimer = Application.Current!.Dispatcher.CreateTimer();
             _geofenceTimer.Interval = TimeSpan.FromSeconds(3);
-            _geofenceTimer.Tick += async (s, e) =>
+            _geofenceTimer.Tick += (s, e) =>
             {
+                // GPS cập nhật real-time qua OnLocationChanged.
+                // Timer chỉ giữ lại check geofence + highlight làm dự phòng
+                // (ví dụ khi thiết bị không bắn LocationChanged đủ nhanh)
                 CheckGeofences();
                 UpdateNearestPoiHighlight();
-
-                // Ghi GPS thật lên server (luôn chạy dù có tour hay không)
-                try
-                {
-                    if (_isManualLocationOverride)
-                        return;
-
-                    var location = await Geolocation.GetLastKnownLocationAsync();
-                    if (location != null)
-                    {
-                        _currentUserLocation = location;
-                        MainThread.BeginInvokeOnMainThread(() =>
-                        {
-                            mapView.MyLocationLayer.UpdateMyLocation(
-                                new Mapsui.UI.Maui.Position(
-                                    location.Latitude,
-                                    location.Longitude));
-                        });
-                        _ = SendLocationIfNeededAsync(location.Latitude, location.Longitude);
-                    }
-                }
-                catch { }
             };
             _geofenceTimer.Start();
         }
+
         if (App.PendingDeepLinkPoiId.HasValue)
         {
             int poiId = App.PendingDeepLinkPoiId.Value;
             bool autoPlay = App.PendingDeepLinkAutoPlay;
-
-            // Xóa biến tạm ngay lập tức để tránh bị lặp lại nếu user quay lại trang
             App.PendingDeepLinkPoiId = null;
-
-            // Chờ 1 chút để bản đồ load xong hoàn toàn rồi mới trigger
             await Task.Delay(500);
             await HandleDeepLinkPoiAsync(poiId, autoPlay);
         }
     }
+
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
         UnregisterDeepLinkHandler();
+
+        // Dừng GPS khi rời trang để tiết kiệm pin
+        StopLocationListening();
     }
+
     // ════════════════════════════════════════════════════════════════════════
     //  NGÔN NGỮ
     // ════════════════════════════════════════════════════════════════════════
     private void SetAppLanguage(string langCode)
     {
-        var culture = new CultureInfo(langCode);
+        var culture = new System.Globalization.CultureInfo(langCode);
         Thread.CurrentThread.CurrentCulture = culture;
         Thread.CurrentThread.CurrentUICulture = culture;
-        CultureInfo.DefaultThreadCurrentCulture = culture;
-        CultureInfo.DefaultThreadCurrentUICulture = culture;
+        System.Globalization.CultureInfo.DefaultThreadCurrentCulture = culture;
+        System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
         AppResources.Culture = culture;
     }
 
     private void UpdateLanguageButtonUI()
-    {
-        btnLanguage.Text = GetLanguageOption(_currentLanguageCode).PickerLabel;
-    }
+        => btnLanguage.Text = GetLanguageOption(_currentLanguageCode).PickerLabel;
 
     private void UpdateLocalizedPoiDetailTexts()
     {
-        if (lblPoiDetailTitle != null)
-            lblPoiDetailTitle.Text = AppResources.PoiDetailTitle;
-
-        if (lblDescriptionHeader != null)
-            lblDescriptionHeader.Text = AppResources.PoiDescriptionLabel;
+        if (lblPoiDetailTitle != null) lblPoiDetailTitle.Text = AppResources.PoiDetailTitle;
+        if (lblDescriptionHeader != null) lblDescriptionHeader.Text = AppResources.PoiDescriptionLabel;
     }
 
     private async void OnChangeLanguageClicked(object? sender, EventArgs e)
@@ -169,11 +146,9 @@ public partial class MainPage : ContentPage
             SupportedLanguages.Select(x => x.PickerLabel).ToArray());
 
         string selectedCode = _currentLanguageCode;
-        var selectedLanguage = SupportedLanguages.FirstOrDefault(x => x.PickerLabel == action);
-        if (!string.IsNullOrWhiteSpace(selectedLanguage.Code))
-        {
-            selectedCode = selectedLanguage.Code;
-        }
+        var selected = SupportedLanguages.FirstOrDefault(x => x.PickerLabel == action);
+        if (!string.IsNullOrWhiteSpace(selected.Code))
+            selectedCode = selected.Code;
 
         if (selectedCode != _currentLanguageCode &&
             action != "Hủy/Cancel" && !string.IsNullOrEmpty(action))
@@ -181,7 +156,6 @@ public partial class MainPage : ContentPage
             _currentLanguageCode = selectedCode;
             Preferences.Set("AppLanguage", _currentLanguageCode);
             SetAppLanguage(_currentLanguageCode);
-
             UpdateLocalizedPoiDetailTexts();
             UpdateLanguageButtonUI();
 
@@ -194,8 +168,8 @@ public partial class MainPage : ContentPage
 
     private static LanguageOption GetLanguageOption(string langCode)
     {
-        var option = SupportedLanguages.FirstOrDefault(x => x.Code == langCode);
-        return string.IsNullOrWhiteSpace(option.Code) ? SupportedLanguages[0] : option;
+        var opt = SupportedLanguages.FirstOrDefault(x => x.Code == langCode);
+        return string.IsNullOrWhiteSpace(opt.Code) ? SupportedLanguages[0] : opt;
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -230,51 +204,39 @@ public partial class MainPage : ContentPage
             {
                 var elapsed = DateTime.UtcNow - _lastReportedLocationAt;
                 var distanceMeters = MauiLocation.Location.CalculateDistance(
-                    _lastReportedLocation,
-                    currentLocation,
+                    _lastReportedLocation, currentLocation,
                     DistanceUnits.Kilometers) * 1000;
 
-                // Chặn bắn log liên tục nếu vị trí gần như không đổi
                 if (elapsed < TimeSpan.FromSeconds(10) && distanceMeters < 25)
                     return;
             }
 
-            if (!await _locationSendLock.WaitAsync(0))
-                return;
-
+            if (!await _locationSendLock.WaitAsync(0)) return;
             try
             {
                 _lastReportedLocation = currentLocation;
                 _lastReportedLocationAt = DateTime.UtcNow;
-
                 _ = _apiService.SendLocationAsync(latitude, longitude, _deviceId);
             }
-            finally
-            {
-                _locationSendLock.Release();
-            }
+            finally { _locationSendLock.Release(); }
         }
-        catch
-        {
-            // Không ảnh hưởng luồng UI nếu log lỗi
-        }
+        catch { }
     }
 
+    /// <summary>
+    /// Lấy vị trí GPS lần đầu (khi app mở) để center bản đồ.
+    /// Sau đó vị trí sẽ được cập nhật real-time qua OnLocationChanged.
+    /// </summary>
     private async Task LoadCurrentLocation()
     {
         try
         {
-            // Lấy vị trí GPS thực tế (chờ tối đa 15 giây để emulator kịp lock)
             var location = await Geolocation.GetLocationAsync(
-                new GeolocationRequest(
-                    GeolocationAccuracy.Best,
-                    TimeSpan.FromSeconds(15)));
+                new GeolocationRequest(GeolocationAccuracy.Best, TimeSpan.FromSeconds(15)));
 
             if (location != null)
             {
                 _currentUserLocation = location;
-
-                // Cập nhật bản đồ vào vị trí user
                 var smc = SphericalMercator.FromLonLat(location.Longitude, location.Latitude);
                 var mPoint = new MPoint(smc.x, smc.y);
 
@@ -286,18 +248,16 @@ public partial class MainPage : ContentPage
                 });
 
                 await SendLocationIfNeededAsync(location.Latitude, location.Longitude);
-
                 System.Diagnostics.Debug.WriteLine(
-                    $"✅ GPS: {location.Latitude}, {location.Longitude}");
+                    $"✅ GPS khởi tạo: {location.Latitude:F5}, {location.Longitude:F5}");
                 return;
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"❌ GPS lỗi: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"❌ GPS lỗi lúc khởi tạo: {ex.Message}");
         }
 
-        // Fallback nếu GPS lỗi
         MoveMapToDefaultLocation(resolution: 2);
     }
 
@@ -306,14 +266,14 @@ public partial class MainPage : ContentPage
         if (sender is View view)
         {
             await view.ScaleToAsync(0.9, 100, Easing.CubicOut);
-            await view.ScaleToAsync(1, 100, Easing.CubicIn);
+            await view.ScaleToAsync(1.0, 100, Easing.CubicIn);
         }
+
+        _isManualLocationOverride = false; // Thoát chế độ giả lập
 
         var current = _currentUserLocation;
         var smc = SphericalMercator.FromLonLat(current.Longitude, current.Latitude);
         var mPoint = new MPoint(smc.x, smc.y);
-
-        _isManualLocationOverride = false;
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
@@ -322,21 +282,22 @@ public partial class MainPage : ContentPage
             mapView.Map?.Navigator.CenterOnAndZoomTo(mPoint, 1.5, duration: 500);
         });
     }
+
     private void ClearMapLayers(params string[] layerNames)
     {
-        foreach (var name in layerNames)
+        var layersToRemove = mapView.Map.Layers.Where(l => layerNames.Contains(l.Name)).ToList();
+        foreach (var layer in layersToRemove)
         {
-            var layer = mapView.Map.Layers.FirstOrDefault(l => l.Name == name);
-            if (layer != null) mapView.Map.Layers.Remove(layer);
+            mapView.Map.Layers.Remove(layer);
         }
     }
+
     private async void OnReloadClicked(object? sender, EventArgs e)
     {
-        // ✅ FIX: luôn reset tour bất kể panel có visible hay không
         TourInfoPanel.IsVisible = false;
         ClearMapLayers("TourRoute");
         _currentTour = null;
-
+        _lastTourRenderLocation = null; // Reset ngưỡng re-render khi reload
         await LoadPoisWithOfflineFallbackAsync();
     }
 
