@@ -194,9 +194,12 @@ public partial class MainPage
     // ════════════════════════════════════════════════════════════════════════
     public async Task RenderTourOnMap(TourModel tour, bool isInitialLoad = false)
     {
+        // FIX BUG 1: Không hiện popup khi đang bận render (do GPS trigger liên tục).
+        // Nếu lock chưa được giải phóng sau 500ms → âm thầm bỏ qua frame GPS này,
+        // tránh spam hàng chục Alert dialog khi người dùng di chuyển nhanh.
         if (!await _mapLock.WaitAsync(500))
         {
-            await DisplayAlertAsync(AppRes.AlertNotice, AppRes.MsgTourBusy, AppRes.OkButton);
+            System.Diagnostics.Debug.WriteLine("[RenderTour] Đang bận render, bỏ qua GPS frame này.");
             return;
         }
         try
@@ -220,18 +223,51 @@ public partial class MainPage
             var mapView = MapViewCtrl;
             if (mapView?.Map == null) return;
 
-            var allPois = _allPoisCache.Count > 0 ? _allPoisCache : await _apiService.GetPoisAsync(_currentLanguageCode);
+            // FIX BUG 4: Không gọi thẳng _apiService khi cache trống — nếu mất mạng sẽ
+            // văng Exception bị nuốt trong catch, bỏ qua hoàn toàn _localDb fallback.
+            // Giờ: dùng cache → thử API → thử DB local → nếu DB cũng rỗng mới chịu thua.
+            List<PoiModel> allPois;
+            if (_allPoisCache.Count > 0)
+            {
+                allPois = _allPoisCache;
+            }
+            else
+            {
+                try
+                {
+                    allPois = await _apiService.GetPoisAsync(_currentLanguageCode);
+                    _allPoisCache = allPois; // Cập nhật cache nếu API thành công
+                }
+                catch (Exception apiEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[RenderTour] API lỗi ({apiEx.Message}), dùng DB local làm fallback.");
+                    allPois = await _localDb.GetPoisAsync();
+                    if (allPois.Count > 0)
+                        _allPoisCache = allPois; // Cập nhật cache từ DB
+                }
+            }
             var orderedPois = tour.Pois.OrderBy(p => p.OrderIndex).ToList();
             var tourStart = _currentUserLocation;
 
-            // ── 1. CHECK-IN CÁC ĐIỂM ĐÃ ĐẾN (Bán kính 50m) ────────────────
+            // ── 1. CHECK-IN CÁC ĐIỂM ĐÃ ĐẾN (Dùng TriggerRadius thực của POI) ────────────
+            // FIX BUG 3: Không hardcode 50m — phải lấy TriggerRadius từ POI thật trong cache
+            // để đồng bộ với Geofence audio (vốn đã dùng TriggerRadius đúng).
+            // Nếu người dùng nghe xong audio (vào vùng 150m) nhưng check-in chỉ nhận 50m
+            // → tour sẽ cứ bắt họ quay lại dù đã nghe hết.
             foreach (var p in orderedPois)
             {
                 if (!_visitedTourPoiIds.Contains(p.PoiId))
                 {
                     var poiLoc = new MauiLocation.Location(p.Latitude, p.Longitude);
                     double dist = MauiLocation.Location.CalculateDistance(tourStart, poiLoc, DistanceUnits.Kilometers) * 1000;
-                    if (dist <= 50) // Nhỏ hơn 50 mét thì đánh dấu là đã đến
+
+                    // Lấy TriggerRadius thực từ cache; nếu không tìm thấy thì fallback 50m
+                    var fullPoi = allPois.FirstOrDefault(x => x.Id == p.PoiId);
+                    double checkInRadius = (fullPoi != null && fullPoi.TriggerRadius > 0)
+                        ? fullPoi.TriggerRadius
+                        : 50;
+
+                    if (dist <= checkInRadius)
                     {
                         _visitedTourPoiIds.Add(p.PoiId);
                     }
@@ -331,11 +367,11 @@ public partial class MainPage
                         mapView.Map.Navigator.ZoomToBox(new MRect(minX - padX, minY - padY, maxX + padX, maxY + padY), MBoxFit.Fit, duration: 500);
                     }
                 }
-                else
-                {
-                    var userSmc = SphericalMercator.FromLonLat(tourStart.Longitude, tourStart.Latitude);
-                    mapView.Map.Navigator.CenterOn(new MPoint(userSmc.x, userSmc.y), duration: 500);
-                }
+                // FIX BUG 2: Không CenterOn khi GPS cập nhật vị trí (isInitialLoad == false).
+                // Người dùng có thể đang pan bản đồ ra xa để xem điểm đến — việc giật
+                // camera về vị trí user mỗi 15m là hành vi cực kỳ khó chịu.
+                // Camera chỉ được center lại khi người dùng bấm nút "Center My Location"
+                // hoặc khi lần đầu tiên load Tour (isInitialLoad == true ở trên).
 
                 mapView.RefreshGraphics();
                 ShowTourInfoPanel(tour, orderedPois);
