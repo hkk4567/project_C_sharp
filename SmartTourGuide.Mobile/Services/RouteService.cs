@@ -289,10 +289,10 @@ public class RouteResult
     /// <summary>Thông báo trạng thái hiện lên UI cho user.</summary>
     public string StatusMessage => Source switch
     {
-        RouteSource.Osrm => "🗺️ Tuyến đường mới nhất",
-        RouteSource.Cache => "🗺️ Tuyến đường từ cache",
-        RouteSource.CacheFallback => "📵 Offline — đang dùng tuyến đường đã lưu",
-        RouteSource.StraightLine => "⚠️ Offline — không có cache, hiển thị đường thẳng",
+        RouteSource.Osrm => SmartTourGuide.Mobile.Resources.Strings.AppResources.RouteLatest,
+        RouteSource.Cache => SmartTourGuide.Mobile.Resources.Strings.AppResources.RouteCached,
+        RouteSource.CacheFallback => SmartTourGuide.Mobile.Resources.Strings.AppResources.RouteOfflineCached,
+        RouteSource.StraightLine => SmartTourGuide.Mobile.Resources.Strings.AppResources.RouteOfflineStraight,
         _ => ""
     };
 }

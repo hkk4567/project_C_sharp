@@ -285,7 +285,7 @@ public partial class MainPage
                 var allWaypoints = new List<MauiLocation.Location> { tourStart };
                 allWaypoints.AddRange(remainingPois.Select(p => new MauiLocation.Location(p.Latitude, p.Longitude)));
 
-                SetStatus("🗺️ Đang tải tuyến đường...", priority: 2, force: true);
+                SetStatus(AppRes.StatusLoadingRoute, priority: 2, force: true);
                 var routeResult = await _routeService.GetRoadRouteAsync(allWaypoints, allWaypoints);
 
                 if (routeResult.Points.Count > 1)
@@ -295,7 +295,7 @@ public partial class MainPage
             }
             else
             {
-                SetStatus("🎉 Bạn đã hoàn thành toàn bộ Tour!", priority: 2, force: true, autoRevertMs: 5000);
+                SetStatus(AppRes.StatusTourCompleted, priority: 2, force: true, autoRevertMs: 5000);
                 _currentTour = null; // Cờ này rất quan trọng
                 ClearMapLayers("TourRoute");
             }
@@ -336,7 +336,7 @@ public partial class MainPage
                     mapView.Pins.Add(new Pin(mapView)
                     {
                         Position = new Mapsui.UI.Maui.Position(poi.Latitude, poi.Longitude),
-                        Label = $"{idx + 1}. {poi.PoiName}{(isVisited ? " (Đã đến)" : "")}",
+                        Label = $"{idx + 1}. {poi.PoiName}{(isVisited ? AppRes.SuffixVisited : "")}",
                         Address = string.Format(AppRes.StopCountFormat, idx + 1, orderedPois.Count),
                         Color = pinColor,
                         Scale = 0.65f, // Giữ nguyên kích thước to rõ, KHÔNG thu nhỏ nữa
