@@ -296,6 +296,8 @@ public partial class MainPage
             else
             {
                 SetStatus("🎉 Bạn đã hoàn thành toàn bộ Tour!", priority: 2, force: true, autoRevertMs: 5000);
+                _currentTour = null; // Cờ này rất quan trọng
+                ClearMapLayers("TourRoute");
             }
 
             // ── 3. VẼ LÊN BẢN ĐỒ ──────────────────────────────────────────
