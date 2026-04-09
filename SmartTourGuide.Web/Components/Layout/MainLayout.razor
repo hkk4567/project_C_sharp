@@ -138,19 +138,18 @@
 <MudPopoverProvider />
 
 <MudLayout>
+
     
+    <MudAppBar Elevation="0" Color="Color.Surface" Dense="true" Class="px-4 py-2" Style="min-height: 64px;">
 
-    <MudAppBar Elevation="0" Color="Color.Surface" Dense="true" Class="px-4 py-2" Style="min-height: 64px;"> 
-
-        @if (!IsLoginPage) 
+        @if (!IsLoginPage)
         {
-            <MudIconButton Icon="@Icons.Material.Filled.Menu" 
-                           OnClick="@ToggleDrawer" 
-                           Class="me-3" 
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" OnClick="@ToggleDrawer" Class="me-3"
                            Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)")}; border-radius: 8px; width: 42px; height: 42px;")" />
         }
 
-        <MudText Typo="Typo.h6" Style="font-weight: 800; letter-spacing: 0.5px; color: var(--mud-palette-text-primary);">
+        <MudText Typo="Typo.h6"
+                 Style="font-weight: 800; letter-spacing: 0.5px; color: var(--mud-palette-text-primary);">
             QUẢN LÝ GIAN HÀNG & ĐỊA ĐIỂM
         </MudText>
 
@@ -160,27 +159,27 @@
             <Authorized Context="authContext">
                 <div class="d-flex align-center gap-2">
                     
-                    <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
-                                   Color="@(_isDarkMode ? Color.Warning : Color.Default)"
-                                   OnClick="@DarkModeToggle"
-                                   Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")}; border-radius: 50%;")" />
+                    <MudIconButton
+                    Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                    Color="@(_isDarkMode ? Color.Warning : Color.Default)" OnClick="@DarkModeToggle"
+                    Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")}; border-radius: 50%;")" />
 
                     @if (authContext.User.IsInRole("BoothOwner"))
                     {
-                        <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" ListClass="pa-0" PopoverClass="owner-notification-menu mt-3">
+                        <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" ListClass="pa-0"
+                                 PopoverClass="owner-notification-menu mt-3">
                             <ActivatorContent>
                                 @if (_unreadNotificationCount > 0)
                                 {
-                                    <MudBadge Content="@_unreadNotificationCount" Color="Color.Error" Bordered="true" Overlap="true">
-                                        <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone"
-                                                       Color="Color.Default"
+                                    <MudBadge Content="@_unreadNotificationCount" Color="Color.Error" Bordered="true"
+                                              Overlap="true">
+                                        <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone" Color="Color.Default"
                                                        Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")}; border-radius: 50%;")" />
                                     </MudBadge>
                                 }
                                 else
                                 {
-                                    <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone"
-                                                   Color="Color.Default"
+                                    <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone" Color="Color.Default"
                                                    Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")}; border-radius: 50%;")" />
                                 }
                             </ActivatorContent>
@@ -191,72 +190,9 @@
                                             <p class="owner-notification-header-title">Thông báo duyệt POI</p>
                                             <p class="owner-notification-header-sub">@_unreadNotificationCount chưa đọc</p>
                                         </div>
-                                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small" OnClick="RefreshNotificationsAsync" Style="background: rgba(0,0,0,0.03); border-radius: 10px;" />
-                                    </div>
-
-                                    <div class="owner-notification-panel">
-                                    @if (_isLoadingNotifications)
-                                    {
-                                        <div class="pa-6 d-flex justify-center" style="height: 100%; align-items: center;">
-                                            <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                                        </div>
-                                    }
-                                    else if (_ownerNotifications.Count == 0)
-                                    {
-                                        <div class="owner-notification-empty">
-                                            <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" Size="Size.Medium" Color="Color.Default" />
-                                            <MudText Typo="Typo.body2" Class="mt-2 mud-text-secondary">Chưa có thông báo nào.</MudText>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                            @foreach (var item in _ownerNotifications)
-                                            {
-                                                <div class="owner-notification-item @(item.IsRead ? "is-read" : "")" @onclick="() => OnNotificationClick(item)">
-                                                    <div class="d-flex justify-space-between align-center">
-                                                        <p class="owner-notification-item-title @GetNotificationTitleClass(item.Title)">@item.Title</p>
-                                                        @if (!item.IsRead)
-                                                        {
-                                                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled">Mới</MudChip>
-                                                        }
-                                                    </div>
-                                                    <p class="owner-notification-item-message">@NormalizeNotificationMessage(item.Message)</p>
-                                                    <p class="owner-notification-item-meta">@item.AdminUsername | @FormatTimeAgo(item.CreatedAt)</p>
-                                                </div>
-                                            }
-                                    }
-                                    </div>
-                                </div>
-                            </ChildContent>
-                        </MudMenu>
-                    }
-                    else if (authContext.User.IsInRole("Admin"))
-                    {
-                        <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" ListClass="pa-0" PopoverClass="owner-notification-menu mt-3">
-                            <ActivatorContent>
-                                @if (_adminUnreadNotificationCount > 0)
-                                {
-                                    <MudBadge Content="@_adminUnreadNotificationCount" Color="Color.Error" Bordered="true" Overlap="true">
-                                        <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone"
-                                                       Color="Color.Default"
-                                                       Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")}; border-radius: 50%;")" />
-                                    </MudBadge>
-                                }
-                                else
-                                {
-                                    <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone"
-                                                   Color="Color.Default"
-                                                   Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")}; border-radius: 50%;")" />
-                                }
-                            </ActivatorContent>
-                            <ChildContent>
-                                <div>
-                                    <div class="owner-notification-header d-flex justify-space-between align-center">
-                                        <div>
-                                            <p class="owner-notification-header-title">Yêu cầu duyệt POI</p>
-                                            <p class="owner-notification-header-sub">@_adminUnreadNotificationCount chưa đọc</p>
-                                        </div>
-                                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Small" OnClick="RefreshNotificationsAsync" Style="background: rgba(0,0,0,0.03); border-radius: 10px;" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default"
+                                                       Size="Size.Small" OnClick="RefreshNotificationsAsync"
+                                                       Style="background: rgba(0,0,0,0.03); border-radius: 10px;" />
                                     </div>
 
                                     <div class="owner-notification-panel">
@@ -266,120 +202,220 @@
                                                 <MudProgressCircular Size="Size.Small" Indeterminate="true" />
                                             </div>
                                         }
-                                        else if (_adminNotifications.Count == 0)
+                                        else if (_ownerNotifications.Count == 0)
                                         {
                                             <div class="owner-notification-empty">
-                                                <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" Size="Size.Medium" Color="Color.Default" />
-                                                <MudText Typo="Typo.body2" Class="mt-2 mud-text-secondary">Chưa có thông báo nào.</MudText>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            @foreach (var item in _adminNotifications)
-                                            {
-                                                <div class="owner-notification-item @(item.IsRead ? "is-read" : "")" @onclick="() => OnAdminNotificationClick(item)">
-                                                    <div class="d-flex justify-space-between align-center">
-                                                        <p class="owner-notification-item-title @GetNotificationTitleClass(item.Title)">@item.Title</p>
-                                                        @if (!item.IsRead)
-                                                        {
-                                                            <MudChip T="string" Size="Size.Small" Color="Color.Error" Variant="Variant.Filled">Mới</MudChip>
-                                                        }
-                                                    </div>
-                                                    <p class="owner-notification-item-message">@NormalizeNotificationMessage(item.Message)</p>
-                                                    <p class="owner-notification-item-meta">@item.OwnerUsername | @FormatTimeAgo(item.CreatedAt)</p>
+                                                <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" Size="Size.Medium"
+                                                         Color="Color.Default" />
+                                                <MudText Typo="Typo.body2" Class="mt-2 mud-text-secondary">Chưa có thông báo
+                                                    nào.</MudText>
                                                 </div>
                                             }
-                                        }
-                                    </div>
-                                </div>
-                            </ChildContent>
-                        </MudMenu>
-                    }
+                                    else
+                                            {
+                                                @foreach (var item in _ownerNotifications)
+                                                {
+                                                    <div class="owner-notification-item @(item.IsRead ? "is-read" : "")"
+                                                         @onclick="() => OnNotificationClick(item)">
+                                                        <div class="d-flex justify-space-between align-center">
+                                                            <p
+                                                                class="owner-notification-item-title @GetNotificationTitleClass(item.Title)">
+                                                                @item.Title</p>
+                                                                @if (!item.IsRead)
+                                                                {
+                                                                    <MudChip T="string" Size="Size.Small" Color="Color.Error"
+                                                                             Variant="Variant.Filled">Mới</MudChip>
+                                                                }
+                                                            </div>
+                                                            <p class="owner-notification-item-message">
+                                                                @NormalizeNotificationMessage(item.Message)</p>
+                                                                <p class="owner-notification-item-meta">@item.AdminUsername |
+                                                                    @FormatTimeAgo(item.CreatedAt)</p>
+                                                                </div>
+                                                            }
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </ChildContent>
+                                        </MudMenu>
+                                    }
+                    else if (authContext.User.IsInRole("Admin"))
+                                    {
+                                        <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" ListClass="pa-0"
+                                                 PopoverClass="owner-notification-menu mt-3">
+                                            <ActivatorContent>
+                                                @if (_adminUnreadNotificationCount > 0)
+                                                {
+                                                    <MudBadge Content="@_adminUnreadNotificationCount" Color="Color.Error" Bordered="true"
+                                                              Overlap="true">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone" Color="Color.Default"
+                                                                       Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")}; border-radius: 50%;")" />
+                                                    </MudBadge>
+                                                }
+                                                else
+                                                {
+                                                    <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone" Color="Color.Default"
+                                                                   Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")}; border-radius: 50%;")" />
+                                                }
+                                            </ActivatorContent>
+                                            <ChildContent>
+                                                <div>
+                                                    <div class="owner-notification-header d-flex justify-space-between align-center">
+                                                        <div>
+                                                            <p class="owner-notification-header-title">Yêu cầu duyệt POI</p>
+                                                            <p class="owner-notification-header-sub">@_adminUnreadNotificationCount chưa đọc
+                                                            </p>
+                                                        </div>
+                                                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default"
+                                                                       Size="Size.Small" OnClick="RefreshNotificationsAsync"
+                                                                       Style="background: rgba(0,0,0,0.03); border-radius: 10px;" />
+                                                    </div>
+
+                                                    <div class="owner-notification-panel">
+                                                        @if (_isLoadingNotifications)
+                                                        {
+                                                            <div class="pa-6 d-flex justify-center" style="height: 100%; align-items: center;">
+                                                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                                            </div>
+                                                        }
+                                                        else if (_adminNotifications.Count == 0)
+                                                        {
+                                                            <div class="owner-notification-empty">
+                                                                <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" Size="Size.Medium"
+                                                                         Color="Color.Default" />
+                                                                <MudText Typo="Typo.body2" Class="mt-2 mud-text-secondary">Chưa có thông báo
+                                                                    nào.</MudText>
+                                                                </div>
+                                                            }
+                                        else
+                                                            {
+                                                                @foreach (var item in _adminNotifications)
+                                                                {
+                                                                    <div class="owner-notification-item @(item.IsRead ? "is-read" : "")"
+                                                                         @onclick="() => OnAdminNotificationClick(item)">
+                                                                        <div class="d-flex justify-space-between align-center">
+                                                                            <p
+                                                                                class="owner-notification-item-title @GetNotificationTitleClass(item.Title)">
+                                                                                @item.Title</p>
+                                                                                @if (!item.IsRead)
+                                                                                {
+                                                                                    <MudChip T="string" Size="Size.Small" Color="Color.Error"
+                                                                                             Variant="Variant.Filled">Mới</MudChip>
+                                                                                }
+                                                                            </div>
+                                                                            <p class="owner-notification-item-message">
+                                                                                @NormalizeNotificationMessage(item.Message)</p>
+                                                                                <p class="owner-notification-item-meta">@item.OwnerUsername |
+                                                                                    @FormatTimeAgo(item.CreatedAt)</p>
+                                                                                </div>
+                                                                            }
+                                                                        }
+                                                                    </div>
+                                                                </div>
+                                                            </ChildContent>
+                                                        </MudMenu>
+                                                    }
                     else
-                    {
-                        <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone"
-                                       Color="Color.Default"
-                                       Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")}; border-radius: 50%;")" />
-                    }
+                                                    {
+                                                        <MudIconButton Icon="@Icons.Material.Filled.NotificationsNone" Color="Color.Default"
+                                                                       Style="@($"background: {(_isDarkMode ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")}; border-radius: 50%;")" />
+                                                    }
 
-                    <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" PopoverClass="rounded-xl mt-3" ListClass="pa-0">
-                        <ActivatorContent>
-                            <div class="user-pill d-flex align-center gap-2 cursor-pointer">
-                                <div style="width:32px; height:32px; border-radius:50%; overflow:hidden; border:2px solid var(--mud-palette-surface);">
-                                    <img src="@_adminAvatarUrl" alt="Avatar" style="width:100%; height:100%; object-fit:cover;" />
-                                </div>
-                                <MudHidden Breakpoint="Breakpoint.SmAndDown">
-                                    <MudText Typo="Typo.body2" Style="font-weight: 700;">@authContext.User.Identity?.Name</MudText>
-                                </MudHidden>
-                                <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" />
-                            </div>
-                        </ActivatorContent>
-                        <ChildContent>
-                            <div style="width: 250px;">
-                                <div class="pa-4">
-                                    <MudText Typo="Typo.subtitle2" Style="font-weight: 800;">@GetGreeting(), @authContext.User.Identity?.Name</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Quản lý tài khoản</MudText>
-                                </div>
-                                <MudDivider />
-                                <MudListItem T="string" Icon="@Icons.Material.Outlined.Person" Href="@(authContext.User.IsInRole("Admin") ? "/admin/userProfile" : "/owner/userProfile")">
-                                    Hồ sơ của tôi
-                                </MudListItem>
-                                <MudDivider />
-                                <MudListItem T="string" Icon="@Icons.Material.Outlined.Logout" IconColor="Color.Error" OnClick="Logout">
-                                    Đăng xuất
-                                </MudListItem>
-                            </div>
-                        </ChildContent>
-                    </MudMenu>
+                                                    <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
+                                                             PopoverClass="rounded-xl mt-3" ListClass="pa-0">
+                                                        <ActivatorContent>
+                                                            <div class="user-pill d-flex align-center gap-2 cursor-pointer">
+                                                                <div
+                                                                    style="width:32px; height:32px; border-radius:50%; overflow:hidden; border:2px solid var(--mud-palette-surface);">
+                                                                    <img src="@_adminAvatarUrl" alt="Avatar"
+                                                                         style="width:100%; height:100%; object-fit:cover;" />
+                                                                </div>
+                                                                <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                                                                    <MudText Typo="Typo.body2" Style="font-weight: 700;">
+                                                                        @authContext.User.Identity?.Name</MudText>
+                                                                    </MudHidden>
+                                                                    <MudIcon Icon="@Icons.Material.Filled.KeyboardArrowDown" Size="Size.Small" />
+                                                                </div>
+                                                            </ActivatorContent>
+                                                            <ChildContent>
+                                                                <div style="width: 250px;">
+                                                                    <div class="pa-4">
+                                                                        <MudText Typo="Typo.subtitle2" Style="font-weight: 800;">@GetGreeting(),
+                                                                            @authContext.User.Identity?.Name</MudText>
+                                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Quản lý tài khoản</MudText>
+                                                                        </div>
+                                                                        <MudDivider />
+                                                                        <MudListItem T="string" Icon="@Icons.Material.Outlined.Person"
+                                                                                     Href="@(authContext.User.IsInRole("Admin") ? "/admin/userProfile" : "/owner/userProfile")">
+                                                                            Hồ sơ của tôi
+                                                                        </MudListItem>
+                                                                        <MudDivider />
+                                                                        <MudListItem T="string" Icon="@Icons.Material.Outlined.Logout" IconColor="Color.Error"
+                                                                                     OnClick="Logout">
+                                                                            Đăng xuất
+                                                                        </MudListItem>
+                                                                    </div>
+                                                                </ChildContent>
+                                                            </MudMenu>
 
-                </div>
-            </Authorized>
-        </AuthorizeView>
-    </MudAppBar>
+                                                        </div>
+                                                    </Authorized>
+                                                </AuthorizeView>
+                                            </MudAppBar>
 
-    <MudDrawer @bind-Open="_drawerOpen" Elevation="0" ClipMode="DrawerClipMode.Always" Class="argon-drawer" Width="280px">
-        <div class="sidebar-content">
+                                            <MudDrawer @bind-Open="_drawerOpen" Elevation="0" ClipMode="DrawerClipMode.Always" Class="argon-drawer"
+                                                       Width="280px">
+                                                <div class="sidebar-content">
             
-            <div class="brand-section">
-                <MudIcon Icon="@Icons.Material.Filled.Storefront" Color="Color.Primary" Size="Size.Large" />
-                <MudText Typo="Typo.h6" Class="brand-text">BOOTH MANAGER</MudText>
-            </div>
+                                                    <div class="brand-section">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Storefront" Color="Color.Primary" Size="Size.Large" />
+                                                        <MudText Typo="Typo.h6" Class="brand-text">BOOTH MANAGER</MudText>
+                                                    </div>
 
-            <MudNavMenu>
-                <AuthorizeView Roles="Admin">
-                    <MudText Typo="Typo.caption" Class="menu-group-title">QUẢN LÝ ADMIN</MudText>
-                    <MudNavLink Href="/admin/dashboard" Icon="@Icons.Material.Filled.Dashboard" Match="NavLinkMatch.All">Tổng quan</MudNavLink>
-                    <MudNavLink Href="/admin/approvals" Icon="@Icons.Material.Filled.CheckCircle">Duyệt bài đăng</MudNavLink>
-                    <MudNavLink Href="/admin/tours" Icon="@Icons.Material.Filled.Map">Quản lý Tour</MudNavLink>
-                    <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">Quản lý User</MudNavLink>
-                </AuthorizeView>
+                                                    <MudNavMenu>
+                                                        <AuthorizeView Roles="Admin">
+                                                            <MudText Typo="Typo.caption" Class="menu-group-title">QUẢN LÝ ADMIN</MudText>
+                                                            <MudNavLink Href="/admin/dashboard" Icon="@Icons.Material.Filled.Dashboard"
+                                                                        Match="NavLinkMatch.All">Tổng quan</MudNavLink>
+                                                            <MudNavLink Href="/admin/approvals" Icon="@Icons.Material.Filled.CheckCircle">Duyệt bài đăng
+                                                            </MudNavLink>
+                                                            <MudNavLink Href="/admin/tours" Icon="@Icons.Material.Filled.Map">Quản lý Tour</MudNavLink>
+                                                            <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">Quản lý User</MudNavLink>
+                                                        </AuthorizeView>
 
-                <AuthorizeView Roles="BoothOwner">
-                    <MudText Typo="Typo.caption" Class="menu-group-title mt-4">CHỦ GIAN HÀNG</MudText>
-                    <MudNavLink Href="/owner/dashboard" Icon="@Icons.Material.Filled.Dashboard" Match="NavLinkMatch.All">Tổng quan</MudNavLink>
-                    <MudNavLink Href="/owner/analytics" Icon="@Icons.Material.Filled.Analytics">Thống kê POI</MudNavLink>
-                    <MudNavLink Href="/owner/create-poi" Icon="@Icons.Material.Filled.AddLocation">Tạo địa điểm</MudNavLink>
-                    <MudNavLink Href="/owner/my-pois" Icon="@Icons.Material.Filled.List">Địa điểm của tôi</MudNavLink>
-                    <MudNavLink Href="/tts-studio" Icon="@Icons.Material.Filled.RecordVoiceOver"
-                                Style="color: var(--mud-palette-secondary);">
-                        🎙️ TTS Studio
-                    </MudNavLink>
+                                                        <AuthorizeView Roles="BoothOwner">
+                                                            <MudText Typo="Typo.caption" Class="menu-group-title mt-4">CHỦ GIAN HÀNG</MudText>
+                                                            <MudNavLink Href="/owner/dashboard" Icon="@Icons.Material.Filled.Dashboard"
+                                                                        Match="NavLinkMatch.All">Tổng quan</MudNavLink>
+                                                            <MudNavLink Href="/owner/analytics" Icon="@Icons.Material.Filled.Analytics">Thống kê POI
+                                                            </MudNavLink>
+                                                            <MudNavLink Href="/owner/create-poi" Icon="@Icons.Material.Filled.AddLocation">Tạo địa điểm
+                                                            </MudNavLink>
+                                                            <MudNavLink Href="/owner/my-pois" Icon="@Icons.Material.Filled.List">Địa điểm của tôi</MudNavLink>
+                                                            <MudNavLink Href="/owner/qr-management" Icon="@Icons.Material.Filled.QrCode">
+                                                                Quản lý QR Code
+                                                            </MudNavLink>
+                                                            <MudNavLink Href="/tts-studio" Icon="@Icons.Material.Filled.RecordVoiceOver"
+                                                                        Style="color: var(--mud-palette-secondary);">
+                                                                🎙️ TTS Studio
+                                                            </MudNavLink>
 
-                    <MudDivider Class="my-2" />
-                    <MudText Typo="Typo.caption" Class="menu-group-title">HỆ THỐNG</MudText>
-                    <MudNavLink Href="/owner/userProfile" Icon="@Icons.Material.Filled.Person">Hồ sơ cá nhân</MudNavLink>
-                </AuthorizeView>
-            </MudNavMenu>
-        </div>
-    </MudDrawer>
+                                                            <MudDivider Class="my-2" />
+                                                            <MudText Typo="Typo.caption" Class="menu-group-title">HỆ THỐNG</MudText>
+                                                            <MudNavLink Href="/owner/userProfile" Icon="@Icons.Material.Filled.Person">Hồ sơ cá nhân
+                                                            </MudNavLink>
+                                                        </AuthorizeView>
+                                                    </MudNavMenu>
+                                                </div>
+                                            </MudDrawer>
 
-    <MudMainContent Style="background: var(--mud-palette-background); min-height: 100vh;">
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
-            @Body
-        </MudContainer>
-    </MudMainContent>
+                                            <MudMainContent Style="background: var(--mud-palette-background); min-height: 100vh;">
+                                                <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+                                                    @Body
+                                                </MudContainer>
+                                            </MudMainContent>
 
-</MudLayout>
+                                        </MudLayout>
 
 @code {
     private bool _drawerOpen = true;
@@ -400,14 +436,14 @@
     {
         PaletteDark = new PaletteDark()
         {
-            Primary = "#fb6340",       
-            Surface = "#0d1117",       
-            Background = "#010409",    
-            AppbarBackground = "#010409", 
-            DrawerBackground = "#010409", 
-            TextPrimary = "#f0f6fc",   
-            TextSecondary = "#8b949e", 
-            Divider = "rgba(255,255,255,0.05)", 
+            Primary = "#fb6340",
+            Surface = "#0d1117",
+            Background = "#010409",
+            AppbarBackground = "#010409",
+            DrawerBackground = "#010409",
+            TextPrimary = "#f0f6fc",
+            TextSecondary = "#8b949e",
+            Divider = "rgba(255,255,255,0.05)",
             ActionDefault = "#8b949e"
         },
         PaletteLight = new PaletteLight()
@@ -421,7 +457,7 @@
 
     protected override void OnInitialized()
     {
-        _adminAvatarUrl = Nav.BaseUri + "img/icon.jpg"; 
+        _adminAvatarUrl = Nav.BaseUri + "img/icon.jpg";
     }
 
     void DarkModeToggle()

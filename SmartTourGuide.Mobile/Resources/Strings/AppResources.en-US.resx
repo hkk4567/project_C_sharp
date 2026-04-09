@@ -312,4 +312,31 @@
   <data name="BadgeEnd" xml:space="preserve">
     <value>🏁 End</value>
   </data>
+  <data name="PoiDetailTitle" xml:space="preserve">
+    <value>Location details</value>
+  </data>
+  <data name="PoiDescriptionLabel" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="StatusLoadingRoute" xml:space="preserve">
+    <value>🗺️ Loading route...</value>
+  </data>
+  <data name="StatusTourCompleted" xml:space="preserve">
+    <value>🎉 You have completed the entire Tour!</value>
+  </data>
+  <data name="SuffixVisited" xml:space="preserve">
+    <value> (Visited)</value>
+  </data>
+  <data name="RouteLatest" xml:space="preserve">
+    <value>🗺️ Latest route</value>
+  </data>
+  <data name="RouteCached" xml:space="preserve">
+    <value>🗺️ Cached route</value>
+  </data>
+  <data name="RouteOfflineCached" xml:space="preserve">
+    <value>📵 Offline — using saved route</value>
+  </data>
+  <data name="RouteOfflineStraight" xml:space="preserve">
+    <value>⚠️ Offline — no cache, showing straight line</value>
+  </data>
 </root>

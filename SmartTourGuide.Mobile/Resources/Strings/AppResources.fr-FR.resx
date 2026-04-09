@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AlertError" xml:space="preserve"><value>Erreur</value></data>
+  <data name="AlertInfo" xml:space="preserve"><value>Information</value></data>
+  <data name="AlertNotice" xml:space="preserve"><value>Notification</value></data>
+  <data name="BtnBack" xml:space="preserve"><value>🔙 Retour</value></data>
+  <data name="BtnLanguage" xml:space="preserve"><value>🌐 Langue</value></data>
+  <data name="BtnListen" xml:space="preserve"><value>🔊 Écouter le guide</value></data>
+  <data name="BtnMyLocation" xml:space="preserve"><value>📍 Ma position</value></data>
+  <data name="BtnReadTts" xml:space="preserve"><value>🗣️ Lecture automatique (TTS)</value></data>
+  <data name="BtnReload" xml:space="preserve"><value>Recharger les destinations</value></data>
+  <data name="BtnSelectTour" xml:space="preserve"><value>🗺️ Choisir un circuit</value></data>
+  <data name="BtnStop" xml:space="preserve"><value>⏹️ Arrêter la lecture</value></data>
+  <data name="CloseButton" xml:space="preserve"><value>Fermer</value></data>
+  <data name="ConnectionError" xml:space="preserve"><value>Erreur de connexion</value></data>
+  <data name="ConnectionErrorMessage" xml:space="preserve"><value>Impossible de se connecter au serveur. Vérifiez le réseau ou l'adresse API.</value></data>
+  <data name="MapTitle" xml:space="preserve"><value>Carte touristique</value></data>
+  <data name="PoiDetailTitle" xml:space="preserve"><value>Détails du lieu</value></data>
+  <data name="PoiDescriptionLabel" xml:space="preserve"><value>Description</value></data>
+  <data name="NoDescription" xml:space="preserve"><value>Aucune description.</value></data>
+  <data name="NoToursAvailable" xml:space="preserve"><value>Aucun circuit disponible pour le moment.</value></data>
+  <data name="OkButton" xml:space="preserve"><value>OK</value></data>
+  <data name="PoiCountFormat" xml:space="preserve"><value>Comprend {0} lieux</value></data>
+  <data name="RetryButton" xml:space="preserve"><value>Réessayer</value></data>
+  <data name="SelectTourHeader" xml:space="preserve"><value>Choisissez votre parcours</value></data>
+  <data name="StatusError" xml:space="preserve"><value>Erreur : {0}</value></data>
+  <data name="StatusFindingLocation" xml:space="preserve"><value>Recherche de votre position...</value></data>
+  <data name="StatusFound" xml:space="preserve"><value>Votre position a été trouvée !</value></data>
+  <data name="StatusGpsError" xml:space="preserve"><value>Erreur GPS. Veuillez activer la localisation !</value></data>
+  <data name="StatusLanguageChanged" xml:space="preserve"><value>Langue modifiée</value></data>
+  <data name="StatusLoaded" xml:space="preserve"><value>{0} lieux chargés.</value></data>
+  <data name="StatusLoading" xml:space="preserve"><value>Chargement des données...</value></data>
+  <data name="SystemError" xml:space="preserve"><value>Erreur système</value></data>
+  <data name="SystemErrorMessage" xml:space="preserve"><value>Une erreur s'est produite : {0}</value></data>
+  <data name="ToursPageTitle" xml:space="preserve"><value>Liste des circuits</value></data>
+  <data name="AudioPlayError" xml:space="preserve"><value>Impossible de lire l'audio : {0}</value></data>
+  <data name="StatusGeofenceDoneWait" xml:space="preserve"><value>✅ Terminé {0}. Attente {1}s</value></data>
+  <data name="StatusNearestPoi" xml:space="preserve"><value>📍 Le plus proche : {0} · {1}</value></data>
+  <data name="StatusWaitReplay" xml:space="preserve"><value>⏳ {0} · En attente de relance : {1}s</value></data>
+  <data name="BtnListenAudioCount" xml:space="preserve"><value>🔊 Écouter audio ({0}/{1})</value></data>
+  <data name="BtnListenRecording" xml:space="preserve"><value>🔊 Écouter l'enregistrement</value></data>
+  <data name="BtnReadTtsAgain" xml:space="preserve"><value>🗣️ Relire</value></data>
+  <data name="BtnRelisten" xml:space="preserve"><value>🔊 Réécouter</value></data>
+  <data name="BtnShowOnMap" xml:space="preserve"><value>📍 Voir sur la carte</value></data>
+  <data name="BtnStopWithCount" xml:space="preserve"><value>⏹️ Arrêter  ({0}/{1})</value></data>
+  <data name="BtnStopWithCountCompact" xml:space="preserve"><value>⏹️ Arrêter ({0}/{1})</value></data>
+  <data name="BtnViewItinerary" xml:space="preserve"><value>Voir l'itinéraire ›</value></data>
+  <data name="ItineraryTitle" xml:space="preserve"><value>🗺️ Itinéraire</value></data>
+  <data name="MsgNoStops" xml:space="preserve"><value>Ce circuit n'a pas encore d'étapes.</value></data>
+  <data name="MsgTourBusy" xml:space="preserve"><value>Le système traite un autre circuit, veuillez patienter !</value></data>
+  <data name="PrefixOffline" xml:space="preserve"><value>📴 Hors ligne · </value></data>
+  <data name="PrefixServerError" xml:space="preserve"><value>⚠️ Erreur serveur · </value></data>
+  <data name="StatusBannerNoNetwork" xml:space="preserve"><value>📴 Pas de réseau — Aucune donnée hors ligne disponible</value></data>
+  <data name="StatusBannerOffline" xml:space="preserve"><value>📴 Hors ligne · Données : {0}</value></data>
+  <data name="StatusBannerUnknownSync" xml:space="preserve"><value>inconnu</value></data>
+  <data name="StatusGeofenceLeft" xml:space="preserve"><value>👋 Zone de lecture quittée</value></data>
+  <data name="StatusNeverSynced" xml:space="preserve"><value>Jamais synchronisé</value></data>
+  <data name="StatusNoNetworkNoData" xml:space="preserve"><value>❌ Pas de réseau et aucune donnée hors ligne disponible</value></data>
+  <data name="StatusOfflineWithCount" xml:space="preserve"><value>{0}{1} · {2} lieux</value></data>
+  <data name="StatusPlayDone" xml:space="preserve"><value>✅ {0}  ·  {1} fichiers audio lus</value></data>
+  <data name="StatusPlayingTrack" xml:space="preserve"><value>🎵 {0}  ·  {1}/{2}</value></data>
+  <data name="StatusPlayingTrackCompact" xml:space="preserve"><value>🎵 {0} ({1}/{2})</value></data>
+  <data name="StatusSyncDone" xml:space="preserve"><value>✅ Synchronisation terminée · {0} lieux</value></data>
+  <data name="StatusSyncedAt" xml:space="preserve"><value>Synchronisé : {0}</value></data>
+  <data name="StatusSyncFailed" xml:space="preserve"><value>⚠️ Synchronisation échouée</value></data>
+  <data name="StatusSyncing" xml:space="preserve"><value>🔄 Synchronisation en cours...</value></data>
+  <data name="StopCountFormat" xml:space="preserve"><value>Étape {0}/{1}</value></data>
+  <data name="BadgeStart" xml:space="preserve"><value>🚩 Départ</value></data>
+  <data name="BadgeEnd" xml:space="preserve"><value>🏁 Fin</value></data>
+  <data name="StatusLoadingRoute" xml:space="preserve">
+    <value>🗺️ Chargement de l'itinéraire...</value>
+  </data>
+  <data name="StatusTourCompleted" xml:space="preserve">
+    <value>🎉 Vous avez terminé la visite complète !</value>
+  </data>
+  <data name="SuffixVisited" xml:space="preserve">
+    <value> (Visité)</value>
+  </data>
+  <data name="RouteLatest" xml:space="preserve">
+    <value>🗺️ Itinéraire le plus récent</value>
+  </data>
+  <data name="RouteCached" xml:space="preserve">
+    <value>🗺️ Itinéraire en cache</value>
+  </data>
+  <data name="RouteOfflineCached" xml:space="preserve">
+    <value>📵 Hors ligne — utilisation de l'itinéraire sauvegardé</value>
+  </data>
+  <data name="RouteOfflineStraight" xml:space="preserve">
+    <value>⚠️ Hors ligne — aucun cache, affichage en ligne droite</value>
+  </data>
+</root>

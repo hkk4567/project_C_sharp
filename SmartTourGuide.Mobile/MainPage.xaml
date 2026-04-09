@@ -6,11 +6,11 @@
              x:Class="SmartTourGuide.Mobile.MainPage"
              Title="{x:Static res:AppResources.MapTitle}">
 
-    <Grid>
+    <Grid BackgroundColor="#EEF3F8">
         <Border x:Name="OfflineBanner"
                 IsVisible="False"
                 Opacity="0"
-                BackgroundColor="#E65100"
+                BackgroundColor="#E07A2F"
                 ZIndex="999"
                 VerticalOptions="Start"
                 HorizontalOptions="Fill"
@@ -46,45 +46,143 @@
         <mapsui:MapView x:Name="mapView"
                         VerticalOptions="Fill"
                         HorizontalOptions="Fill"
+                        ButtonMargin="0,220,16,0"
                         IsMyLocationButtonVisible="False"/>
 
-        <!-- ══ TOP BAR — chỉ còn nút ngôn ngữ góc trên trái ═════════════════ -->
-        <Border BackgroundColor="White"
-                StrokeThickness="0"
-                HeightRequest="40"
-                HorizontalOptions="Start"
+        <!-- ══ SEARCH + LANGUAGE BAR ═══════════════════════════════════════ -->
+        <Border BackgroundColor="#FDFEFF"
+                StrokeThickness="1"
+                Stroke="#E4EAF2"
+                HorizontalOptions="Fill"
                 VerticalOptions="Start"
-                Margin="16,16,0,0"
-                Padding="0">
+                Margin="12,12,12,0"
+                Padding="14"
+                ZIndex="998">
             <Border.StrokeShape>
-                <RoundRectangle CornerRadius="20"/>
+                <RoundRectangle CornerRadius="24"/>
             </Border.StrokeShape>
             <Border.Shadow>
                 <Shadow Brush="Black"
-                        Offset="0,2"
-                        Radius="8"
+                        Offset="0,8"
+                        Radius="18"
                         Opacity="0.12"/>
             </Border.Shadow>
-            <Button x:Name="btnLanguage"
-                    Clicked="OnChangeLanguageClicked"
-                    FontAttributes="Bold"
-                    FontSize="13"
-                    HeightRequest="40"
-                    CornerRadius="20"
-                    BackgroundColor="Transparent"
-                    TextColor="#212121"
-                    Padding="14,0"/>
+
+            <Grid RowDefinitions="Auto,Auto"
+                  RowSpacing="12">
+                <Grid ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                    <Grid ColumnDefinitions="Auto,*"
+                          BackgroundColor="#F6F8FB"
+                          HeightRequest="44"
+                          Padding="14,0"
+                          ColumnSpacing="10">
+                        <Label Text="🔎"
+                               FontSize="16"
+                               VerticalOptions="Center"
+                               TextColor="#F57C00"/>
+                        <Entry x:Name="poiSearchBar"
+                               Grid.Column="1"
+                               Placeholder="Tìm quán, địa điểm..."
+                               TextChanged="OnPoiSearchTextChanged"
+                               Completed="OnPoiSearchSubmitted"
+                               BackgroundColor="Transparent"
+                               TextColor="#1A1A1A"
+                               PlaceholderColor="#757575"
+                               ReturnType="Search"
+                               VerticalOptions="Center"/>
+                    </Grid>
+
+                    <Border Grid.Column="1"
+                            BackgroundColor="#F6F8FB"
+                            StrokeThickness="1"
+                            Stroke="#E4EAF2"
+                            HeightRequest="44"
+                            WidthRequest="128"
+                            Padding="0"
+                            VerticalOptions="Center">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="22"/>
+                        </Border.StrokeShape>
+                        <Button x:Name="btnLanguage"
+                                Clicked="OnChangeLanguageClicked"
+                                FontAttributes="Bold"
+                                FontSize="12"
+                                HeightRequest="44"
+                                CornerRadius="22"
+                                BackgroundColor="Transparent"
+                                TextColor="#212121"
+                                Padding="10,0"/>
+                    </Border>
+                </Grid>
+
+                <Border x:Name="SearchSuggestionsPanel"
+                        Grid.Row="1"
+                        IsVisible="False"
+                        BackgroundColor="#FFFFFF"
+                        StrokeThickness="1"
+                        Stroke="#E4EAF2"
+                        Padding="0"
+                        MaximumHeightRequest="220">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="18"/>
+                    </Border.StrokeShape>
+                    <Border.Shadow>
+                        <Shadow Brush="Black"
+                                Offset="0,6"
+                                Radius="16"
+                                Opacity="0.10"/>
+                    </Border.Shadow>
+
+                    <CollectionView x:Name="poiSearchSuggestions"
+                                    SelectionMode="Single"
+                                    SelectionChanged="OnPoiSearchSelectionChanged"
+                                    BackgroundColor="Transparent"
+                                    Margin="0"
+                                    ItemSizingStrategy="MeasureAllItems">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border BackgroundColor="Transparent"
+                                        StrokeThickness="0"
+                                        Padding="14,12">
+                                    <Grid ColumnDefinitions="Auto,*"
+                                          ColumnSpacing="10">
+                                        <Label Text="📍"
+                                               FontSize="18"
+                                               VerticalOptions="Center"/>
+                                        <VerticalStackLayout Grid.Column="1"
+                                                             Spacing="2">
+                                            <Label Text="{Binding Name}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#1A1A1A"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1"/>
+                                            <Label Text="{Binding Address}"
+                                                   FontSize="12"
+                                                   TextColor="#757575"
+                                                   LineBreakMode="TailTruncation"
+                                                   MaxLines="1"/>
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </Border>
+            </Grid>
         </Border>
 
         <!-- ══ STATUS PILL — nhỏ gọn, không che map ════════════════════════ -->
         <Border BackgroundColor="#F2000000"
-                StrokeThickness="0"
+                StrokeThickness="1"
+                Stroke="#202531"
                 HorizontalOptions="Center"
                 VerticalOptions="Start"
-                Margin="0,68,0,0"
-                Padding="12,6">
+                Margin="0,132,0,0"
+                Padding="14,7">
             <Border.StrokeShape>
-                <RoundRectangle CornerRadius="20"/>
+                <RoundRectangle CornerRadius="999"/>
             </Border.StrokeShape>
             <Label x:Name="statusLabel"
                    Text="Đang tải..."
@@ -97,12 +195,13 @@
         <!-- ══ FAB GROUP — góc phải, dưới thanh zoom của Mapsui ════════════ -->
         <VerticalStackLayout HorizontalOptions="End"
                              VerticalOptions="Start"
-                             Margin="0,160,16,0"
-                             Spacing="8">
+                             Margin="0,364,16,0"
+                             Spacing="10">
 
             <!-- Nút Reload -->
-            <Border BackgroundColor="White"
-                    StrokeThickness="0"
+            <Border BackgroundColor="#FFFFFFF4"
+                    StrokeThickness="1"
+                    Stroke="#E4EAF2"
                     HeightRequest="48"
                     WidthRequest="48"
                     Padding="0">
@@ -111,9 +210,9 @@
                 </Border.StrokeShape>
                 <Border.Shadow>
                     <Shadow Brush="Black"
-                            Offset="0,3"
-                            Radius="10"
-                            Opacity="0.15"/>
+                            Offset="0,6"
+                            Radius="14"
+                            Opacity="0.12"/>
                 </Border.Shadow>
                 <Button Text="↺"
                         Clicked="OnReloadClicked"
@@ -122,13 +221,14 @@
                         WidthRequest="48"
                         CornerRadius="24"
                         BackgroundColor="Transparent"
-                        TextColor="#1565C0"
+                        TextColor="#1F5FBF"
                         Padding="0"/>
             </Border>
 
             <!-- Nút về vị trí hiện tại -->
-            <Border BackgroundColor="White"
-                    StrokeThickness="0"
+            <Border BackgroundColor="#FFFFFFF4"
+                    StrokeThickness="1"
+                    Stroke="#E4EAF2"
                     HeightRequest="48"
                     WidthRequest="48"
                     Padding="0">
@@ -137,9 +237,9 @@
                 </Border.StrokeShape>
                 <Border.Shadow>
                     <Shadow Brush="Black"
-                            Offset="0,3"
-                            Radius="10"
-                            Opacity="0.15"/>
+                            Offset="0,6"
+                            Radius="14"
+                            Opacity="0.12"/>
                 </Border.Shadow>
                 <Border.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnCenterMyLocationClicked"/>
@@ -161,6 +261,8 @@
                 HeightRequest="52"
                 CornerRadius="26"
                 BackgroundColor="#F57C00"
+                BorderColor="#FFB15B"
+                BorderWidth="1"
                 TextColor="White"
                 HorizontalOptions="Center"
                 VerticalOptions="End"
@@ -168,9 +270,9 @@
                 Padding="28,0">
             <Button.Shadow>
                 <Shadow Brush="#F57C00"
-                        Offset="0,6"
-                        Radius="16"
-                        Opacity="0.4"/>
+                        Offset="0,8"
+                        Radius="18"
+                        Opacity="0.36"/>
             </Button.Shadow>
         </Button>
 
@@ -181,18 +283,19 @@
         -->
         <Border x:Name="TourInfoPanel"
                 IsVisible="False"
-                BackgroundColor="White"
-                StrokeThickness="0"
-                StrokeShape="RoundRectangle 16,16,16,16"
+                BackgroundColor="#FFFFFFF7"
+                StrokeThickness="1"
+                Stroke="#E4EAF2"
+                StrokeShape="RoundRectangle 18,18,18,18"
                 VerticalOptions="End"
                 HorizontalOptions="Fill"
                 Margin="12,0,12,108"
                 Padding="0">
             <Border.Shadow>
                 <Shadow Brush="Black"
-                        Offset="0,-4"
-                        Radius="20"
-                        Opacity="0.13"/>
+                        Offset="0,-6"
+                        Radius="22"
+                        Opacity="0.10"/>
             </Border.Shadow>
 
             <Grid RowDefinitions="Auto,Auto"
@@ -201,7 +304,7 @@
                 <!-- Header compact -->
                 <Grid Grid.Row="0"
                       ColumnDefinitions="Auto,*,Auto"
-                      Padding="14,10,6,10">
+                      Padding="16,12,8,10">
 
                     <!-- Icon + tên tour -->
                     <Label Grid.Column="0"
@@ -216,7 +319,7 @@
                                FontSize="10"
                                TextColor="#F57C00"
                                FontAttributes="Bold"
-                               CharacterSpacing="1"/>
+                               CharacterSpacing="1.4"/>
                         <Label x:Name="lblTourName"
                                Text=""
                                FontSize="14"
@@ -260,35 +363,36 @@
         -->
         <Border x:Name="DetailPopup"
                 IsVisible="False"
-                BackgroundColor="White"
-                StrokeThickness="0"
-                StrokeShape="RoundRectangle 20,20,0,0"
+                BackgroundColor="#FFFFFFFD"
+                StrokeThickness="1"
+                Stroke="#DCE4EE"
+                StrokeShape="RoundRectangle 24,24,0,0"
                 VerticalOptions="End"
                 HorizontalOptions="Fill"
                 Margin="0"
-                Padding="0">
+                Padding="0"
+                ZIndex="995">
             <Border.Shadow>
                 <Shadow Brush="Black"
-                        Offset="0,-6"
-                        Radius="24"
-                        Opacity="0.14"/>
+                        Offset="0,-10"
+                        Radius="28"
+                        Opacity="0.12"/>
             </Border.Shadow>
 
-            <Grid RowDefinitions="Auto,Auto,Auto">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto">
 
-                <!-- Drag handle -->
+                <!-- Drag handle + close -->
                 <Grid Grid.Row="0"
-                      Padding="0,10,0,4">
-                    <BoxView WidthRequest="36"
+                      Padding="0,12,0,4">
+                    <BoxView WidthRequest="42"
                              HeightRequest="4"
                              CornerRadius="2"
-                             Color="#E0E0E0"
+                             Color="#DADFE8"
                              HorizontalOptions="Center"/>
-                    <!-- Nút đóng góc phải -->
                     <Button Text="✕"
                             TextColor="#9E9E9E"
                             BackgroundColor="Transparent"
-                            FontSize="15"
+                            FontSize="16"
                             WidthRequest="40"
                             HeightRequest="40"
                             Padding="0"
@@ -297,89 +401,107 @@
                             Clicked="OnClosePopupClicked"/>
                 </Grid>
 
+                <!-- Header -->
+                <VerticalStackLayout Grid.Row="1"
+                                     Spacing="4"
+                                     Padding="20,0,20,12">
+                    <Label x:Name="lblPoiDetailTitle"
+                           Text=""
+                           FontSize="11"
+                           FontAttributes="Bold"
+                           CharacterSpacing="1.2"
+                           TextColor="#F57C00"/>
+                    <Label x:Name="lblPoiName"
+                           Text="Tên địa điểm"
+                           FontSize="22"
+                           FontAttributes="Bold"
+                           TextColor="#102A43"
+                           MaxLines="2"
+                           LineBreakMode="WordWrap"/>
+                </VerticalStackLayout>
+
                 <!-- Content: ảnh trái + info phải -->
-                <Grid Grid.Row="1"
-                      ColumnDefinitions="110,*"
-                      Margin="14,0,14,0"
+                <Grid Grid.Row="2"
+                      ColumnDefinitions="112,*"
+                      Margin="18,0,18,0"
                       ColumnSpacing="14">
 
-                    <!-- Ảnh thumbnail -->
                     <Border Grid.Column="0"
                             x:Name="ImageContainer"
-                            HeightRequest="90"
-                            WidthRequest="110"
+                            HeightRequest="102"
+                            WidthRequest="112"
                             StrokeThickness="0"
                             Padding="0">
                         <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="12"/>
+                            <RoundRectangle CornerRadius="18"/>
                         </Border.StrokeShape>
                         <Image x:Name="imgPoi"
                                Aspect="AspectFill"
-                               BackgroundColor="#F5F5F5"/>
+                               BackgroundColor="#EEF3F8"/>
                     </Border>
 
-                    <!-- Text info -->
                     <VerticalStackLayout Grid.Column="1"
-                                         Spacing="4"
+                                         Spacing="8"
                                          VerticalOptions="Center">
-                        <Label x:Name="lblPoiName"
-                               Text="Tên địa điểm"
-                               FontSize="17"
-                               FontAttributes="Bold"
-                               TextColor="#1A1A1A"
-                               MaxLines="2"
-                               LineBreakMode="TailTruncation"/>
-                        <Grid ColumnDefinitions="Auto,*">
+                        <Grid ColumnDefinitions="Auto,*"
+                              ColumnSpacing="8">
                             <Label Grid.Column="0"
                                    Text="📍"
-                                   FontSize="12"
+                                   FontSize="13"
                                    VerticalOptions="Center"/>
                             <Label Grid.Column="1"
                                    x:Name="lblAddress"
-                                   FontSize="12"
-                                   TextColor="#757575"
+                                   FontSize="13"
+                                   TextColor="#425466"
                                    VerticalOptions="Center"
-                                   LineBreakMode="TailTruncation"
-                                   MaxLines="1"
-                                   Margin="4,0,0,0"/>
+                                   LineBreakMode="WordWrap"
+                                   MaxLines="2"/>
                         </Grid>
-                        <Label x:Name="lblDescription"
-                               FontSize="13"
-                               TextColor="#555555"
-                               MaxLines="2"
-                               LineBreakMode="TailTruncation"
-                               LineHeight="1.35"
-                               Margin="0,2,0,0"/>
+
+                        <Border BackgroundColor="#F6F8FB"
+                                StrokeThickness="1"
+                                Stroke="#E4EAF2"
+                                Padding="12,10">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="16"/>
+                            </Border.StrokeShape>
+                            <VerticalStackLayout Spacing="4">
+                                <Label x:Name="lblDescriptionHeader"
+                                       Text=""
+                                       FontSize="10"
+                                       TextColor="#F57C00"
+                                       FontAttributes="Bold"
+                                       CharacterSpacing="1"/>
+                                <Label x:Name="lblDescription"
+                                       FontSize="13"
+                                       TextColor="#1F2937"
+                                       LineBreakMode="WordWrap"
+                                       MaxLines="4"
+                                       LineHeight="1.35"/>
+                            </VerticalStackLayout>
+                        </Border>
                     </VerticalStackLayout>
 
                 </Grid>
 
                 <!-- Nút Audio -->
-                <Button Grid.Row="2"
+                <Button Grid.Row="3"
                         x:Name="btnPlayAudio"
                         Text="{x:Static res:AppResources.BtnListen}"
-                        BackgroundColor="#1976D2"
+                        BackgroundColor="#F57C00"
                         TextColor="White"
                         FontAttributes="Bold"
                         FontSize="15"
-                        HeightRequest="48"
-                        CornerRadius="14"
-                        Margin="14,12,14,24"
+                        HeightRequest="50"
+                        CornerRadius="16"
+                        Margin="18,16,18,24"
                         Clicked="OnPlayAudioClicked">
                     <Button.Shadow>
-                        <Shadow Brush="#1976D2"
-                                Offset="0,4"
-                                Radius="12"
-                                Opacity="0.3"/>
+                        <Shadow Brush="#F57C00"
+                                Offset="0,6"
+                                Radius="16"
+                                Opacity="0.34"/>
                     </Button.Shadow>
-                    <!-- Bo góc riêng vì CornerRadius trên Button MAUI đôi khi cần override -->
-                    <Button.Triggers>
-                        <Trigger TargetType="Button"
-                                 Property="IsEnabled"
-                                 Value="True">
-                            <!-- styling handled via CornerRadius below -->
-                        </Trigger>
-                    </Button.Triggers>
                 </Button>
 
             </Grid>

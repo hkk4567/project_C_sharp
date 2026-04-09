@@ -312,4 +312,31 @@
   <data name="BadgeEnd" xml:space="preserve">
     <value>🏁 Kết thúc</value>
   </data>
+  <data name="PoiDetailTitle" xml:space="preserve">
+    <value>Chi tiết vị trí</value>
+  </data>
+  <data name="PoiDescriptionLabel" xml:space="preserve">
+    <value>mô tả chi tiết</value>
+  </data>
+  <data name="StatusLoadingRoute" xml:space="preserve">
+    <value>🗺️ Đang tải tuyến đường...</value>
+  </data>
+  <data name="StatusTourCompleted" xml:space="preserve">
+    <value>🎉 Bạn đã hoàn thành toàn bộ Tour!</value>
+  </data>
+  <data name="SuffixVisited" xml:space="preserve">
+    <value> (Đã đến)</value>
+  </data>
+  <data name="RouteLatest" xml:space="preserve">
+    <value>🗺️ Tuyến đường mới nhất</value>
+  </data>
+  <data name="RouteCached" xml:space="preserve">
+    <value>🗺️ Tuyến đường từ cache</value>
+  </data>
+  <data name="RouteOfflineCached" xml:space="preserve">
+    <value>📵 Offline — đang dùng tuyến đường đã lưu</value>
+  </data>
+  <data name="RouteOfflineStraight" xml:space="preserve">
+    <value>⚠️ Offline — không có cache, hiển thị đường thẳng</value>
+  </data>
 </root>

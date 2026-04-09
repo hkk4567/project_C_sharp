@@ -47,7 +47,8 @@ builder.Services.AddScoped<HttpClient>(sp =>
     };
     var http = new HttpClient(handler)
     {
-        BaseAddress = new Uri("http://localhost:5277/")
+        BaseAddress = new Uri(builder.Configuration["ApiBaseUrl"]
+                      ?? "http://localhost:5277/")
     };
     return http;
 });
@@ -60,6 +61,7 @@ builder.Services.AddScoped<OwnerNotificationService>();
 builder.Services.AddScoped<AdminNotificationService>();
 builder.Services.AddScoped<AdminNavbarThemeService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<AdminDashboardService>();
 var app = builder.Build();
 
 // --- PHẦN 2: CẤU HÌNH PIPELINE (MIDDLEWARE) ---

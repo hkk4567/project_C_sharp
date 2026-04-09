@@ -7,19 +7,19 @@ public class PoiApiService
 {
     private readonly HttpClient _httpClient;
 
-    // Thay đổi PORT theo đúng port API của bạn
-    private const string Port = "5277";
+    private const string BaseUrl = "https://2tlcgj8k-7058.asse.devtunnels.ms/";
 
     public PoiApiService()
     {
         _httpClient = new HttpClient();
+        _httpClient.BaseAddress = new Uri(BaseUrl);
 
-        // Cấu hình URL đặc biệt cho Android giả lập
-#if ANDROID
-        _httpClient.BaseAddress = new Uri($"http://10.0.2.2:{Port}/");
-#else
-        _httpClient.BaseAddress = new Uri($"http://localhost:{Port}/");
-#endif
+        // 2. QUAN TRỌNG: Thêm header này để HttpClient có thể lấy dữ liệu trực tiếp 
+        // xuyên qua trang cảnh báo "Anti-Phishing" của Microsoft Dev Tunnels.
+        _httpClient.DefaultRequestHeaders.Add("X-Tunnel-Skip-AntiPhishing-Page", "true");
+
+        // Cấu hình timeout để tránh treo App nếu tunnel bị lag
+        _httpClient.Timeout = TimeSpan.FromSeconds(30);
     }
 
     public async Task<List<PoiModel>> GetPoisAsync(string langCode = "vi-VN")
