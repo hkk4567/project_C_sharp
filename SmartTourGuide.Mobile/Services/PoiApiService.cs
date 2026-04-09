@@ -7,7 +7,7 @@ public class PoiApiService
 {
     private readonly HttpClient _httpClient;
 
-    private const string BaseUrl = "https://2tlcgj8k-7058.asse.devtunnels.ms/";
+    private const string BaseUrl = "https://6b5j1b5h-7058.asse.devtunnels.ms/";
 
     public PoiApiService()
     {

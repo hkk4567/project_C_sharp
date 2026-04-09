@@ -1,0 +1,221 @@
+Lưu ý: Mermaid Live Editor không hỗ trợ trực tiếp cú pháp UML use case, nên file này dùng flowchart để biểu diễn các tác nhân và chức năng tương đương.
+
+Sơ đồ use case tổng quát
+
+```mermaid
+flowchart LR
+    subgraph Actors[Actors]
+        direction TB
+        Tourist((Người dùng di động))
+        Owner((Chủ điểm / Owner))
+        Admin((Admin))
+    end
+
+    subgraph Mobile[Use case của người dùng di động]
+        direction TB
+        TView((Xem địa điểm))
+        TSearch((Tìm kiếm))
+        TViewDetail((Xem chi tiết))
+        M1((Gửi vị trí và kích hoạt geofence))
+        M2((Quét QR / mở deep link))
+    end
+
+    subgraph OwnerUC[Use case của Owner]
+        direction TB
+        O1((Đăng nhập / xác thực))
+        O2((Quản lý POI và nội dung))
+        O3((Quản lý tour))
+        O4((Xem thống kê và thông báo))
+    end
+
+    subgraph AdminUC[Use case của Admin]
+        direction TB
+        A1((Đăng nhập / xác thực))
+        A2((Quản lý POI và nội dung))
+        A3((Xem thống kê và thông báo))
+        A4((Phê duyệt / từ chối / khóa user / xem log))
+    end
+
+    Tourist --> TView
+    Tourist --> TSearch
+    Tourist --> TViewDetail
+    Tourist --> M1
+    Tourist --> M2
+
+    Owner --> O1
+    Owner --> O2
+    Owner --> O3
+    Owner --> O4
+
+    Admin --> A1
+    Admin --> A2
+    Admin --> A3
+    Admin --> A4
+
+    TSearch --> TViewDetail
+    TView --> TViewDetail
+    M1 --> M2
+    O2 --> A2
+    A2 --> A4
+
+    classDef actor fill:#f8fafc,stroke:#334155,stroke-width:1.5px,color:#0f172a;
+    classDef usecase fill:#eff6ff,stroke:#2563eb,stroke-width:1.5px,color:#0f172a;
+
+    class Tourist,Owner,Admin actor;
+    class TView,TSearch,TViewDetail,M1,M2,O1,O2,O3,O4,A1,A2,A3,A4 usecase;
+```
+
+Sơ đồ use case chi tiết
+
+Lưu ý: theo nghiệp vụ hiện tại của bạn, người dùng di động không cần đăng nhập; Admin là người thực hiện đăng ký và đổi mật khẩu, Owner không có quyền này.
+
+```mermaid
+flowchart LR
+    Admin[Admin]
+    Owner[Chủ điểm / Owner]
+    Tourist[Người dùng di động]
+    UCRegister((Đăng ký tài khoản mới))
+    UCLogin((Đăng nhập hệ thống))
+    UCManageUser((Xem / cập nhật thông tin cá nhân))
+    UCChangePwd((Đổi mật khẩu))
+
+    Admin --> UCRegister
+    Admin --> UCLogin
+    Admin --> UCChangePwd
+    Owner --> UCLogin
+
+    UCLogin --> UCManageUser
+    UCManageUser --> UCChangePwd
+```
+
+```mermaid
+flowchart LR
+    Tourist[Người dùng di động]
+    Owner[Chủ điểm / Owner]
+    Admin[Admin]
+
+    UCBrowsePOI((Xem POI trên mobile))
+    UCBrowseTour((Xem tour trên mobile))
+    UCCreatePOI((Tạo POI))
+    UCUpdatePOI((Cập nhật POI))
+    UCDeletePOI((Xóa POI))
+    UCPendingPOI((Xem POI chờ duyệt))
+    UCApprovePOI((Phê duyệt POI))
+    UCRejectPOI((Từ chối POI))
+    UCCreateTour((Tạo tour))
+    UCDeleteTour((Xóa tour))
+    UCViewTour((Xem chi tiết tour))
+
+    Tourist --> UCBrowsePOI
+    Tourist --> UCBrowseTour
+
+    Owner --> UCCreatePOI
+    Owner --> UCUpdatePOI
+    Owner --> UCDeletePOI
+    Owner --> UCCreateTour
+    Owner --> UCDeleteTour
+    Owner --> UCViewTour
+
+    Admin --> UCPendingPOI
+    Admin --> UCApprovePOI
+    Admin --> UCRejectPOI
+
+    UCCreatePOI --> UCPendingPOI
+```
+
+```mermaid
+flowchart LR
+    Owner[Chủ điểm / Owner]
+    Tourist[Người dùng di động]
+
+    UCUploadAsset((Tải lên ảnh / audio))
+    UCDeleteAsset((Xóa asset))
+    UCCreatePoiTran((Tạo bản dịch POI))
+    UCCreateTourTran((Tạo bản dịch tour))
+    UCGetPoiTran((Lấy bản dịch POI))
+    UCGetTourTran((Lấy bản dịch tour))
+    UCPreviewTTS((Xem trước TTS))
+    UCSaveTTS((Lưu TTS))
+
+    Owner --> UCUploadAsset
+    Owner --> UCDeleteAsset
+    Owner --> UCCreatePoiTran
+    Owner --> UCCreateTourTran
+    Owner --> UCPreviewTTS
+    Owner --> UCSaveTTS
+
+    Tourist --> UCGetPoiTran
+    Tourist --> UCGetTourTran
+
+    UCCreatePoiTran --> UCGetPoiTran
+    UCCreateTourTran --> UCGetTourTran
+    UCPreviewTTS --> UCSaveTTS
+```
+
+```mermaid
+flowchart LR
+    Tourist[Người dùng di động]
+
+    UCTrack((Gửi vị trí))
+    UCHistory((Xem lịch sử tracking))
+    UCGEOFence((Kích hoạt geofence))
+    UCGenerateQR((Tạo QR code))
+    UCOpenDeepLink((Mở deep link))
+
+    Tourist --> UCTrack
+    Tourist --> UCGenerateQR
+    Tourist --> UCOpenDeepLink
+
+    UCTrack --> UCGEOFence
+    UCTrack --> UCHistory
+```
+
+```mermaid
+flowchart LR
+    Owner[Chủ điểm / Owner]
+    Admin[Admin]
+
+    UCPoiListen((Ghi nhận lượt nghe))
+    UCTopPOI((Xem top POI))
+    UCAvgListen((Xem thời gian nghe trung bình))
+    UCHeatmap((Xem heatmap))
+    UCOwnerSummary((Xem thống kê của owner))
+    UCOwnerMovement((Xem lịch sử di chuyển))
+    UCAdminSummary((Xem thống kê admin))
+    UCDailyListens((Xem lượt nghe theo ngày))
+    UCReadOwnerNoti((Đọc thông báo owner))
+    UCReadAdminNoti((Đọc thông báo admin))
+    UCReadActivity((Xem activity logs))
+    UCSetGeofence((Cấu hình geofence))
+    UCLockUser((Khóa / mở khóa tài khoản))
+    UCFindUser((Tìm user theo username))
+
+    Owner --> UCTopPOI
+    Owner --> UCAvgListen
+    Owner --> UCHeatmap
+    Owner --> UCOwnerSummary
+    Owner --> UCOwnerMovement
+    Owner --> UCReadOwnerNoti
+
+    Admin --> UCAdminSummary
+    Admin --> UCDailyListens
+    Admin --> UCReadAdminNoti
+    Admin --> UCReadActivity
+    Admin --> UCSetGeofence
+    Admin --> UCLockUser
+    Admin --> UCFindUser
+
+    UCPoiListen --> UCTopPOI
+```
+
+Tóm tắt chức năng
+
+- Xác thực và quản lý tài khoản: Admin đăng ký tài khoản, đăng nhập, xem/cập nhật user, đổi mật khẩu, khóa tài khoản, tìm user theo username. Người dùng di động mở app là dùng ngay.
+- Vòng đời POI: tạo, cập nhật, xóa, xem chi tiết, duyệt POI chờ duyệt, phê duyệt hoặc từ chối POI, cấu hình geofence.
+- Media và TTS: tải lên ảnh hoặc audio, tạo hoặc upload script, xem trước TTS, lưu TTS, xóa asset.
+- Dịch thuật: tạo và lấy bản dịch POI và tour, hỗ trợ nội dung theo ngôn ngữ.
+- Tour: danh sách tour, xem chi tiết tour, tạo và xóa tour, hỗ trợ xem tour trên mobile.
+- Tracking và geofence: gửi log vị trí, phát hiện đi vào vùng geofence, xem lịch sử, dọn dữ liệu cũ.
+- QR và deep link: tạo QR code cho POI và mở landing page deep link.
+- Thống kê: log lượt nghe, top POI, thời gian nghe trung bình, heatmap, thống kê của owner, lịch sử di chuyển, thống kê admin.
+- Thông báo và audit: đọc thông báo cho owner/admin, xem activity logs.

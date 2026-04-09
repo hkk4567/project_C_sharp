@@ -71,4 +71,25 @@
   <data name="StopCountFormat" xml:space="preserve"><value>地点 {0}/{1}</value></data>
   <data name="BadgeStart" xml:space="preserve"><value>🚩 出発</value></data>
   <data name="BadgeEnd" xml:space="preserve"><value>🏁 終点</value></data>
+  <data name="StatusLoadingRoute" xml:space="preserve">
+    <value>🗺️ ルートを読み込み中...</value>
+  </data>
+  <data name="StatusTourCompleted" xml:space="preserve">
+    <value>🎉 ツアーをすべて完了しました！</value>
+  </data>
+  <data name="SuffixVisited" xml:space="preserve">
+    <value> (到着済)</value>
+  </data>
+  <data name="RouteLatest" xml:space="preserve">
+    <value>🗺️ 最新のルート</value>
+  </data>
+  <data name="RouteCached" xml:space="preserve">
+    <value>🗺️ キャッシュされたルート</value>
+  </data>
+  <data name="RouteOfflineCached" xml:space="preserve">
+    <value>📵 オフライン — 保存されたルートを使用中</value>
+  </data>
+  <data name="RouteOfflineStraight" xml:space="preserve">
+    <value>⚠️ オフライン — キャッシュなし、直線を表示中</value>
+  </data>
 </root>

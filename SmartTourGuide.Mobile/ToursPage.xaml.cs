@@ -13,7 +13,7 @@ public partial class ToursPage : ContentPage
 {
     private readonly PoiApiService _apiService;
     private readonly MainPage _mainPage;
-    private const string BaseApiUrl = "https://2tlcgj8k-7058.asse.devtunnels.ms";
+    private const string BaseApiUrl = "https://6b5j1b5h-7058.asse.devtunnels.ms";
 
     private bool _isBusy = false;
     private string _currentLanguageCode = "vi-VN";

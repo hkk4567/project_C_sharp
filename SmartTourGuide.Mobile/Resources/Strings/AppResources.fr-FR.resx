@@ -71,4 +71,25 @@
   <data name="StopCountFormat" xml:space="preserve"><value>Étape {0}/{1}</value></data>
   <data name="BadgeStart" xml:space="preserve"><value>🚩 Départ</value></data>
   <data name="BadgeEnd" xml:space="preserve"><value>🏁 Fin</value></data>
+  <data name="StatusLoadingRoute" xml:space="preserve">
+    <value>🗺️ Chargement de l'itinéraire...</value>
+  </data>
+  <data name="StatusTourCompleted" xml:space="preserve">
+    <value>🎉 Vous avez terminé la visite complète !</value>
+  </data>
+  <data name="SuffixVisited" xml:space="preserve">
+    <value> (Visité)</value>
+  </data>
+  <data name="RouteLatest" xml:space="preserve">
+    <value>🗺️ Itinéraire le plus récent</value>
+  </data>
+  <data name="RouteCached" xml:space="preserve">
+    <value>🗺️ Itinéraire en cache</value>
+  </data>
+  <data name="RouteOfflineCached" xml:space="preserve">
+    <value>📵 Hors ligne — utilisation de l'itinéraire sauvegardé</value>
+  </data>
+  <data name="RouteOfflineStraight" xml:space="preserve">
+    <value>⚠️ Hors ligne — aucun cache, affichage en ligne droite</value>
+  </data>
 </root>

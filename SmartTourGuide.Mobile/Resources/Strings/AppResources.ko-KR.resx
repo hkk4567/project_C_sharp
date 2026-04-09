@@ -71,4 +71,25 @@
   <data name="StopCountFormat" xml:space="preserve"><value>정류장 {0}/{1}</value></data>
   <data name="BadgeStart" xml:space="preserve"><value>🚩 출발</value></data>
   <data name="BadgeEnd" xml:space="preserve"><value>🏁 종료</value></data>
+  <data name="StatusLoadingRoute" xml:space="preserve">
+    <value>🗺️ 경로를 불러오는 중...</value>
+  </data>
+  <data name="StatusTourCompleted" xml:space="preserve">
+    <value>🎉 투어를 모두 완료했습니다!</value>
+  </data>
+  <data name="SuffixVisited" xml:space="preserve">
+    <value> (도착함)</value>
+  </data>
+  <data name="RouteLatest" xml:space="preserve">
+    <value>🗺️ 최신 경로</value>
+  </data>
+  <data name="RouteCached" xml:space="preserve">
+    <value>🗺️ 캐시된 경로</value>
+  </data>
+  <data name="RouteOfflineCached" xml:space="preserve">
+    <value>📵 오프라인 — 저장된 경로 사용 중</value>
+  </data>
+  <data name="RouteOfflineStraight" xml:space="preserve">
+    <value>⚠️ 오프라인 — 캐시 없음, 직선 표시 중</value>
+  </data>
 </root>

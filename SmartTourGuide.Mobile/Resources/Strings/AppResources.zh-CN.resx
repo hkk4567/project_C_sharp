@@ -71,4 +71,25 @@
   <data name="StopCountFormat" xml:space="preserve"><value>站点 {0}/{1}</value></data>
   <data name="BadgeStart" xml:space="preserve"><value>🚩 出发</value></data>
   <data name="BadgeEnd" xml:space="preserve"><value>🏁 终点</value></data>
+  <data name="StatusLoadingRoute" xml:space="preserve">
+    <value>🗺️ 正在加载路线...</value>
+  </data>
+  <data name="StatusTourCompleted" xml:space="preserve">
+    <value>🎉 您已完成整个行程！</value>
+  </data>
+  <data name="SuffixVisited" xml:space="preserve">
+    <value> (已到达)</value>
+  </data>
+  <data name="RouteLatest" xml:space="preserve">
+    <value>🗺️ 最新路线</value>
+  </data>
+  <data name="RouteCached" xml:space="preserve">
+    <value>🗺️ 缓存路线</value>
+  </data>
+  <data name="RouteOfflineCached" xml:space="preserve">
+    <value>📵 离线 — 使用已保存的路线</value>
+  </data>
+  <data name="RouteOfflineStraight" xml:space="preserve">
+    <value>⚠️ 离线 — 无缓存，显示直线</value>
+  </data>
 </root>

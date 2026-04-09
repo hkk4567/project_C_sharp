@@ -21,7 +21,7 @@ namespace SmartTourGuide.Mobile.Platforms.Android;
     new[] { Intent.ActionView },
     Categories = new[] { Intent.CategoryDefault, Intent.CategoryBrowsable },
     DataScheme = "https",
-    DataHost = "2tlcgj8k-7058.asse.devtunnels.ms",
+    DataHost = "6b5j1b5h-7058.asse.devtunnels.ms",
     DataPathPrefix = "/poi/",
     AutoVerify = true)]
 

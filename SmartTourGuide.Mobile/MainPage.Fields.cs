@@ -4,7 +4,7 @@ public partial class MainPage : ContentPage
 {
     private readonly PoiApiService _apiService;
     private MemoryLayer _geofenceLayer;
-    private const string BaseApiUrl = "https://2tlcgj8k-7058.asse.devtunnels.ms";
+    private const string BaseApiUrl = "https://6b5j1b5h-7058.asse.devtunnels.ms";
 
     // ── AUDIO CƠ BẢN ────────────────────────────────────────────────────────
     private IAudioPlayer? _audioPlayer;
@@ -65,6 +65,7 @@ public partial class MainPage : ContentPage
 
     // ID ẩn danh định danh thiết bị — sinh 1 lần, lưu vĩnh viễn
     // Không cần đăng nhập, mỗi điện thoại có 1 ID riêng để phân biệt khi thống kê nghe POI
+    private readonly HashSet<int> _visitedTourPoiIds = new();
     private string _deviceId = GetOrCreateDeviceId();
 
     /// <summary>
