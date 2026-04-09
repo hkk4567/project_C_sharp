@@ -137,6 +137,8 @@ public partial class MainPage
                 int displayIdx = i + 1;
                 int total = urls.Count;
                 var fileStartTime = DateTime.Now;
+                _playStartTime = fileStartTime;
+                _currentAudioPoiId = poi.Id;
 
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
