@@ -32,6 +32,7 @@ public partial class ToursPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        var localDb = new LocalDatabase();
         try
         {
             List<TourModel> tours;
@@ -42,7 +43,6 @@ public partial class ToursPage : ContentPage
             }
             else
             {
-                var localDb = new LocalDatabase();
                 tours = await localDb.GetToursAsync();
             }
 
@@ -72,7 +72,6 @@ public partial class ToursPage : ContentPage
             // Mạng lỗi → thử offline fallback
             try
             {
-                var localDb = new LocalDatabase();
                 var offlineTours = await localDb.GetToursAsync();
                 if (offlineTours.Any())
                 {

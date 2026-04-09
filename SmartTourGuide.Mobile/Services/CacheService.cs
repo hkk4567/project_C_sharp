@@ -102,11 +102,12 @@ public class CacheService
                                        CancellationToken ct = default)
     {
         // Hủy đợt tải trước (nếu có) trước khi bắt đầu đợt mới
-        var oldCts = Interlocked.Exchange(ref _precacheCts, new CancellationTokenSource());
+        var newCts = new CancellationTokenSource();
+        var oldCts = Interlocked.Exchange(ref _precacheCts, newCts);
         oldCts?.Cancel();
         oldCts?.Dispose();
 
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_precacheCts!.Token, ct);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(newCts.Token, ct);
         var linkedToken = linkedCts.Token;
         // Thu thập tất cả URL cần download
         var tasks = new List<(string url, string type)>();

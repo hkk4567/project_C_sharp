@@ -108,8 +108,7 @@ public class LocalDatabase
         await _db!.RunInTransactionAsync(conn =>
         {
             conn.DeleteAll<TourLocalModel>();
-            foreach (var local in locals)
-                conn.Insert(local);
+            conn.InsertAll(locals);
         });
     }
 
