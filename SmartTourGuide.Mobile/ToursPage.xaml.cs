@@ -34,7 +34,17 @@ public partial class ToursPage : ContentPage
         base.OnAppearing();
         try
         {
-            var tours = await _apiService.GetToursAsync();
+            List<TourModel> tours;
+
+            if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
+            {
+                tours = await _apiService.GetToursAsync();
+            }
+            else
+            {
+                var localDb = new LocalDatabase();
+                tours = await localDb.GetToursAsync();
+            }
 
             if (tours == null || !tours.Any())
             {
@@ -57,11 +67,31 @@ public partial class ToursPage : ContentPage
             cvTours.ItemsSource = tours;
             cvTours.IsVisible = true;
         }
-        catch (HttpRequestException ex)
+        catch (HttpRequestException)
         {
-            await DisplayAlertAsync(AppResources.ConnectionError,
-                AppResources.ConnectionErrorMessage,
-                $"Lỗi/error: {ex.Message}", AppResources.RetryButton);
+            // Mạng lỗi → thử offline fallback
+            try
+            {
+                var localDb = new LocalDatabase();
+                var offlineTours = await localDb.GetToursAsync();
+                if (offlineTours.Any())
+                {
+                    cvTours.ItemsSource = offlineTours;
+                    cvTours.IsVisible = true;
+                }
+                else
+                {
+                    await DisplayAlertAsync(AppResources.AlertInfo,
+                        AppResources.NoToursAvailable, AppResources.OkButton);
+                    cvTours.ItemsSource = null;
+                }
+            }
+            catch (Exception exFallback)
+            {
+                await DisplayAlertAsync(AppResources.ConnectionError,
+                    AppResources.ConnectionErrorMessage,
+                    $"Lỗi/error: {exFallback.Message}", AppResources.RetryButton);
+            }
         }
         catch (Exception ex)
         {

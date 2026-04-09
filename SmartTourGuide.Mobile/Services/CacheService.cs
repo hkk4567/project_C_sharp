@@ -13,6 +13,8 @@ public class CacheService
     private readonly string _imgDir;
     private readonly string _audioDir;
 
+    private CancellationTokenSource? _precacheCts;
+
     public event Action<int, int>? ProgressChanged; // (done, total)
 
     public CacheService()
@@ -99,6 +101,13 @@ public class CacheService
     public async Task PreCacheAllAsync(List<PoiModel> pois, string baseApiUrl,
                                        CancellationToken ct = default)
     {
+        // Hủy đợt tải trước (nếu có) trước khi bắt đầu đợt mới
+        var oldCts = Interlocked.Exchange(ref _precacheCts, new CancellationTokenSource());
+        oldCts?.Cancel();
+        oldCts?.Dispose();
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_precacheCts!.Token, ct);
+        var linkedToken = linkedCts.Token;
         // Thu thập tất cả URL cần download
         var tasks = new List<(string url, string type)>();
 
@@ -121,9 +130,10 @@ public class CacheService
 
         var downloads = tasks.Select(async t =>
         {
-            await semaphore.WaitAsync(ct);
+            await semaphore.WaitAsync(linkedToken);
             try
             {
+                linkedToken.ThrowIfCancellationRequested();
                 if (t.type == "img")
                     await GetLocalImagePathAsync(t.url);
                 else
@@ -132,13 +142,15 @@ public class CacheService
                 Interlocked.Increment(ref done);
                 ProgressChanged?.Invoke(done, total);
             }
+            catch (OperationCanceledException) { /* đợt tải bị hủy, bỏ qua */ }
             finally
             {
                 semaphore.Release();
             }
         });
 
-        await Task.WhenAll(downloads);
+        try { await Task.WhenAll(downloads); }
+        catch (OperationCanceledException) { /* đợt tải bị hủy bởi sync mới */ }
     }
 
     // ── MAP TILE ──────────────────────────────────────────────────────────────

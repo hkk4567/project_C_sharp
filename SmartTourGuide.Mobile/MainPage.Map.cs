@@ -285,8 +285,10 @@ public partial class MainPage
                 var allWaypoints = new List<MauiLocation.Location> { tourStart };
                 allWaypoints.AddRange(remainingPois.Select(p => new MauiLocation.Location(p.Latitude, p.Longitude)));
 
+                // Chỉ dùng tọa độ POI (không có vị trí user) để tạo cache key ổn định
+                var poisOnly = remainingPois.Select(p => new MauiLocation.Location(p.Latitude, p.Longitude)).ToList();
                 SetStatus("🗺️ Đang tải tuyến đường...", priority: 2, force: true);
-                var routeResult = await _routeService.GetRoadRouteAsync(allWaypoints, allWaypoints);
+                var routeResult = await _routeService.GetRoadRouteAsync(allWaypoints, poisOnly);
 
                 if (routeResult.Points.Count > 1)
                     mapView.Map.Layers.Add(CreateTourRouteLayer(routeResult.Points, routeResult.Source));
@@ -296,6 +298,9 @@ public partial class MainPage
             else
             {
                 SetStatus("🎉 Bạn đã hoàn thành toàn bộ Tour!", priority: 2, force: true, autoRevertMs: 5000);
+                // Tự động thoát chế độ Tour để ngăn thông báo lặp lại mỗi 15m
+                _currentTour = null;
+                ClearMapLayers("TourRoute");
             }
 
             // ── 3. VẼ LÊN BẢN ĐỒ ──────────────────────────────────────────

@@ -96,6 +96,18 @@ public partial class MainPage
 
             // Lưu vào SQLite
             await _localDb.SavePoisAsync(pois);
+
+            // Lưu Tours vào SQLite
+            try
+            {
+                var tours = await _apiService.GetToursAsync();
+                await _localDb.SaveToursAsync(tours);
+            }
+            catch (Exception exTour)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Online] Lỗi cache tour: {exTour.Message}");
+            }
+
             await _localDb.UpdateSyncTimeAsync();
 
             // Cập nhật UI
@@ -172,6 +184,18 @@ public partial class MainPage
 
             var pois = await _apiService.GetPoisAsync(_currentLanguageCode);
             await _localDb.SavePoisAsync(pois);
+
+            // Sync Tours
+            try
+            {
+                var tours = await _apiService.GetToursAsync();
+                await _localDb.SaveToursAsync(tours);
+            }
+            catch (Exception exTour)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Sync] Lỗi sync tour: {exTour.Message}");
+            }
+
             await _localDb.UpdateSyncTimeAsync();
 
             RenderPoisOnMap(pois);

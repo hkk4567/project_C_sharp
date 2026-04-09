@@ -91,6 +91,49 @@ public class LocalDatabase
         return await _db!.Table<PoiLocalModel>().CountAsync() > 0;
     }
 
+    // ── TOUR ──────────────────────────────────────────────────────────────────
+    public async Task SaveToursAsync(List<TourModel> tours)
+    {
+        await InitAsync();
+
+        var locals = tours.Select(t => new TourLocalModel
+        {
+            Id          = t.Id,
+            Name        = t.Name ?? "",
+            Description = t.Description ?? "",
+            PoisJson    = JsonSerializer.Serialize(t.Pois ?? new()),
+            CachedAt    = DateTime.UtcNow
+        }).ToList();
+
+        await _db!.RunInTransactionAsync(conn =>
+        {
+            conn.DeleteAll<TourLocalModel>();
+            foreach (var local in locals)
+                conn.Insert(local);
+        });
+    }
+
+    public async Task<List<TourModel>> GetToursAsync()
+    {
+        await InitAsync();
+
+        var locals = await _db!.Table<TourLocalModel>().ToListAsync();
+
+        return locals.Select(l => new TourModel
+        {
+            Id          = l.Id,
+            Name        = l.Name,
+            Description = l.Description,
+            Pois        = JsonSerializer.Deserialize<List<TourDetailModel>>(l.PoisJson ?? "[]") ?? new(),
+        }).ToList();
+    }
+
+    public async Task<bool> HasCachedToursAsync()
+    {
+        await InitAsync();
+        return await _db!.Table<TourLocalModel>().CountAsync() > 0;
+    }
+
     // ── SYNC METADATA ────────────────────────────────────────────────────────
     public async Task<DateTime?> GetLastSyncTimeAsync()
     {
