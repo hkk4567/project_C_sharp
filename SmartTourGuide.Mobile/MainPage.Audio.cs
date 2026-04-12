@@ -2,6 +2,7 @@ using Plugin.Maui.Audio;
 
 namespace SmartTourGuide.Mobile;
 
+// File này quản lý toàn bộ luồng âm thanh: phát, dừng, TTS, cache và ghi log lượt nghe.
 public partial class MainPage
 {
     // OnPlayAudioClicked, PlayAudioQueueAsync, PlayRemoteAudioAndWaitAsync
@@ -13,9 +14,7 @@ public partial class MainPage
         if (_isPlaying) { StopAudio(); return; }
         if (_currentSelectedPoi == null) return;
 
-        // ✅ FIX: allowReuseCurrent: false → luôn tạo session ID mới mỗi lần nhấn nút.
-        // Trước đây dùng true → lần nghe thứ 2 cùng POI REUSE Guid cũ → server-side dedup
-        // (ConcurrentDictionary, 15 phút) thấy SessionId đã tồn tại → return sớm, KHÔNG ghi log.
+        // Luôn tạo session ID mới cho lần bấm thủ công để tránh bị server dedup nhầm.
         PrepareListenSession(_currentSelectedPoi.Id, allowReuseCurrent: false);
 
         _isPlaying = true;
@@ -53,11 +52,10 @@ public partial class MainPage
 
         if (!_poiAudioIndex.TryGetValue(poi.Id, out int startIndex) || startIndex >= urls.Count)
             startIndex = 0;
-        // Ghi lại thời điểm bắt đầu phát
-        // Dùng để tính tổng thời gian nghe khi dừng hoặc hết audio
+        // Ghi nhận thời điểm bắt đầu để tính tổng thời gian nghe.
         var playStartTime = DateTime.Now;
         _playStartTime = playStartTime;
-        _currentAudioPoiId = poi.Id; // ✅ Lưu POI ID hiện tại
+        _currentAudioPoiId = poi.Id; // Lưu POI đang phát
         PrepareListenSession(poi.Id, allowReuseCurrent: true);
 
         for (int i = startIndex; i < urls.Count; i++)
@@ -65,7 +63,7 @@ public partial class MainPage
             if (ct.IsCancellationRequested)
             {
                 _poiAudioIndex[poi.Id] = i;
-                // ✅ LOG KHI USER CANCEL/STOP GIỮA CHỪNG VÀ KHI RỜI VÙNG
+                // Ghi log khi người dùng dừng giữa chừng hoặc rời vùng.
                 await LogAudioPlaybackAsync(poi.Id, playStartTime);
                 return;
             }
@@ -90,7 +88,7 @@ public partial class MainPage
             {
                 int nextIdx = i + 1;
                 _poiAudioIndex[poi.Id] = nextIdx < urls.Count ? nextIdx : 0;
-                // ✅ LOG KHI USER DỪNG 1 AUDIO (không phải hết hàng)
+                // Ghi log khi dừng một track trong hàng đợi.
                 await LogAudioPlaybackAsync(poi.Id, playStartTime);
                 return;
             }
@@ -104,7 +102,7 @@ public partial class MainPage
         // Phát hết toàn bộ → reset về 0
         _poiAudioIndex[poi.Id] = 0;
         await LogAudioPlaybackAsync(poi.Id, playStartTime);
-        _currentAudioPoiId = 0; // ✅ Reset POI ID
+        _currentAudioPoiId = 0; // Reset POI hiện tại
         _isPlaying = false;
         int played = urls.Count;
         MainThread.BeginInvokeOnMainThread(() =>
@@ -162,7 +160,7 @@ public partial class MainPage
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  LOG AUDIO PLAYBACK (GỌI KHI STOP/CANCEL)
+    //  GHI LOG LƯỢT NGHE (KHI DỪNG/CANCEL)
     // ════════════════════════════════════════════════════════════════════════
     /// <summary>
     /// Ghi lại listen event khi user:
@@ -170,7 +168,7 @@ public partial class MainPage
     /// - Rời vùng POI lúc đang nghe (cancel token)
     /// - Dừng 1 audio trong queue (OperationCanceledException)
     /// 
-    /// Fire-and-forget — không block UI, lỗi mạng được lieca.
+    /// Fire-and-forget: không chặn UI, lỗi mạng chỉ ghi log debug.
     /// </summary>
     private async Task LogAudioPlaybackAsync(int poiId, DateTime startTime)
     {
@@ -180,18 +178,18 @@ public partial class MainPage
                 return;
 
             var durationSec = (int)(DateTime.Now - startTime).TotalSeconds;
-            if (durationSec < 1) return; // Lọc bấm nhầm (< 1 giây)
+            if (durationSec < 1) return; // Bỏ qua thao tác chạm nhầm
 
             if (_isGeofenceVisitActive)
                 _loggedPoisInCurrentGeofenceVisit.Add(poiId);
 
-            // Không await — fire and forget
+            // Không await để không làm chậm UI.
             _ = _apiService.LogPoiListenAsync(poiId, durationSec, _deviceId, _currentListenSessionId);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[Log Playback] Lỗi: {ex.Message}");
-            // Không throw — log lỗi xong và tiếp tục
+            // Không throw để tránh làm gián đoạn trải nghiệm nghe.
         }
     }
 
@@ -206,7 +204,7 @@ public partial class MainPage
 
     // PauseForInterruption, ResumeFromInterruption
     // ════════════════════════════════════════════════════════════════════════
-    //  TẠMM DỪNG / TIẾP TỤC KHI CÓ CUỘC GỌI / APP VÀO BACKGROUND
+    //  TẠM DỪNG / TIẾP TỤC KHI CÓ CUỘC GỌI HOẶC APP VÀO NỀN
     // ════════════════════════════════════════════════════════════════════════
     private void PauseForInterruption()
     {
@@ -226,7 +224,7 @@ public partial class MainPage
     }
     // PreWarmAudioAsync, CreateSilenceWav, FadeInVolumeAsync
     // ════════════════════════════════════════════════════════════════════════
-    //  PRE-WARM AUDIO PIPELINE
+    //  LÀM NÓNG PIPELINE ÂM THANH
     // ════════════════════════════════════════════════════════════════════════
     private async Task PreWarmAudioAsync()
     {
@@ -286,7 +284,7 @@ public partial class MainPage
     }
     // GetLocalAudioPathAsync, SpeakDescription, StopAudio
     // ════════════════════════════════════════════════════════════════════════
-    //  CACHE AUDIO
+    //  BỘ NHỚ ĐỆM AUDIO
     // ════════════════════════════════════════════════════════════════════════
     private async Task<string?> GetLocalAudioPathAsync(string url)
     {
@@ -364,7 +362,7 @@ public partial class MainPage
         }
     }
     // ════════════════════════════════════════════════════════════════════════
-    //  DỪNG TẤT CẢ
+    //  DỪNG TOÀN BỘ ÂM THANH
     // ════════════════════════════════════════════════════════════════════════
     private void StopAudio()
     {

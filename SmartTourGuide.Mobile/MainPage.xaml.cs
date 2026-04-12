@@ -2,10 +2,17 @@
 
 namespace SmartTourGuide.Mobile;
 
+// Mục đích file:
+// - Điều phối khởi tạo MainPage và gắn các event chính.
+// - Quản lý vòng đời trang (OnAppearing/OnDisappearing).
+// - Xử lý ngôn ngữ, quyền vị trí, GPS khởi tạo và các thao tác map cơ bản.
+// - Liên kết giữa UI MainPage.xaml và các module partial khác (Audio/Map/Offline/Search/Geofence).
 public partial class MainPage : ContentPage
 {
+    // Mỗi ngôn ngữ gồm mã, tên hiển thị, nhãn picker và emoji cờ.
     private readonly record struct LanguageOption(string Code, string DisplayName, string PickerLabel, string FlagEmoji);
 
+    // Danh sách ngôn ngữ được hỗ trợ trên giao diện.
     private static readonly IReadOnlyList<LanguageOption> SupportedLanguages = new[]
     {
         new LanguageOption("vi-VN", "Tiếng Việt", "🇻🇳 Tiếng Việt", "🇻🇳"),
@@ -21,18 +28,22 @@ public partial class MainPage : ContentPage
     // ════════════════════════════════════════════════════════════════════════
     public MainPage()
     {
+        // 1) Khôi phục ngôn ngữ đã lưu và áp dụng cho tài nguyên hiện tại.
         _currentLanguageCode = Preferences.Get("AppLanguage", "vi-VN");
         SetAppLanguage(_currentLanguageCode);
 
+        // 2) Khởi tạo XAML và setup các phần UI phụ thuộc ngôn ngữ.
         InitializeComponent();
         UpdateLocalizedPoiDetailTexts();
         InitializePoiSearchUi();
 
+        // 3) Đăng ký message cho vòng đời app (sleep/resume).
         WeakReferenceMessenger.Default.Register<AppSleepMessage>(this,
             (r, m) => PauseForInterruption());
         WeakReferenceMessenger.Default.Register<AppResumeMessage>(this,
             (r, m) => ResumeFromInterruption());
 
+        // 4) Nhận message chọn tour và render tour trên map.
         WeakReferenceMessenger.Default.Register<SelectTourMessage>(this, (r, m) =>
         {
             var tourDetail = m.Value;
@@ -43,15 +54,18 @@ public partial class MainPage : ContentPage
             });
         });
 
+        // 5) Khởi tạo service và đồng bộ trạng thái nút ngôn ngữ.
         _apiService = new PoiApiService();
         UpdateLanguageButtonUI();
 
+        // 6) Khởi tạo bản đồ nền OSM và layer geofence mặc định.
         var map = new Mapsui.Map();
         map.Layers.Add(OpenStreetMap.CreateTileLayer());
 
         _geofenceLayer = new MemoryLayer { Name = "Geofences", Style = null };
         map.Layers.Add(_geofenceLayer);
 
+        // 7) Gắn map vào control và đăng ký các sự kiện tương tác map.
         mapView.Map = map;
         Mapsui.Logging.Logger.LogDelegate = (level, message, ex) =>
             System.Diagnostics.Debug.WriteLine($"[Mapsui] {message}");
@@ -59,6 +73,8 @@ public partial class MainPage : ContentPage
         mapView.PinClicked += OnPinClicked;
         mapView.MapClicked += OnMapClicked_SimulateWalk;
         mapView.MyLocationLayer.Enabled = true;
+
+        // 8) Theo dõi thay đổi kết nối để bật/tắt offline mode.
         RegisterConnectivityChanged();
     }
 
@@ -68,13 +84,17 @@ public partial class MainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+
+        // 1) Kích hoạt luồng deep link và đảm bảo đủ quyền cần thiết.
         RegisterDeepLinkHandler();
         await CheckPermissions();
         await PreWarmAudioAsync();
 
+        // 2) Lấy vị trí ban đầu nếu không ở chế độ giả lập.
         if (!_isManualLocationOverride)
             await LoadCurrentLocation();
 
+        // 3) Tải POI theo chiến lược online/offline.
         await LoadPoisWithOfflineFallbackAsync();
         RegisterConnectivityChanged();
 
@@ -97,6 +117,7 @@ public partial class MainPage : ContentPage
             _geofenceTimer.Start();
         }
 
+        // 4) Xử lý deep link chờ sẵn (cold start).
         if (App.PendingDeepLinkPoiId.HasValue)
         {
             int poiId = App.PendingDeepLinkPoiId.Value;
@@ -110,6 +131,8 @@ public partial class MainPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
+
+        // Hủy đăng ký deep link khi rời trang.
         UnregisterDeepLinkHandler();
 
         // Dừng GPS khi rời trang để tiết kiệm pin
@@ -121,6 +144,7 @@ public partial class MainPage : ContentPage
     // ════════════════════════════════════════════════════════════════════════
     private void SetAppLanguage(string langCode)
     {
+        // Áp dụng culture cho thread hiện tại và mặc định toàn app.
         var culture = new System.Globalization.CultureInfo(langCode);
         Thread.CurrentThread.CurrentCulture = culture;
         Thread.CurrentThread.CurrentUICulture = culture;
@@ -134,22 +158,28 @@ public partial class MainPage : ContentPage
 
     private void UpdateLocalizedPoiDetailTexts()
     {
+        // Đồng bộ text tĩnh trong popup POI theo resource hiện tại.
         if (lblPoiDetailTitle != null) lblPoiDetailTitle.Text = AppResources.PoiDetailTitle;
         if (lblDescriptionHeader != null) lblDescriptionHeader.Text = AppResources.PoiDescriptionLabel;
     }
 
     private async void OnChangeLanguageClicked(object? sender, EventArgs e)
     {
+        // 1) Dừng audio hiện tại trước khi đổi ngôn ngữ để tránh trạng thái lỡ dở.
         StopAudio();
+
+        // 2) Mở action sheet để người dùng chọn ngôn ngữ.
         string action = await DisplayActionSheetAsync(
             "Chọn ngôn ngữ / Select Language", "Hủy/Cancel", null,
             SupportedLanguages.Select(x => x.PickerLabel).ToArray());
 
+        // 3) Xác định mã ngôn ngữ được chọn.
         string selectedCode = _currentLanguageCode;
         var selected = SupportedLanguages.FirstOrDefault(x => x.PickerLabel == action);
         if (!string.IsNullOrWhiteSpace(selected.Code))
             selectedCode = selected.Code;
 
+        // 4) Nếu có thay đổi thật thì lưu setting và khởi tạo lại MainPage.
         if (selectedCode != _currentLanguageCode &&
             action != "Hủy/Cancel" && !string.IsNullOrEmpty(action))
         {
@@ -168,6 +198,7 @@ public partial class MainPage : ContentPage
 
     private static LanguageOption GetLanguageOption(string langCode)
     {
+        // Trả về ngôn ngữ tương ứng, fallback về phần tử đầu nếu không tìm thấy.
         var opt = SupportedLanguages.FirstOrDefault(x => x.Code == langCode);
         return string.IsNullOrWhiteSpace(opt.Code) ? SupportedLanguages[0] : opt;
     }
@@ -177,6 +208,7 @@ public partial class MainPage : ContentPage
     // ════════════════════════════════════════════════════════════════════════
     private async Task CheckPermissions()
     {
+        // Kiểm tra quyền vị trí và yêu cầu nếu chưa được cấp.
         var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
         if (status != PermissionStatus.Granted)
             await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
@@ -184,6 +216,7 @@ public partial class MainPage : ContentPage
 
     private void MoveMapToDefaultLocation(double resolution = 2)
     {
+        // Fallback camera khi chưa lấy được GPS: đưa về tọa độ mặc định.
         var smc = SphericalMercator.FromLonLat(DefaultLon, DefaultLat);
         var mPoint = new MPoint(smc.x, smc.y);
         MainThread.BeginInvokeOnMainThread(() =>
@@ -198,8 +231,10 @@ public partial class MainPage : ContentPage
     {
         try
         {
+            // 1) Tạo object vị trí mới từ tọa độ hiện tại.
             var currentLocation = new MauiLocation.Location(latitude, longitude);
 
+            // 2) Throttle theo thời gian và khoảng cách để giảm tần suất gửi server.
             if (_lastReportedLocation != null)
             {
                 var elapsed = DateTime.UtcNow - _lastReportedLocationAt;
@@ -211,9 +246,11 @@ public partial class MainPage : ContentPage
                     return;
             }
 
+            // 3) Dùng lock không chờ để tránh gửi chồng request vị trí.
             if (!await _locationSendLock.WaitAsync(0)) return;
             try
             {
+                // 4) Cập nhật mốc vị trí gần nhất và gửi bất đồng bộ.
                 _lastReportedLocation = currentLocation;
                 _lastReportedLocationAt = DateTime.UtcNow;
                 _ = _apiService.SendLocationAsync(latitude, longitude, _deviceId);
@@ -231,11 +268,13 @@ public partial class MainPage : ContentPage
     {
         try
         {
+            // 1) Lấy GPS tại thời điểm mở app để center lần đầu.
             var location = await Geolocation.GetLocationAsync(
                 new GeolocationRequest(GeolocationAccuracy.Best, TimeSpan.FromSeconds(15)));
 
             if (location != null)
             {
+                // 2) Cập nhật vị trí cục bộ và camera map.
                 _currentUserLocation = location;
                 var smc = SphericalMercator.FromLonLat(location.Longitude, location.Latitude);
                 var mPoint = new MPoint(smc.x, smc.y);
@@ -247,6 +286,7 @@ public partial class MainPage : ContentPage
                     mapView.Map?.Navigator.CenterOnAndZoomTo(mPoint, 1.5, duration: 500);
                 });
 
+                // 3) Gửi vị trí đầu tiên lên server (nếu vượt throttle).
                 await SendLocationIfNeededAsync(location.Latitude, location.Longitude);
                 System.Diagnostics.Debug.WriteLine(
                     $"✅ GPS khởi tạo: {location.Latitude:F5}, {location.Longitude:F5}");
@@ -258,11 +298,13 @@ public partial class MainPage : ContentPage
             System.Diagnostics.Debug.WriteLine($"❌ GPS lỗi lúc khởi tạo: {ex.Message}");
         }
 
+        // 4) Nếu thất bại thì quay về tọa độ mặc định.
         MoveMapToDefaultLocation(resolution: 2);
     }
 
     private async void OnCenterMyLocationClicked(object? sender, EventArgs e)
     {
+        // 1) Hiệu ứng nhấn nút ngắn để phản hồi thao tác.
         if (sender is View view)
         {
             await view.ScaleToAsync(0.9, 100, Easing.CubicOut);
@@ -271,6 +313,7 @@ public partial class MainPage : ContentPage
 
         _isManualLocationOverride = false; // Thoát chế độ giả lập
 
+        // 2) Center bản đồ về vị trí hiện tại của người dùng.
         var current = _currentUserLocation;
         var smc = SphericalMercator.FromLonLat(current.Longitude, current.Latitude);
         var mPoint = new MPoint(smc.x, smc.y);
@@ -285,6 +328,7 @@ public partial class MainPage : ContentPage
 
     private void ClearMapLayers(params string[] layerNames)
     {
+        // Xóa các layer theo tên để tránh trùng lớp khi vẽ lại.
         var layersToRemove = mapView.Map.Layers.Where(l => layerNames.Contains(l.Name)).ToList();
         foreach (var layer in layersToRemove)
         {
@@ -294,6 +338,7 @@ public partial class MainPage : ContentPage
 
     private async void OnReloadClicked(object? sender, EventArgs e)
     {
+        // Reset chế độ tour và tải lại dữ liệu POI theo online/offline hiện tại.
         TourInfoPanel.IsVisible = false;
         ClearMapLayers("TourRoute");
         _currentTour = null;
@@ -303,15 +348,18 @@ public partial class MainPage : ContentPage
 
     private void OnPinClicked(object? sender, PinClickedEventArgs e)
     {
+        // Click pin POI -> mở popup chi tiết.
         if (e.Pin?.Tag is PoiModel poi) { ShowPoiDetail(poi); e.Handled = true; }
     }
 
     private void OnClosePopupClicked(object? sender, EventArgs e)
     {
+        // Đóng popup chi tiết và dừng audio đang phát (nếu có).
         StopAudio();
         DetailPopup.IsVisible = false;
     }
 
     private async void OnShowToursClicked(object? sender, EventArgs e)
+        // Mở trang danh sách tour ở dạng modal.
         => await Navigation.PushModalAsync(new ToursPage(this));
 }

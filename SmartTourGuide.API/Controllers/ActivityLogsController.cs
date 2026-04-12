@@ -18,6 +18,8 @@ namespace SmartTourGuide.API.Controllers;
 [ApiController]
 public class ActivityLogsController : ControllerBase
 {
+    private const int MaxPageSize = 100;
+
     // DbContext dùng để truy vấn bảng ActivityLogs.
     private readonly AppDbContext _context;
 
@@ -28,14 +30,16 @@ public class ActivityLogsController : ControllerBase
 
     // API lấy danh sách nhật ký hoạt động, hỗ trợ lọc theo loại, người dùng và khoảng thời gian.
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ActivityLogDto>>> GetLogs(
+    public async Task<IActionResult> GetLogs(
         [FromQuery] string? type,
         [FromQuery] string? user,
         [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to)
+        [FromQuery] DateTime? to,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize)
     {
         // Bắt đầu từ tập dữ liệu gốc để ghép điều kiện lọc động theo query string.
-        var query = _context.ActivityLogs.AsQueryable();
+        var query = _context.ActivityLogs.AsNoTracking().AsQueryable();
 
         // Lọc theo Loại (Login, Register, POI...)
         if (!string.IsNullOrWhiteSpace(type))
@@ -67,8 +71,54 @@ public class ActivityLogsController : ControllerBase
             query = query.Where(l => l.Timestamp < toDate);
         }
 
-        // Sắp xếp mới nhất lên đầu
-        var logs = await query
+        // Các thống kê được tính trên toàn bộ tập dữ liệu đã lọc.
+        var totalCount = await query.CountAsync();
+        var today = DateTime.Today;
+        var tomorrow = today.AddDays(1);
+
+        var todayLogins = await query.CountAsync(l =>
+            l.ActivityType == "Login" &&
+            l.Timestamp >= today &&
+            l.Timestamp < tomorrow);
+
+        var totalChanges = await query.CountAsync(l => l.ActivityType != "Login");
+
+        // Sắp xếp mới nhất lên đầu.
+        var orderedQuery = query.OrderByDescending(l => l.Timestamp);
+
+        // Nếu client truyền page/pageSize thì trả về kết quả phân trang.
+        if (page.HasValue || pageSize.HasValue)
+        {
+            var currentPage = Math.Max(page.GetValueOrDefault(1), 1);
+            var currentPageSize = Math.Clamp(pageSize.GetValueOrDefault(10), 1, MaxPageSize);
+
+            var logs = await orderedQuery
+                .Skip((currentPage - 1) * currentPageSize)
+                .Take(currentPageSize)
+                // Chỉ map các trường cần thiết sang DTO để trả về cho client.
+                .Select(l => new ActivityLogDto
+                {
+                    Id = l.Id,
+                    ActivityType = l.ActivityType,
+                    Description = l.Description,
+                    UserName = l.UserName,
+                    Timestamp = l.Timestamp,
+                    IpAddress = l.IpAddress
+                })
+                .ToListAsync();
+
+            return Ok(new ActivityLogPageDto
+            {
+                Items = logs,
+                TotalCount = totalCount,
+                CurrentPage = currentPage,
+                PageSize = currentPageSize,
+                TodayLogins = todayLogins,
+                TotalChanges = totalChanges
+            });
+        }
+
+        var allLogs = await orderedQuery
             .OrderByDescending(l => l.Timestamp)
             // Chỉ map các trường cần thiết sang DTO để trả về cho client.
             .Select(l => new ActivityLogDto
@@ -83,6 +133,6 @@ public class ActivityLogsController : ControllerBase
             .ToListAsync();
 
         // Trả về danh sách log đã lọc và sắp xếp.
-        return Ok(logs);
+        return Ok(allLogs);
     }
 }

@@ -2,12 +2,25 @@ using SmartTourGuide.Mobile.Models;
 using System.Collections.Concurrent;
 
 namespace SmartTourGuide.Mobile.Services;
+// CacheService.cs
+// Chức năng chính:
+// Cache ảnh và audio vào bộ nhớ tạm.
 
-/// <summary>
-/// Tải trước và quản lý cache cho ảnh, audio, map tile.
-/// Tất cả file lưu tại FileSystem.CacheDirectory.
-/// Đã được tối ưu Thread-safe, Cancel task cũ và Atomic file write qua .tmp
-/// </summary>
+// Pre-cache hàng loạt ở background.
+
+// Chống tải trùng, hủy task cũ, ghi file an toàn qua temp file.
+
+// Quản lý/xóa cache và thống kê dung lượng cache.
+
+// Tạo thư mục cache map tile.
+
+// Tính tuyến đường và cache route
+// <summary>
+//Mục đích file:
+// 1) Quản lý cache ảnh, audio và map tile trong bộ nhớ tạm của thiết bị.
+// 2) Hỗ trợ pre-cache chạy nền để tăng tốc trải nghiệm khi mở POI.
+//3) Đảm bảo an toàn luồng: chống tải trùng, hủy đợt cũ, ghi file kiểu atomic.
+// </summary>
 public class CacheService
 {
     private readonly HttpClient _http;
@@ -15,17 +28,17 @@ public class CacheService
     private readonly string _imgDir;
     private readonly string _audioDir;
 
-    // Quản lý Token (Cách của bạn rất chuẩn xác để chống rò rỉ bộ nhớ)
+    // Token điều khiển vòng đời một đợt pre-cache.
     private CancellationTokenSource? _precacheCts;
 
-    // Dictionary lưu các Task đang chạy để UI và Background dùng chung, không tải trùng
+    // Lưu các tác vụ tải đang chạy để nhiều nơi có thể chờ chung, không tải trùng URL.
     private readonly ConcurrentDictionary<string, Task<string?>> _activeDownloads = new();
 
     public event Action<int, int>? ProgressChanged; // (done, total)
 
     public CacheService()
     {
-        // Tăng timeout lên 60s vì audio có thể nặng
+        // 1) Cấu hình HttpClient cho tải file media.
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
         _http.DefaultRequestHeaders.Add("User-Agent", "SmartTourGuide/1.0");
 
@@ -33,6 +46,7 @@ public class CacheService
         _imgDir = Path.Combine(_cacheDir, "images");
         _audioDir = Path.Combine(_cacheDir, "audio");
 
+        // 2) Tạo thư mục cache con cho ảnh và audio.
         Directory.CreateDirectory(_imgDir);
         Directory.CreateDirectory(_audioDir);
     }
@@ -61,7 +75,7 @@ public class CacheService
     /// </summary>
     public async Task PreCacheAllAsync(List<PoiModel> pois, string baseApiUrl, CancellationToken externalCt = default)
     {
-        // 1. Hủy đợt tải trước (nếu có) trước khi bắt đầu đợt mới (Logic của bạn)
+        // 1) Hủy đợt pre-cache cũ trước khi bắt đầu đợt mới.
         var newCts = new CancellationTokenSource();
         var oldCts = Interlocked.Exchange(ref _precacheCts, newCts);
         oldCts?.Cancel();
@@ -70,7 +84,7 @@ public class CacheService
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(newCts.Token, externalCt);
         var ct = linkedCts.Token;
 
-        // 2. Thu thập tất cả URL cần download
+        // 2) Thu thập toàn bộ URL cần tải (ảnh + audio).
         var tasks = new List<(string url, string type)>();
 
         foreach (var poi in pois)
@@ -87,7 +101,7 @@ public class CacheService
         int total = tasks.Count;
         int done = 0;
 
-        // Download song song tối đa 3 file cùng lúc để tránh nghẽn mạng
+        // 3) Giới hạn tải song song để giảm nghẽn mạng và tránh quá tải thiết bị.
         var semaphore = new SemaphoreSlim(3);
 
         var downloads = tasks.Select(async t =>
@@ -97,7 +111,7 @@ public class CacheService
             {
                 ct.ThrowIfCancellationRequested();
 
-                // Bắt buộc truyền Token (ct) vào để cắt đứt HTTP ngay lập tức nếu bị Cancel
+                // Truyền token vào hàm tải để có thể dừng HTTP ngay khi bị cancel.
                 if (t.type == "img")
                     await GetLocalImagePathAsync(t.url, ct);
                 else
@@ -109,10 +123,12 @@ public class CacheService
             catch (OperationCanceledException) { /* Đợt tải bị hủy, bỏ qua */ }
             finally
             {
+                // Luôn trả semaphore dù thành công hay lỗi.
                 semaphore.Release();
             }
         });
 
+        // 4) Chờ toàn bộ tác vụ kết thúc hoặc bị hủy.
         try { await Task.WhenAll(downloads); }
         catch (OperationCanceledException) { /* Bị hủy bởi đợt sync mới */ }
     }
@@ -121,23 +137,24 @@ public class CacheService
 
     private Task<string?> DownloadSafelyAsync(string url, string targetDir, CancellationToken ct)
     {
+        // 1) Guard đầu vào.
         if (string.IsNullOrWhiteSpace(url)) return Task.FromResult<string?>(null);
 
         string fileName = SanitizeFileName(url);
         string localPath = Path.Combine(targetDir, fileName);
 
-        // Đã có file hoàn chỉnh thì trả về luôn
+        // 2) Nếu đã có file cache hoàn chỉnh thì dùng lại ngay.
         if (File.Exists(localPath)) return Task.FromResult<string?>(localPath);
 
-        // Chống tải trùng: Nếu URL này đang được tải bởi ai đó, lấy luôn Task đó để chờ chung
+        // 3) Chống tải trùng theo URL: tái sử dụng task đang chạy nếu có.
         return _activeDownloads.GetOrAdd(url, async key =>
         {
-            // Dùng file .tmp để tránh lỗi file đang ghi dở bị app khác đọc hoặc app crash
+            // Dùng file .tmp để tránh đọc file dở khi đang ghi.
             string tempPath = localPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
 
             try
             {
-                // Dùng HttpStream thay vì Byte Array để tiết kiệm RAM điện thoại (rất tốt cho Audio)
+                // 4) Tải dạng stream để tiết kiệm RAM (quan trọng với file audio lớn).
                 using var response = await _http.GetAsync(key, HttpCompletionOption.ResponseHeadersRead, ct);
                 response.EnsureSuccessStatusCode();
 
@@ -147,7 +164,7 @@ public class CacheService
                 await streamToReadFrom.CopyToAsync(streamToWriteTo, ct);
                 streamToWriteTo.Close(); // Bắt buộc đóng File tạm trước khi Move
 
-                // ATOMIC WRITE: Ghi xong 100% mới đổi tên file temp thành file chính thức
+                // 5) Atomic write: ghi xong 100% mới đổi tên sang file chính thức.
                 File.Move(tempPath, localPath, overwrite: true);
 
                 return localPath;
@@ -159,13 +176,13 @@ public class CacheService
             }
             finally
             {
-                // Dọn dẹp file temp nếu tải thất bại / bị cancel giữa chừng
+                // Dọn file tạm nếu còn sót do lỗi/hủy giữa chừng.
                 if (File.Exists(tempPath))
                 {
                     try { File.Delete(tempPath); } catch { }
                 }
 
-                // Tải xong thì gỡ khỏi danh sách đang tải
+                // Gỡ URL khỏi danh sách tải đang chạy.
                 _activeDownloads.TryRemove(key, out _);
             }
         });
@@ -175,6 +192,7 @@ public class CacheService
 
     public static void ConfigureMapTileCache()
     {
+        // Tạo thư mục cache tile map để dùng chung trong app.
         string tileDir = Path.Combine(FileSystem.CacheDirectory, "maptiles");
         Directory.CreateDirectory(tileDir);
     }
@@ -197,12 +215,12 @@ public class CacheService
 
     public void ClearCache()
     {
-        // Hủy mọi tiến trình tải ngầm trước khi tiến hành xóa file
+        // 1) Hủy mọi tiến trình tải ngầm trước khi xóa file.
         var oldCts = Interlocked.Exchange(ref _precacheCts, null);
         oldCts?.Cancel();
         oldCts?.Dispose();
 
-        // Bọc try-catch để lỡ file nào đang bị OS khoá thì không văng app
+        // 2) Xóa file cache theo kiểu an toàn, không làm văng app nếu file đang bị khóa.
         foreach (var f in Directory.GetFiles(_imgDir)) { try { File.Delete(f); } catch { } }
         foreach (var f in Directory.GetFiles(_audioDir)) { try { File.Delete(f); } catch { } }
     }
@@ -225,6 +243,7 @@ public class CacheService
 
 public class CacheInfo
 {
+    // Thống kê số lượng và dung lượng cache theo loại dữ liệu.
     public int ImageCount { get; set; }
     public int AudioCount { get; set; }
     public double ImageSizeMb { get; set; }

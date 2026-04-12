@@ -9,21 +9,32 @@ using SmartTourGuide.Mobile.Resources.Strings;
 
 using MauiColor = Microsoft.Maui.Graphics.Color;
 using MapsuiColor = Mapsui.Styles.Color;
+
+// Mục đích file:
+// 1) Tải danh sách tour và hiển thị trên trang chọn tour.
+// 2) Mở overlay xem trước lộ trình chi tiết của tour.
+// 3) Trả tour đã chọn về MainPage để render trên bản đồ.
 public partial class ToursPage : ContentPage
 {
+    // Service gọi API tour/chi tiết tour.
     private readonly PoiApiService _apiService;
+    // Tham chiếu MainPage để điều hướng và phối hợp luồng chọn tour.
     private readonly MainPage _mainPage;
     private const string BaseApiUrl = "https://6b5j1b5h-7058.asse.devtunnels.ms";
 
+    // Cờ chống thao tác chồng khi đang xử lý bất đồng bộ.
     private bool _isBusy = false;
     private string _currentLanguageCode = "vi-VN";
 
-    // Tour đang được xem chi tiết trong overlay
+    // Tour đang được xem chi tiết trong overlay.
     private TourModel? _previewTour = null;
 
     public ToursPage(MainPage mainPage)
     {
+        // 1) Khởi tạo UI.
         InitializeComponent();
+
+        // 2) Khởi tạo dependency và đọc ngôn ngữ đã lưu.
         _apiService = new PoiApiService();
         _mainPage = mainPage;
         _currentLanguageCode = Preferences.Get("AppLanguage", "vi-VN");
@@ -34,17 +45,19 @@ public partial class ToursPage : ContentPage
         base.OnAppearing();
         try
         {
+            // 1) Tải danh sách tour từ server.
             var tours = await _apiService.GetToursAsync();
 
             if (tours == null || !tours.Any())
             {
+                // 2) Không có dữ liệu tour: báo cho người dùng.
                 await DisplayAlertAsync(AppResources.AlertInfo,
                     AppResources.NoToursAvailable, AppResources.OkButton);
                 cvTours.ItemsSource = null;
                 return;
             }
 
-            // Chuẩn hóa URL ảnh bìa
+            // 3) Chuẩn hóa URL thumbnail để hiển thị ảnh đúng đường dẫn tuyệt đối.
             foreach (var t in tours)
             {
                 if (!string.IsNullOrEmpty(t.ThumbnailUrl))
@@ -54,6 +67,7 @@ public partial class ToursPage : ContentPage
                 }
             }
 
+            // 4) Bind dữ liệu lên CollectionView.
             cvTours.ItemsSource = tours;
             cvTours.IsVisible = true;
         }
@@ -71,17 +85,19 @@ public partial class ToursPage : ContentPage
         }
     }
 
-    // ── BACK ──────────────────────────────────────────────────────────────────
+    // ── NÚT QUAY LẠI ─────────────────────────────────────────────────────────
     private async void OnBackClicked(object? sender, EventArgs e)
     {
+        // Đóng overlay nếu còn mở rồi quay lại MainPage.
         if (_isBusy) return;
         CloseItinerary();
         await Navigation.PopModalAsync();
     }
 
-    // ── MỞ OVERLAY LỘ TRÌNH KHI BẤM "Xem lộ trình ›" ───────────────────────
+    // ── MỞ OVERLAY LỘ TRÌNH KHI BẤM "Xem lộ trình" ─────────────────────────
     private async void OnViewItineraryClicked(object? sender, EventArgs e)
     {
+        // 1) Chặn click chồng và đảm bảo command parameter hợp lệ.
         if (_isBusy || sender is not Button btn) return;
         if (btn.CommandParameter is not TourModel selectedTour) return;
 
@@ -89,7 +105,7 @@ public partial class ToursPage : ContentPage
         {
             _isBusy = true;
 
-            // Lấy chi tiết POI của tour
+            // 2) Lấy chi tiết POI của tour để dựng overlay timeline.
             var tourDetail = await _apiService.GetTourDetailsAsync(selectedTour.Id);
             if (tourDetail == null || tourDetail.Pois.Count == 0)
             {
@@ -97,6 +113,7 @@ public partial class ToursPage : ContentPage
                 return;
             }
 
+            // 3) Lưu tour preview hiện tại và hiển thị overlay.
             _previewTour = tourDetail;
             ShowItineraryOverlay(tourDetail);
         }
@@ -108,23 +125,27 @@ public partial class ToursPage : ContentPage
         finally { _isBusy = false; }
     }
 
-    // ── HIỆN OVERLAY CHI TIẾT LỘ TRÌNH ──────────────────────────────────────
+    // ── HIỂN THỊ OVERLAY CHI TIẾT LỘ TRÌNH ─────────────────────────────────
     private void ShowItineraryOverlay(TourModel tour)
     {
+        // 1) Cập nhật tên tour trên header overlay.
         lblOverlayTourName.Text = tour.Name ?? "Tour";
 
+        // 2) Sắp xếp điểm dừng theo thứ tự hành trình.
         var orderedPois = tour.Pois.OrderBy(p => p.OrderIndex).ToList();
         int total = orderedPois.Count;
 
+        // 3) Xóa nội dung cũ trước khi dựng lại.
         itineraryPoiList.Children.Clear();
 
+        // 4) Dựng UI timeline từng điểm dừng.
         for (int i = 0; i < orderedPois.Count; i++)
         {
             var poi = orderedPois[i];
             bool isFirst = i == 0;
             bool isLast = i == total - 1;
 
-            // ── Dòng POI ──────────────────────────────────────────────────
+            // Dòng hiển thị một POI trong timeline.
             var row = new Grid
             {
                 ColumnDefinitions =
@@ -135,7 +156,7 @@ public partial class ToursPage : ContentPage
                 Margin = new Thickness(0, 0, 0, 0)
             };
 
-            // Cột trái: timeline (circle + line)
+            // Cột trái: timeline (vòng tròn số + đường nối).
             var timelineCol = new Grid
             {
                 RowDefinitions =
@@ -145,7 +166,7 @@ public partial class ToursPage : ContentPage
                 }
             };
 
-            // Circle với số thứ tự
+            // Vòng tròn đánh số thứ tự điểm dừng.
             var circle = new Border
             {
                 BackgroundColor = isFirst ? MauiColor.FromArgb("#4CAF50")
@@ -170,7 +191,7 @@ public partial class ToursPage : ContentPage
             timelineCol.Children.Add(circle);
             Grid.SetRow(circle, 0);
 
-            // Đường kẻ dọc nối với điểm tiếp theo
+            // Đường dọc nối sang điểm kế tiếp.
             if (!isLast)
             {
                 var line = new BoxView
@@ -187,7 +208,7 @@ public partial class ToursPage : ContentPage
             row.Children.Add(timelineCol);
             Grid.SetColumn(timelineCol, 0);
 
-            // Cột phải: thông tin POI
+            // Cột phải: thông tin POI.
             var infoCol = new VerticalStackLayout
             {
                 Padding = new Thickness(10, 8, 0, isLast ? 12 : 20),
@@ -212,7 +233,7 @@ public partial class ToursPage : ContentPage
                 IsVisible = !string.IsNullOrEmpty(poi.Address)
             };
 
-            // Badge: Bắt đầu / Kết thúc
+            // Badge cho điểm bắt đầu/kết thúc để người dùng nhận diện nhanh.
             if (isFirst || isLast)
             {
                 var badge = new Border
@@ -244,14 +265,15 @@ public partial class ToursPage : ContentPage
             itineraryPoiList.Children.Add(row);
         }
 
-        // Hiện overlay
+        // 5) Bật lớp nền mờ và panel chi tiết.
         dimOverlay.IsVisible = true;
         itineraryPanel.IsVisible = true;
     }
 
-    // ── ĐÓNG OVERLAY ─────────────────────────────────────────────────────────
+    // ── ĐÓNG OVERLAY ────────────────────────────────────────────────────────
     private void CloseItinerary()
     {
+        // Ẩn overlay và xóa trạng thái tour đang preview.
         dimOverlay.IsVisible = false;
         itineraryPanel.IsVisible = false;
         _previewTour = null;
@@ -260,20 +282,22 @@ public partial class ToursPage : ContentPage
     private void OnCloseItineraryClicked(object? sender, EventArgs e) => CloseItinerary();
     private void OnDimOverlayTapped(object? sender, TappedEventArgs e) => CloseItinerary();
 
-    // ── CHỌN TOUR → VẼ LÊN BẢN ĐỒ ──────────────────────────────────────────
+    // ── CHỌN TOUR -> GỬI VỀ MAINPAGE ĐỂ RENDER ────────────────────────────
     private async void OnSelectTourClicked(object? sender, EventArgs e)
     {
         if (_isBusy || _previewTour == null) return;
         try
         {
             _isBusy = true;
+
+            // 1) Lưu tour được chọn trước khi đóng overlay.
             var tourToRender = _previewTour;
             CloseItinerary();
 
-            // Đóng modal trước
+            // 2) Đóng modal ToursPage.
             await Navigation.PopModalAsync();
 
-            // Gửi message để MainPage render
+            // 3) Gửi message để MainPage nhận và render tour.
             WeakReferenceMessenger.Default.Send(new SelectTourMessage(tourToRender));
         }
         catch (Exception ex)

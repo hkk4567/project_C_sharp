@@ -1,12 +1,20 @@
 namespace SmartTourGuide.Mobile;
 
+// File này xử lý hiển thị bản đồ: tải POI, geofence, 
+//vẽ tour và cập nhật panel chi tiết.
+
+// MainPage được chia thành nhiều file partial để dễ quản lý 
+//theo tính năng:
 public partial class MainPage
 {
+    // Dịch vụ route để lấy tuyến đường đi bộ từ user đến các POI còn lại trong tour.
     private readonly RouteService _routeService = new RouteService();
 
+    // Gom các control cần truy cập từ code-behind (tránh null-check lặp lại nhiều nơi).
     private Mapsui.UI.Maui.MapView? MapViewCtrl => this.FindByName<Mapsui.UI.Maui.MapView>("mapView");
     private Label? LblPoiNameCtrl => this.FindByName<Label>("lblPoiName");
     private Label? LblAddressCtrl => this.FindByName<Label>("lblAddress");
+    // Các control trong popup chi tiết POI.
     private Label? LblDescriptionCtrl => this.FindByName<Label>("lblDescription");
     private Button? BtnPlayAudioCtrl => this.FindByName<Button>("btnPlayAudio");
     private Border? DetailPopupCtrl => this.FindByName<Border>("DetailPopup");
@@ -18,23 +26,30 @@ public partial class MainPage
     private Border? SearchSuggestionsPanelCtrl => this.FindByName<Border>("SearchSuggestionsPanel");
 
     // ════════════════════════════════════════════════════════════════════════
-    //  LOAD POI LÊN BẢN ĐỒ
+    //  TẢI POI LÊN BẢN ĐỒ
     // ════════════════════════════════════════════════════════════════════════
+    // Tải POI từ API và hiển thị trên bản đồ với geofence.
     private async Task LoadPoisOnMap()
     {
+        // 1) Báo trạng thái đang tải để người dùng biết app đang xử lý.
         SetStatus(AppRes.StatusLoading, priority: 2, force: true);
         try
         {
+            // 2) Lấy POI theo ngôn ngữ hiện tại và cập nhật cache.
             var pois = await _apiService.GetPoisAsync(_currentLanguageCode);
             _allPoisCache = pois;
             _nearestHighlightedPoi = null;
+
+            // 3) Làm sạch ghim cũ trước khi vẽ dữ liệu mới.
             var mapView = MapViewCtrl;
             if (mapView == null) return;
             mapView.Pins.Clear();
 
+            // 4) Vẽ lại lớp geofence theo danh sách POI mới.
             ClearMapLayers("Geofences");
             mapView.Map.Layers.Insert(1, CreateGeofenceLayer(pois));
 
+            // 5) Vẽ ghim POI lên bản đồ.
             foreach (var poi in pois)
             {
                 mapView.Pins.Add(new Pin(mapView)
@@ -49,6 +64,7 @@ public partial class MainPage
                 });
             }
 
+            // 6) Báo tải xong và đồng bộ gợi ý tìm kiếm POI.
             SetStatus(string.Format(AppRes.StatusLoaded, pois.Count),
                 priority: 2, autoRevertMs: 3000, force: true);
 
@@ -62,17 +78,20 @@ public partial class MainPage
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  LAYER GEOFENCE
+    //  LỚP GEOFENCE
     // ════════════════════════════════════════════════════════════════════════
     private MemoryLayer CreateGeofenceLayer(List<PoiModel> pois)
     {
+        // 1) Mỗi POI tạo một polygon hình tròn giả lập geofence.
         var features = new List<IFeature>();
         foreach (var poi in pois)
         {
+            // Ưu tiên bán kính từ dữ liệu POI, thiếu thì fallback 50m.
             double radius = poi.TriggerRadius > 0 ? poi.TriggerRadius : 50;
             var center = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
             double radiusMapUnits = radius / Math.Cos(poi.Latitude * (Math.PI / 180));
 
+            // 2) Sinh các điểm biên theo góc để tạo vòng tròn.
             var coords = new List<Coordinate>();
             for (int i = 0; i <= 360; i += 10)
             {
@@ -84,6 +103,7 @@ public partial class MainPage
             if (!coords.First().Equals2D(coords.Last()))
                 coords.Add(new Coordinate(coords.First()));
 
+            // 3) Gắn style hiển thị geofence và đưa vào layer.
             var feature = new GeometryFeature(
                 new NetTopologySuite.Geometries.Polygon(new LinearRing(coords.ToArray())));
             feature.Styles.Add(new VectorStyle
@@ -97,12 +117,12 @@ public partial class MainPage
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  LAYER TUYẾN ĐƯỜNG
+    //  LỚP TUYẾN ĐƯỜNG
     // ════════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Vẽ polyline từ danh sách tọa độ chi tiết (OSRM hoặc cache).
-    /// Dùng 2 lớp: viền trắng + đường xanh Google-Maps style.
+    /// Dùng 2 lớp: viền trắng và đường chính để tăng độ tương phản.
     /// </summary>
     private MemoryLayer CreateTourRouteLayer(
         IReadOnlyList<MauiLocation.Location> routePoints,
@@ -121,7 +141,7 @@ public partial class MainPage
         {
             var line = new LineString(routeCoords.ToArray());
 
-            // Viền trắng (làm nổi bật đường trên nền bản đồ)
+            // Viền trắng giúp tuyến dễ nhìn trên nhiều nền bản đồ.
             var shadow = new GeometryFeature(line);
             shadow.Styles.Add(new VectorStyle
             {
@@ -133,7 +153,7 @@ public partial class MainPage
             });
             features.Add(shadow);
 
-            // Màu đường phụ thuộc nguồn: xanh đậm (online) hoặc xanh nhạt hơn (cache cũ)
+            // Màu tuyến phản ánh nguồn dữ liệu route.
             var lineColor = source == RouteSource.StraightLine
                 ? new Mapsui.Styles.Color(158, 158, 158, 200) // xám cho đường thẳng
                 : source == RouteSource.CacheFallback
@@ -153,6 +173,7 @@ public partial class MainPage
 
     private void ShowPoiDetail(PoiModel poi)
     {
+        // 1) Gán POI hiện tại và lấy các control cần cập nhật.
         _currentSelectedPoi = poi;
         var lblPoiName = LblPoiNameCtrl;
         var lblAddress = LblAddressCtrl;
@@ -160,14 +181,17 @@ public partial class MainPage
         var btnPlay = BtnPlayAudioCtrl;
         var popup = DetailPopupCtrl;
 
+        // 2) Cập nhật nội dung text cho popup.
         if (lblPoiName != null) lblPoiName.Text = poi.Name;
         if (lblAddress != null) lblAddress.Text = poi.Address;
         if (lblDesc != null)
             lblDesc.Text = string.IsNullOrEmpty(poi.Description) ? AppRes.NoDescription : poi.Description;
 
+        // 3) Tải ảnh và dừng audio cũ trước khi phát nội dung mới.
         _ = LoadPoiImageAsync(poi);
         StopAudio();
 
+        // 4) Tùy loại media để đặt text nút phát phù hợp.
         if (poi.AudioUrls?.Count > 0)
         {
             _poiAudioIndex.TryGetValue(poi.Id, out int idx);
@@ -183,6 +207,7 @@ public partial class MainPage
             if (btnPlay != null) btnPlay.Text = AppRes.BtnReadTts;
         }
 
+        // 5) Hiển thị popup trên UI thread.
         MainThread.BeginInvokeOnMainThread(() =>
         {
             if (popup != null) popup.IsVisible = true;
@@ -190,13 +215,11 @@ public partial class MainPage
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  RENDER TOUR — TUYẾN ĐƯỜNG THỰC TẾ + CACHE
+    //  RENDER TOUR (TUYẾN ĐƯỜNG THỰC TẾ + CACHE)
     // ════════════════════════════════════════════════════════════════════════
     public async Task RenderTourOnMap(TourModel tour, bool isInitialLoad = false)
     {
-        // FIX BUG 1: Không hiện popup khi đang bận render (do GPS trigger liên tục).
-        // Nếu lock chưa được giải phóng sau 500ms → âm thầm bỏ qua frame GPS này,
-        // tránh spam hàng chục Alert dialog khi người dùng di chuyển nhanh.
+        // Nếu đang bận render thì bỏ qua frame GPS hiện tại để tránh chồng tác vụ.
         if (!await _mapLock.WaitAsync(500))
         {
             System.Diagnostics.Debug.WriteLine("[RenderTour] Đang bận render, bỏ qua GPS frame này.");
@@ -204,17 +227,19 @@ public partial class MainPage
         }
         try
         {
+            // 1) Thiết lập trạng thái tour hiện tại.
             _currentTour = tour;
             _lastTourRenderLocation = _currentUserLocation; // Chốt mốc vị trí
 
             if (isInitialLoad)
             {
-                _visitedTourPoiIds.Clear(); // Xóa lịch sử khi bắt đầu tour mới
+                _visitedTourPoiIds.Clear(); // Bắt đầu tour mới thì xóa lịch sử điểm đã đi
             }
 
             if (_currentlyPlayingGeofencePoi != null &&
                 !tour.Pois.Any(tp => tp.PoiId == _currentlyPlayingGeofencePoi.Id))
             {
+                // Nếu POI đang phát không thuộc tour mới thì dừng ngay.
                 StopAudio();
                 _currentlyPlayingGeofencePoi = null;
             }
@@ -223,9 +248,7 @@ public partial class MainPage
             var mapView = MapViewCtrl;
             if (mapView?.Map == null) return;
 
-            // FIX BUG 4: Không gọi thẳng _apiService khi cache trống — nếu mất mạng sẽ
-            // văng Exception bị nuốt trong catch, bỏ qua hoàn toàn _localDb fallback.
-            // Giờ: dùng cache → thử API → thử DB local → nếu DB cũng rỗng mới chịu thua.
+            // Thứ tự dữ liệu: cache -> API -> DB local (fallback khi offline).
             List<PoiModel> allPois;
             if (_allPoisCache.Count > 0)
             {
@@ -249,11 +272,8 @@ public partial class MainPage
             var orderedPois = tour.Pois.OrderBy(p => p.OrderIndex).ToList();
             var tourStart = _currentUserLocation;
 
-            // ── 1. CHECK-IN CÁC ĐIỂM ĐÃ ĐẾN (Dùng TriggerRadius thực của POI) ────────────
-            // FIX BUG 3: Không hardcode 50m — phải lấy TriggerRadius từ POI thật trong cache
-            // để đồng bộ với Geofence audio (vốn đã dùng TriggerRadius đúng).
-            // Nếu người dùng nghe xong audio (vào vùng 150m) nhưng check-in chỉ nhận 50m
-            // → tour sẽ cứ bắt họ quay lại dù đã nghe hết.
+            // ── 1. CHECK-IN CÁC ĐIỂM ĐÃ ĐẾN (theo TriggerRadius thực tế) ─────────────────
+            // Tránh hard-code bán kính để đồng bộ với geofence audio.
             foreach (var p in orderedPois)
             {
                 if (!_visitedTourPoiIds.Contains(p.PoiId))
@@ -261,7 +281,7 @@ public partial class MainPage
                     var poiLoc = new MauiLocation.Location(p.Latitude, p.Longitude);
                     double dist = MauiLocation.Location.CalculateDistance(tourStart, poiLoc, DistanceUnits.Kilometers) * 1000;
 
-                    // Lấy TriggerRadius thực từ cache; nếu không tìm thấy thì fallback 50m
+                    // Lấy TriggerRadius từ dữ liệu POI; thiếu dữ liệu thì fallback 50m.
                     var fullPoi = allPois.FirstOrDefault(x => x.Id == p.PoiId);
                     double checkInRadius = (fullPoi != null && fullPoi.TriggerRadius > 0)
                         ? fullPoi.TriggerRadius
@@ -274,14 +294,15 @@ public partial class MainPage
                 }
             }
 
-            // Lọc ra danh sách các điểm CHƯA ĐI QUA để tìm đường
+            // Lọc các điểm chưa đi qua để vẽ phần tuyến còn lại.
             var remainingPois = orderedPois.Where(p => !_visitedTourPoiIds.Contains(p.PoiId)).ToList();
 
-            // ── 2. LẤY TUYẾN ĐƯỜNG (Chỉ vẽ từ User -> Các điểm chưa đi) ──
+            // ── 2. LẤY TUYẾN ĐƯỜNG (User -> các điểm chưa đi) ─────────────────────────────
             ClearMapLayers("TourRoute");
 
             if (remainingPois.Count > 0)
             {
+                // Tạo tập waypoint bắt đầu từ vị trí người dùng hiện tại.
                 var allWaypoints = new List<MauiLocation.Location> { tourStart };
                 allWaypoints.AddRange(remainingPois.Select(p => new MauiLocation.Location(p.Latitude, p.Longitude)));
 
@@ -300,9 +321,10 @@ public partial class MainPage
                 ClearMapLayers("TourRoute");
             }
 
-            // ── 3. VẼ LÊN BẢN ĐỒ ──────────────────────────────────────────
+            // ── 3. VẼ LÊN BẢN ĐỒ ───────────────────────────────────────────────────────────
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
+                // Xóa ghim cũ để vẽ lại trạng thái tour mới nhất.
                 mapView.Pins.Clear();
 
                 var tourPoiIds = orderedPois.Select(p => p.PoiId).ToHashSet();
@@ -310,7 +332,7 @@ public partial class MainPage
                 ClearMapLayers("Geofences");
                 mapView.Map.Layers.Insert(1, CreateGeofenceLayer(tourPoisOnly));
 
-                // Vẽ ghim (Ghim đã đi qua sẽ có màu xám nhạt)
+                // Vẽ ghim theo trạng thái hành trình: cuối cùng, đã đi, mục tiêu kế tiếp, còn lại.
                 for (int idx = 0; idx < orderedPois.Count; idx++)
                 {
                     var poi = orderedPois[idx];
@@ -320,16 +342,16 @@ public partial class MainPage
 
                     Microsoft.Maui.Graphics.Color pinColor;
 
-                    // 1. Điểm cuối cùng LUÔN LUÔN màu Đỏ (kể cả khi đã đến nơi)
+                    // 1) Điểm cuối luôn màu đỏ.
                     if (isLastInTour)
                         pinColor = Microsoft.Maui.Graphics.Colors.Red;
-                    // 2. Điểm đã đi qua -> Màu Xám
+                    // 2) Điểm đã đi qua -> màu xám.
                     else if (isVisited)
                         pinColor = Microsoft.Maui.Graphics.Colors.Gray;
-                    // 3. Điểm chuẩn bị đi tới -> Màu Xanh lá
+                    // 3) Điểm kế tiếp -> màu xanh lá.
                     else if (isNextTarget)
                         pinColor = Microsoft.Maui.Graphics.Colors.Green;
-                    // 4. Các điểm còn lại chờ đi -> Màu Cam
+                    // 4) Các điểm còn lại -> màu cam.
                     else
                         pinColor = Microsoft.Maui.Graphics.Colors.Orange;
 
@@ -339,12 +361,12 @@ public partial class MainPage
                         Label = $"{idx + 1}. {poi.PoiName}{(isVisited ? AppRes.SuffixVisited : "")}",
                         Address = string.Format(AppRes.StopCountFormat, idx + 1, orderedPois.Count),
                         Color = pinColor,
-                        Scale = 0.65f, // Giữ nguyên kích thước to rõ, KHÔNG thu nhỏ nữa
+                        Scale = 0.65f, // Giữ kích thước dễ nhìn khi di chuyển
                         Tag = allPois.FirstOrDefault(p => p.Id == poi.PoiId)
                     });
                 }
 
-                // ── 4. XỬ LÝ CAMERA ───────────────────────────────────────
+                // ── 4. XỬ LÝ CAMERA ───────────────────────────────────────────────────────
                 if (isInitialLoad)
                 {
                     double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
@@ -369,11 +391,8 @@ public partial class MainPage
                         mapView.Map.Navigator.ZoomToBox(new MRect(minX - padX, minY - padY, maxX + padX, maxY + padY), MBoxFit.Fit, duration: 500);
                     }
                 }
-                // FIX BUG 2: Không CenterOn khi GPS cập nhật vị trí (isInitialLoad == false).
-                // Người dùng có thể đang pan bản đồ ra xa để xem điểm đến — việc giật
-                // camera về vị trí user mỗi 15m là hành vi cực kỳ khó chịu.
-                // Camera chỉ được center lại khi người dùng bấm nút "Center My Location"
-                // hoặc khi lần đầu tiên load Tour (isInitialLoad == true ở trên).
+                // Khi GPS cập nhật liên tục, không tự kéo camera về user để tránh giật màn hình.
+                // Camera chỉ chỉnh mạnh ở lần đầu load tour hoặc khi người dùng chủ động thao tác.
 
                 mapView.RefreshGraphics();
                 ShowTourInfoPanel(tour, orderedPois);
@@ -390,15 +409,17 @@ public partial class MainPage
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  TOUR INFO PANEL
+    //  PANEL THÔNG TIN TOUR
     // ════════════════════════════════════════════════════════════════════════
     private void ShowTourInfoPanel(TourModel tour, List<TourDetailModel> orderedPois)
     {
+        // 1) Lấy control và thoát sớm nếu giao diện chưa sẵn sàng.
         var lblTourName = LblTourNameCtrl;
         var tourPoiList = TourPoiListCtrl;
         var tourInfoPanel = TourInfoPanelCtrl;
         if (lblTourName == null || tourPoiList == null || tourInfoPanel == null) return;
 
+        // 2) Vẽ danh sách điểm theo trạng thái đã đi/chưa đi.
         lblTourName.Text = tour.Name ?? "Tour";
         tourPoiList.Children.Clear();
 
@@ -411,12 +432,12 @@ public partial class MainPage
             bool isLast = (i == orderedPois.Count - 1);
             bool isNextTarget = (poi.PoiId == nextTargetId);
 
-            // Đồng bộ icon với màu ghim trên bản đồ
+            // Đồng bộ icon với màu ghim trên bản đồ.
             string icon;
-            if (isLast) icon = "🔴";                   // Cuối cùng luôn đỏ
-            else if (isVisited) icon = "⚪";           // Đã qua là chấm xám
-            else if (isNextTarget) icon = "🟢";        // Tiếp theo xanh lá
-            else icon = "🟠";                          // Còn lại cam
+            if (isLast) icon = "🔴";                   // Điểm cuối
+            else if (isVisited) icon = "⚪";           // Đã đi qua
+            else if (isNextTarget) icon = "🟢";        // Điểm kế tiếp
+            else icon = "🟠";                          // Điểm còn lại
 
             var card = new Border
             {
@@ -434,7 +455,7 @@ public partial class MainPage
             {
                 Text = $"{i + 1}. {poi.PoiName}",
                 FontSize = 11,
-                // Chữ điểm đã qua sẽ có màu xám, điểm chưa qua màu đen
+                // Điểm đã qua hiển thị xám và gạch ngang để dễ phân biệt.
                 TextColor = (isVisited && !isLast) ? Microsoft.Maui.Graphics.Colors.Gray : Microsoft.Maui.Graphics.Color.FromArgb("#212121"),
                 TextDecorations = (isVisited && !isLast) ? TextDecorations.Strikethrough : TextDecorations.None,
                 MaxLines = 2,
@@ -456,28 +477,31 @@ public partial class MainPage
                 });
         }
 
+        // 3) Bật panel sau khi render xong danh sách.
         tourInfoPanel.IsVisible = true;
     }
 
     private async void OnCloseTourPanelClicked(object? sender, EventArgs e)
     {
+        // Đóng panel tour và xóa trạng thái tour hiện tại.
         var tourInfoPanel = TourInfoPanelCtrl;
         if (tourInfoPanel != null) tourInfoPanel.IsVisible = false;
 
         ClearMapLayers("TourRoute");
         _currentTour = null;
 
-        // 👉 THÊM DÒNG NÀY: Xóa bộ nhớ tour cũ
+        // Xóa lịch sử tour cũ trước khi quay lại chế độ POI thường.
         _visitedTourPoiIds.Clear();
 
         await LoadPoisWithOfflineFallbackAsync();
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  GIẢ LẬP ĐI BỘ (DEV)
+    //  GIẢ LẬP ĐI BỘ (DÀNH CHO DEV)
     // ════════════════════════════════════════════════════════════════════════
     private void OnMapClicked_SimulateWalk(object? sender, MapClickedEventArgs e)
     {
+        // Dùng cho môi trường dev: chạm bản đồ để giả lập vị trí GPS.
         var mapView = MapViewCtrl;
         if (mapView == null) return;
 
@@ -503,6 +527,7 @@ public partial class MainPage
 
     private void UpdatePopupContentOnly(PoiModel poi)
     {
+        // Chỉ cập nhật nội dung popup, không đóng/mở popup và không reset trạng thái khác.
         if (poi == null) return;
         var lblPoiName = LblPoiNameCtrl;
         var lblAddress = LblAddressCtrl;

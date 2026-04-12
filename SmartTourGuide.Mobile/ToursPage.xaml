@@ -1,15 +1,24 @@
 <?xml version="1.0" encoding="utf-8" ?>
+<!--
+    Mục đích file ToursPage.xaml:
+    1) Hiển thị danh sách tour để người dùng chọn.
+    2) Cho phép mở panel xem trước lộ trình chi tiết.
+    3) Xác nhận tour để hiển thị lại trên bản đồ chính.
+-->
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:strings="clr-namespace:SmartTourGuide.Mobile.Resources.Strings"
              x:Class="SmartTourGuide.Mobile.ToursPage"
              Title="{x:Static strings:AppResources.ToursPageTitle}">
 
+    <!-- Grid gốc: chứa nội dung chính và lớp overlay hiển thị chồng -->
     <Grid>
         <!-- ── CONTENT CHÍNH ──────────────────────────────────────────── -->
+        <!-- Phần nội dung nền: header + danh sách tour -->
         <Grid RowDefinitions="Auto, *">
 
             <!-- Header -->
+            <!-- Nút quay lại và tiêu đề trang -->
             <HorizontalStackLayout Grid.Row="0"
                                    Margin="15"
                                    Spacing="10">
@@ -24,6 +33,7 @@
             </HorizontalStackLayout>
 
             <!-- Danh sách Tour -->
+            <!-- Mỗi item hiển thị thumbnail, mô tả ngắn, số POI và nút xem lộ trình -->
             <CollectionView x:Name="cvTours"
                             Grid.Row="1"
                             SelectionMode="None"
@@ -47,12 +57,14 @@
                             <Grid RowDefinitions="150, Auto">
 
                                 <!-- Ảnh bìa -->
+                                <!-- Thumbnail tour -->
                                 <Image Grid.Row="0"
                                        Source="{Binding ThumbnailUrl}"
                                        Aspect="AspectFill"
                                        BackgroundColor="#E0E0E0"/>
 
                                 <!-- Thông tin + Nút chọn -->
+                                <!-- Khối thông tin tour và hành động xem chi tiết lộ trình -->
                                 <VerticalStackLayout Grid.Row="1"
                                                      Padding="15">
 
@@ -69,6 +81,7 @@
                                            Margin="0,5,0,0"/>
 
                                     <!-- Số POI + nút xem lộ trình -->
+                                    <!-- Cột trái: thông tin số điểm; cột phải: nút mở overlay itinerary -->
                                     <Grid ColumnDefinitions="*, Auto"
                                           Margin="0,10,0,0">
 
@@ -103,6 +116,7 @@
                 </CollectionView.ItemTemplate>
 
                 <CollectionView.EmptyView>
+                    <!-- Trạng thái khi danh sách chưa có dữ liệu -->
                     <Label Text="{x:Static strings:AppResources.StatusLoading}"
                            HorizontalOptions="Center"
                            VerticalOptions="Center"
@@ -112,7 +126,7 @@
         </Grid>
 
         <!-- ── OVERLAY CHI TIẾT LỘ TRÌNH ─────────────────────────────── -->
-        <!-- Dim nền khi overlay hiện -->
+        <!-- Lớp làm mờ nền khi panel itinerary hiển thị -->
         <BoxView x:Name="dimOverlay"
                  IsVisible="False"
                  BackgroundColor="#80000000"
@@ -123,7 +137,7 @@
             </BoxView.GestureRecognizers>
         </BoxView>
 
-        <!-- Panel chi tiết -->
+        <!-- Panel chi tiết lộ trình, trượt từ dưới lên -->
         <Border x:Name="itineraryPanel"
                 IsVisible="False"
                 BackgroundColor="White"
@@ -137,6 +151,7 @@
                   MaximumHeightRequest="480">
 
                 <!-- Handle bar -->
+                <!-- Thanh gợi ý kéo panel -->
                 <BoxView Grid.Row="0"
                          WidthRequest="40"
                          HeightRequest="4"
@@ -146,6 +161,7 @@
                          Margin="0,12,0,0"/>
 
                 <!-- Header panel -->
+                <!-- Tiêu đề itinerary + nút đóng panel -->
                 <Grid Grid.Row="1"
                       ColumnDefinitions="*, Auto"
                       Padding="20,12,12,12">
@@ -173,6 +189,7 @@
                 </Grid>
 
                 <!-- Danh sách điểm dừng -->
+                <!-- Danh sách các POI trong tour (được dựng động bằng code-behind) -->
                 <ScrollView Grid.Row="2"
                             Margin="0,0,0,8">
                     <VerticalStackLayout x:Name="itineraryPoiList"
@@ -181,6 +198,7 @@
                 </ScrollView>
 
                 <!-- Nút chọn tour này -->
+                <!-- Xác nhận tour đang xem và gửi về MainPage để render trên bản đồ -->
                 <Button Grid.Row="3"
                         x:Name="btnSelectThisTour"
                         Text="{x:Static strings:AppResources.BtnShowOnMap}"

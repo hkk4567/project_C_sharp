@@ -3,10 +3,11 @@ using SmartTourGuide.Mobile.Models;
 
 namespace SmartTourGuide.Mobile;
 
+// File này xử lý luồng deep link: nhận POI từ QR, điều hướng và tự động phát audio.
 public partial class MainPage
 {
-    // Đăng ký nhận tin nhắn Deep Link
-    // Gọi hàm này trong OnAppearing() của MainPage.xaml.cs
+    // Đăng ký nhận tin nhắn deep link khi trang bắt đầu hiển thị.
+    // Hàm này được gọi trong OnAppearing() của MainPage.xaml.cs.
     private void RegisterDeepLinkHandler()
     {
         WeakReferenceMessenger.Default
@@ -17,21 +18,21 @@ public partial class MainPage
             });
     }
 
-    // Hủy đăng ký để tránh rò rỉ bộ nhớ
-    // Gọi hàm này trong OnDisappearing() của MainPage.xaml.cs
+    // Hủy đăng ký khi rời trang để tránh xử lý trùng và rò rỉ bộ nhớ.
+    // Hàm này được gọi trong OnDisappearing() của MainPage.xaml.cs.
     private void UnregisterDeepLinkHandler()
     {
         WeakReferenceMessenger.Default.Unregister<DeepLinkPoiMessage>(this);
     }
 
-    // Xử lý logic Deep Link
+    // Luồng xử lý chính khi nhận deep link POI.
     private async Task HandleDeepLinkPoiAsync(int poiId, bool autoPlay)
     {
         await MainThread.InvokeOnMainThreadAsync(async () =>
         {
             try
             {
-                // 1. Tìm POI (Sửa _pois thành _allPoisCache)
+                // 1) Tìm POI từ cache; nếu chưa có thì gọi API để lấy mới.
                 var poi = _allPoisCache?.FirstOrDefault(p => p.Id == poiId)
                           ?? await FetchPoiFromApiAsync(poiId);
 
@@ -41,10 +42,10 @@ public partial class MainPage
                     return;
                 }
 
-                // 2. Cập nhật biến POI hiện tại (Cực kỳ quan trọng để phát nhạc)
+                // 2) Gán POI hiện tại để các chức năng chi tiết/audio dùng đúng dữ liệu.
                 _currentSelectedPoi = poi;
 
-                // 3. Di chuyển bản đồ đến POI
+                // 3) Di chuyển camera bản đồ đến vị trí POI.
                 var mapView = MapViewCtrl; // Kiểm tra lại tên x:Name trong XAML của bạn
                 if (mapView?.Map?.Navigator != null)
                 {
@@ -52,10 +53,10 @@ public partial class MainPage
                     mapView.Map.Navigator.CenterOnAndZoomTo(new Mapsui.MPoint(smc.x, smc.y), 1.5, 1000);
                 }
 
-                // 4. Hiển thị Popup chi tiết
+                // 4) Mở popup thông tin POI.
                 ShowPoiDetail(poi);
 
-                // 5. Tự động phát nhạc
+                // 5) Nếu có cờ autoplay thì tự động phát audio sau khi popup hiển thị.
                 if (autoPlay)
                 {
                     await Task.Delay(500); // Chờ Popup hiện lên mượt mà
@@ -69,6 +70,7 @@ public partial class MainPage
         });
     }
 
+    // Tải POI từ API khi cache cục bộ chưa có dữ liệu tương ứng.
     private async Task<PoiModel?> FetchPoiFromApiAsync(int poiId)
     {
         try

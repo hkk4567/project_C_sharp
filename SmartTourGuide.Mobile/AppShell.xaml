@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
+<!-- AppShell.xaml: khai báo khung điều hướng gốc của ứng dụng MAUI -->
 <Shell
     x:Class="SmartTourGuide.Mobile.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -7,6 +8,7 @@
     FlyoutBehavior="Disabled"
     Title="SmartTourGuide.Mobile">
 
+    <!-- Màn hình khởi đầu của app, dùng MainPage làm nội dung chính -->
     <ShellContent
         Title="Main"
         ContentTemplate="{DataTemplate local:MainPage}"

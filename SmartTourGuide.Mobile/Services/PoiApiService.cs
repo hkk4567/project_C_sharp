@@ -2,7 +2,18 @@ using Newtonsoft.Json;
 using System.Net.Http.Json;
 
 namespace SmartTourGuide.Mobile.Services;
+// Giao tiếp server API
+// PoiApiService.cs
+// Chức năng chính:
+// Lấy danh sách POI theo ngôn ngữ.
 
+// Lấy danh sách tour và chi tiết tour.
+
+// Gửi log nghe audio POI cho analytics.
+
+// Gửi vị trí GPS ẩn danh cho tracking/heatmap.
+
+// Lưu trữ cục bộ để chạy offline
 public class PoiApiService
 {
     private readonly HttpClient _httpClient;

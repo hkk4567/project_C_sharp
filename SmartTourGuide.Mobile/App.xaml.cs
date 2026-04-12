@@ -3,9 +3,11 @@ using SmartTourGuide.Mobile.Models;
 
 namespace SmartTourGuide.Mobile;
 
+// File nay quan ly vong doi song cua ung dung va
+// xu ly deep link/QR.
 public partial class App : Application
 {
-    // THÊM 2 BIẾN NÀY ĐỂ LƯU TẠM THÔNG TIN TỪ QR (Tránh lỗi Cold Start)
+    // Luu tam thong tin QR/deep link khi app chua khoi tao xong hoac bi tat han.
     public static int? PendingDeepLinkPoiId { get; set; }
     public static bool PendingDeepLinkAutoPlay { get; set; }
 
@@ -14,24 +16,27 @@ public partial class App : Application
         InitializeComponent();
     }
 
+    // Tao cua so dau tien cua ung dung.
     protected override Window CreateWindow(IActivationState? activationState)
     {
         return new Window(new AppShell());
     }
 
+    // Gui thong bao khi ung dung tam dung.
     protected override void OnSleep()
     {
         base.OnSleep();
         WeakReferenceMessenger.Default.Send(new AppSleepMessage());
     }
 
+    // Gui thong bao khi ung dung quay lai hoat dong.
     protected override void OnResume()
     {
         base.OnResume();
         WeakReferenceMessenger.Default.Send(new AppResumeMessage());
     }
 
-    // ─── Android Deep Link Entry Point ────────────────────────────────────
+    // Xu ly deep link tu QR tren Android.
     public void HandleDeepLink(Uri uri)
     {
         try
@@ -45,7 +50,7 @@ public partial class App : Application
 
             if (!int.TryParse(segments[poiIndex + 1], out var poiId)) return;
 
-            // SỬA LẠI: Mặc định quét QR là TỰ ĐỘNG PHÁT NHẠC (true)
+            // Mac dinh la tu dong phat am thanh khi quet QR.
             var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
             bool autoPlay = true;
             if (query["autoplay"] != null)
@@ -53,17 +58,19 @@ public partial class App : Application
                 autoPlay = string.Equals(query["autoplay"], "true", StringComparison.OrdinalIgnoreCase);
             }
 
-            // 1. LƯU LẠI CHO MAINPAGE XỬ LÝ (Nếu app vừa bị tắt hẳn)
+            // Luu lai de MainPage xu ly neu app vua mo lai
+            //  tu trang thai tat han.
             PendingDeepLinkPoiId = poiId;
             PendingDeepLinkAutoPlay = autoPlay;
 
-            // 2. GỬI TIN NHẮN (Nếu app chỉ đang thu nhỏ, vẫn còn chạy ngầm)
+            // Gui tin nhan neu app dang chay ngam va co the nhan ngay.
             WeakReferenceMessenger.Default.Send(new DeepLinkPoiMessage
             {
                 PoiId = poiId,
                 AutoPlay = autoPlay
             });
 
+            // Dieu huong ve man hinh chinh de xu ly POI.
             var currentWindow = Application.Current?.Windows?.Count > 0 ? Application.Current.Windows[0] : null;
             if (currentWindow?.Page is Shell shell)
             {

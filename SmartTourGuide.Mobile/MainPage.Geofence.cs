@@ -1,5 +1,7 @@
 namespace SmartTourGuide.Mobile;
 
+// File này xử lý geofence: 
+//chọn POI trong vùng, phát audio theo quy tắc và quản lý trạng thái.
 public partial class MainPage
 {
     private Label? StatusLabelCtrl => this.FindByName<Label>("statusLabel");
@@ -7,16 +9,12 @@ public partial class MainPage
     // ════════════════════════════════════════════════════════════════════════
     //  GEOFENCE ENGINE
     // ════════════════════════════════════════════════════════════════════════
-    //
-    //  LOGIC AUDIO THEO VÙNG:
-    //  - Mỗi POI có index audio riêng (ví dụ: 0/3, 1/3, 2/3).
-    //  - Mỗi lần VÀO VÙNG → phát đúng 1 audio tại index hiện tại, rồi tăng index.
-    //    Dù nghe hết hay bị ngắt (cancel) khi rời vùng → index vẫn tăng.
-    //  - Khi index đã qua N/N (phát đủ vòng) VÀ người dùng RỜI VÙNG → bắt đầu CD, reset index.
-    //  - Trong thời gian CD: vào lại vùng sẽ không phát, hiển thị trạng thái còn bao nhiêu giây.
-    //  - CD là riêng biệt cho từng POI, không ảnh hưởng lẫn nhau.
-    //
-    // Trong file MainPage.Geofence.cs
+    // Luồng chính:
+    // 1) Xác định POI đang nằm trong bán kính geofence.
+    // 2) Ưu tiên POI có Priority cao nhất nếu cùng lúc có nhiều POI.
+    // 3) Đổi vùng thì dừng audio cũ ngay, sau đó xét cooldown của vùng mới.
+    // 4) Mỗi POI có cooldown riêng; chưa hết cooldown thì chỉ hiển thị trạng thái chờ.
+    // 5) Hết cooldown thì phát queue audio của POI, đồng thời ghi log lượt nghe.
 
     private async void CheckGeofences()
     {
@@ -40,14 +38,12 @@ public partial class MainPage
                 if (dist <= radius) poisInRange.Add(poi);
             }
 
-            // Kịch bản rời vùng
+            // Không còn POI nào trong vùng: dừng phát và reset trạng thái phiên hiện tại.
             if (poisInRange.Count == 0)
             {
                 if (_currentlyPlayingGeofencePoi != null)
                 {
-                    // ✅ FIX: Chỉ log nếu visit vẫn đang active (tức là audio đang phát lúc rời vùng).
-                    // Nếu audio đã kết thúc tự nhiên (_isGeofenceVisitActive = false do finally trong
-                    // TriggerGeofenceAudioQueue), log đã được gửi rồi → KHÔNG log lại để tránh +2.
+                    // Chỉ log khi phiên geofence vẫn active để tránh cộng trùng lượt nghe.
                     if (_isGeofenceVisitActive)
                         _ = LogAudioPlaybackAsync(_currentlyPlayingGeofencePoi.Id, _playStartTime);
 
@@ -55,9 +51,7 @@ public partial class MainPage
                     _currentlyPlayingGeofencePoi = null;
                     _isGeofenceVisitActive = false;
 
-                    // ✅ FIX: Xóa HashSet khi rời vùng để lần vào vùng tiếp theo được log bình thường.
-                    // Trước đây HashSet không bao giờ bị clear khi rời vùng cùng POI
-                    // → lần 2 vào vùng bị chặn log sai chỗ.
+                    // Xóa bộ chống trùng để lần vào vùng sau ghi log bình thường.
                     _loggedPoisInCurrentGeofenceVisit.Clear();
 
                     _statusPriority = 0;
@@ -68,19 +62,18 @@ public partial class MainPage
 
             var highestPriPoi = poisInRange.OrderByDescending(p => p.Priority).First();
 
-            // ✅ LOGIC MỚI: NẾU ĐỔI VÙNG THÌ DỪNG NGAY ÂM THANH CŨ
-            // Bất kể POI mới có đang CD hay không
+            // Nếu đổi sang vùng POI khác thì dừng audio cũ ngay, kể cả POI mới đang cooldown.
             if (_currentlyPlayingGeofencePoi != null && _currentlyPlayingGeofencePoi.Id != highestPriPoi.Id)
             {
                 System.Diagnostics.Debug.WriteLine($"[Logic] Đổi vùng từ {_currentlyPlayingGeofencePoi.Name} sang {highestPriPoi.Name}. Dừng audio cũ.");
 
-                StopAudio(); // Dừng POI 1 ngay lập tức
+                StopAudio(); // Dừng POI cũ ngay lập tức
                 _loggedPoisInCurrentGeofenceVisit.Clear();
-                _currentlyPlayingGeofencePoi = null; // Xóa trạng thái POI đang phát cũ
-                await Task.Delay(200); // Chờ một chút để hệ thống audio giải phóng
+                _currentlyPlayingGeofencePoi = null; // Xóa POI đang phát cũ
+                await Task.Delay(200); // Chờ audio pipeline giải phóng tài nguyên
             }
 
-            // ✅ CẬP NHẬT POPUP (Như đã làm ở câu trước)
+            // Cập nhật popup theo POI ưu tiên hiện tại.
             if (_currentSelectedPoi?.Id != highestPriPoi.Id)
             {
                 MainThread.BeginInvokeOnMainThread(() =>
@@ -91,27 +84,27 @@ public partial class MainPage
                 });
             }
 
-            // ✅ KIỂM TRA COOLDOWN
+            // Kiểm tra cooldown của POI ưu tiên.
             int effectiveCd = highestPriPoi.CooldownInSeconds > 0 ? highestPriPoi.CooldownInSeconds : 5;
             if (_poiLastTriggerAt.TryGetValue(highestPriPoi.Id, out var lastFinishTime))
             {
                 var elapsed = (DateTime.UtcNow - lastFinishTime).TotalSeconds;
                 if (elapsed < effectiveCd)
                 {
-                    // TÍNH SỐ GIÂY CÒN LẠI
+                    // Tính số giây còn lại.
                     int remaining = (int)(effectiveCd - elapsed);
 
-                    // HIỂN THỊ CD VỚI ƯU TIÊN CAO (Priority 2)
-                    // Dùng force: true để đảm bảo nó hiện ra kể cả khi vừa StopAudio
+                    // Hiển thị trạng thái chờ với ưu tiên cao.
                     SetStatus(string.Format(AppRes.StatusWaitReplay, highestPriPoi.Name, remaining),
                               priority: 2, force: true);
-                    // Nếu đang CD thì thoát, không phát nhạc POI 2
+                    // Đang cooldown thì không phát audio.
                     return;
                 }
             }
 
-            // ✅ PHÁT NHẠC POI 2 (Khi đã hết CD)
-            if (!_isPlaying) // Lúc này _isPlaying chắc chắn là false vì đã StopAudio ở trên
+            // Hết cooldown thì bắt đầu phát queue audio của 
+            // POI ưu tiên.
+            if (!_isPlaying)
             {
                 _currentlyPlayingGeofencePoi = highestPriPoi;
                 _isGeofenceVisitActive = true;
@@ -124,16 +117,15 @@ public partial class MainPage
 
     private async Task TriggerGeofenceAudioQueue(PoiModel poi)
     {
-        // Lấy danh sách audio urls cho ngôn ngữ hiện tại
+        // Lấy danh sách audio theo ngôn ngữ hiện tại.
         var urls = poi.AudioUrls;
         if (urls == null || urls.Count == 0) return;
 
-        //Tạo session ID mới cho mỗi lần vào vùng geofence.
-        // allowReuseCurrent: false → luôn tạo session mới (không tái dùng session cũ từ lần trước).
-        // Giúp server-side dedup (15 phút) hoạt động đúng khi cùng POI được vào nhiều lần liên tiếp.
+        // Mỗi lần vào vùng tạo session mới để dedup phía server 
+        // hoạt động đúng.
         PrepareListenSession(poi.Id, allowReuseCurrent: false);
 
-        // Lấy index đang phát dở của POI này từ Dictionary
+        // Khôi phục vị trí đang phát dở của POI từ bộ nhớ tạm.
         if (!_poiAudioIndex.TryGetValue(poi.Id, out int currentIndex))
             currentIndex = 0;
 
@@ -145,7 +137,7 @@ public partial class MainPage
 
         try
         {
-            // Duyệt qua hàng đợi audio bắt đầu từ vị trí cũ
+            // Duyệt queue audio bắt đầu từ vị trí đang dở.
             for (int i = currentIndex; i < urls.Count; i++)
             {
                 if (ct.IsCancellationRequested) break;
@@ -170,31 +162,28 @@ public partial class MainPage
                 {
                     await PlayRemoteAudioAndWaitAsync(fullUrl, ct);
 
-                    // ✅ PHÁT XONG 1 FILE -> Cập nhật index ngay
+                    // Phát xong 1 file thì cập nhật index ngay.
                     currentIndex = i + 1;
                     _poiAudioIndex[poi.Id] = currentIndex;
 
-                    // Ghi log thời gian nghe
+                    // Ghi log thời gian nghe.
                     _ = LogAudioPlaybackAsync(poi.Id, fileStartTime);
                 }
                 catch (OperationCanceledException)
                 {
-                    // ✅ FIX: KHÔNG log ở đây nữa.
-                    // Khi bị cancel do rời vùng, CheckGeofences (leave block) đã gọi
-                    // LogAudioPlaybackAsync rồi (khi _isGeofenceVisitActive = true).
-                    // Nếu log thêm ở đây → race condition: _isGeofenceVisitActive có thể
-                    // đã = false (do CheckGeofences chạy trước) → bypass dedup → +2 lượt nghe.
+                    // Không log tại đây; nhánh rời vùng đã xử lý log để tránh cộng trùng.
                     throw;
                 }
             }
 
-            // ✅ KIỂM TRA NẾU ĐÃ PHÁT XONG TẤT CẢ FILE TRONG HÀNG ĐỢI
+            // Nếu phát hết queue thì reset index và
+            //  bắt đầu tính cooldown.
             if (currentIndex >= urls.Count)
             {
-                // 1. Reset index về 0 để vòng lặp sau quay lại từ đầu
+                // 1) Reset index để vòng sau phát lại từ đầu.
                 _poiAudioIndex[poi.Id] = 0;
 
-                // 2. Ghi nhận thời điểm kết thúc để tính CD (Lấy giá trị CD từ DB ở vòng check sau)
+                // 2) Ghi thời điểm kết thúc để tính cooldown.
                 _poiLastTriggerAt[poi.Id] = DateTime.UtcNow;
 
                 MainThread.BeginInvokeOnMainThread(() =>
@@ -208,7 +197,7 @@ public partial class MainPage
         }
         catch (OperationCanceledException)
         {
-            // Rời vùng -> i giữ nguyên để lần sau quay lại phát tiếp file này
+            // Rời vùng: giữ index hiện tại để lần vào sau phát tiếp.
             return;
         }
         catch (Exception ex)
@@ -221,7 +210,6 @@ public partial class MainPage
             _isGeofenceVisitActive = false;
         }
     }
-    // UpdateNearestPoiHighlight
     // ════════════════════════════════════════════════════════════════════════
     //  HIGHLIGHT POI GẦN NHẤT
     // ════════════════════════════════════════════════════════════════════════
@@ -270,9 +258,10 @@ public partial class MainPage
         }
     }
 
-    // SetStatus, ShowIdleStatus
     // ════════════════════════════════════════════════════════════════════════
-    //  STATUS BAR MANAGER
+    //  STATUS BAR MANAGER là thanh trạng thái ở trên cùng
+    //  hiển thị thông tin POI gần nhất, trạng thái phát audio, cooldown...
+    
     // ════════════════════════════════════════════════════════════════════════
     private void SetStatus(string text, int priority, int autoRevertMs = 0, bool force = false)
     {
@@ -304,7 +293,7 @@ public partial class MainPage
             });
         }
     }
-
+    // Trạng thái idle sẽ hiển thị POI gần nhất nếu có, hoặc ẩn nếu không có POI nào.
     private void ShowIdleStatus()
     {
         if (_isPlaying || _nearestHighlightedPoi == null) return;

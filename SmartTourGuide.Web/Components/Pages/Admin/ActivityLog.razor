@@ -5,138 +5,138 @@
 @inject HttpClient Http
 <style>
     /* ===== GLOBAL ===== */
-body {
-    background-color: #f5f7fb;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
+    body {
+        background-color: #f5f7fb;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
 
-/* ===== HEADER ===== */
-h2 {
-    font-weight: 600;
-    color: #2c3e50;
-}
+    /* ===== HEADER ===== */
+    h2 {
+        font-weight: 600;
+        color: #2c3e50;
+    }
 
-/* ===== CARD ===== */
-.card {
-    border: none;
-    border-radius: 14px;
-    transition: all 0.25s ease;
-}
+    /* ===== CARD ===== */
+    .card {
+        border: none;
+        border-radius: 14px;
+        transition: all 0.25s ease;
+    }
 
-.card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-}
+    .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
 
-/* ===== STATS CARD ===== */
-.card .card-body h4 {
-    font-weight: 700;
-    margin-top: 6px;
-}
+    /* ===== STATS CARD ===== */
+    .card .card-body h4 {
+        font-weight: 700;
+        margin-top: 6px;
+    }
 
-/* border trái đẹp hơn */
-.border-4 {
-    border-width: 6px !important;
-}
+    /* border trái đẹp hơn */
+    .border-4 {
+        border-width: 6px !important;
+    }
 
-/* ===== FILTER ===== */
-.form-control,
-.form-select {
-    border-radius: 10px;
-    border: 1px solid #e0e6ed;
-    transition: all 0.2s;
-}
+    /* ===== FILTER ===== */
+    .form-control,
+    .form-select {
+        border-radius: 10px;
+        border: 1px solid #e0e6ed;
+        transition: all 0.2s;
+    }
 
-.form-control:focus,
-.form-select:focus {
-    border-color: #4e73df;
-    box-shadow: 0 0 0 0.15rem rgba(78,115,223,.25);
-}
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #4e73df;
+        box-shadow: 0 0 0 0.15rem rgba(78, 115, 223, .25);
+    }
 
-/* ===== BUTTON ===== */
-.btn-primary {
-    border-radius: 10px;
-    font-weight: 500;
-    background: linear-gradient(135deg, #4e73df, #224abe);
-    border: none;
-    transition: 0.25s;
-}
+    /* ===== BUTTON ===== */
+    .btn-primary {
+        border-radius: 10px;
+        font-weight: 500;
+        background: linear-gradient(135deg, #4e73df, #224abe);
+        border: none;
+        transition: 0.25s;
+    }
 
-.btn-primary:hover {
-    transform: scale(1.03);
-    box-shadow: 0 6px 15px rgba(78,115,223,0.4);
-}
+    .btn-primary:hover {
+        transform: scale(1.03);
+        box-shadow: 0 6px 15px rgba(78, 115, 223, 0.4);
+    }
 
-/* ===== TABLE ===== */
-.table {
-    border-radius: 12px;
-    overflow: hidden;
-}
+    /* ===== TABLE ===== */
+    .table {
+        border-radius: 12px;
+        overflow: hidden;
+    }
 
-.table thead {
-    background: #f1f3f9;
-    font-weight: 600;
-}
+    .table thead {
+        background: #f1f3f9;
+        font-weight: 600;
+    }
 
-.table-hover tbody tr {
-    transition: 0.2s;
-}
+    .table-hover tbody tr {
+        transition: 0.2s;
+    }
 
-.table-hover tbody tr:hover {
-    background-color: #f9fbff;
-    transform: scale(1.002);
-}
+    .table-hover tbody tr:hover {
+        background-color: #f9fbff;
+        transform: scale(1.002);
+    }
 
-/* ===== BADGE ===== */
-.badge {
-    padding: 6px 10px;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    font-weight: 500;
-}
+    /* ===== BADGE ===== */
+    .badge {
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
 
-/* ===== PAGINATION ===== */
-.pagination .page-link {
-    border-radius: 8px;
-    margin: 0 3px;
-    border: none;
-    color: #4e73df;
-    transition: 0.2s;
-}
+    /* ===== PAGINATION ===== */
+    .pagination .page-link {
+        border-radius: 8px;
+        margin: 0 3px;
+        border: none;
+        color: #4e73df;
+        transition: 0.2s;
+    }
 
-.pagination .page-link:hover {
-    background-color: #e9ecf5;
-}
+    .pagination .page-link:hover {
+        background-color: #e9ecf5;
+    }
 
-.pagination .active .page-link {
-    background: #4e73df;
-    color: white;
-    box-shadow: 0 4px 10px rgba(78,115,223,0.4);
-}
+    .pagination .active .page-link {
+        background: #4e73df;
+        color: white;
+        box-shadow: 0 4px 10px rgba(78, 115, 223, 0.4);
+    }
 
-/* ===== ALERT ===== */
-.alert {
-    border-radius: 10px;
-    border: none;
-}
+    /* ===== ALERT ===== */
+    .alert {
+        border-radius: 10px;
+        border: none;
+    }
 
-/* ===== LOADING ===== */
-.spinner-border {
-    width: 2rem;
-    height: 2rem;
-}
+    /* ===== LOADING ===== */
+    .spinner-border {
+        width: 2rem;
+        height: 2rem;
+    }
 
-/* ===== EMPTY STATE ===== */
-.text-muted {
-    font-size: 0.95rem;
-}
+    /* ===== EMPTY STATE ===== */
+    .text-muted {
+        font-size: 0.95rem;
+    }
 
-/* ===== SCROLL TABLE ===== */
-.table-responsive {
-    border-radius: 12px;
-}
+    /* ===== SCROLL TABLE ===== */
+    .table-responsive {
+        border-radius: 12px;
+    }
 
-.activity-title {
+    .activity-title {
         color: var(--mud-palette-text-primary) !important;
         font-weight: 700;
     }
@@ -144,7 +144,7 @@ h2 {
 <div class="container-fluid py-4">
     <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="activity-title"><i class="bi bi-clock-history"></i> Lịch Sử Hoạt Động</h2>    
+        <h2 class="activity-title"><i class="bi bi-clock-history"></i> Lịch Sử Hoạt Động</h2>
     </div>
 
     <!-- Thông báo lỗi nếu có -->
@@ -257,19 +257,19 @@ h2 {
                         </thead>
 
                         <tbody>
-                            @if (paginatedLogs != null && paginatedLogs.Any())
+                            @if (activityLogs != null && activityLogs.Any())
                             {
-                                @foreach (var log in paginatedLogs)
+                                @foreach (var log in activityLogs)
                                 {
                                     <tr>
                                         <td>@log.Id</td>
                                         <td>
                                             <span class="badge 
                                                 @(log.ActivityType == "Login" ? "bg-info" :
-                                                log.ActivityType?.Contains("Create") == true ? "bg-success" :
-                                                log.ActivityType?.Contains("Update") == true ? "bg-warning" :
-                                                log.ActivityType?.Contains("Delete") == true ? "bg-danger" :
-                                                "bg-secondary")">
+                                                                                                                                                    log.ActivityType?.Contains("Create") == true ? "bg-success" :
+                                                                                                                                                    log.ActivityType?.Contains("Update") == true ? "bg-warning" :
+                                                                                                                                                    log.ActivityType?.Contains("Delete") == true ? "bg-danger" :
+                                                                                                                                                    "bg-secondary")">
                                                 @log.ActivityType
                                             </span>
                                         </td>
@@ -336,17 +336,14 @@ h2 {
     private int totalChanges = 0;
     private int pendingApprovals = 0;
     private int totalActivities = 0;
+    private int totalLogCount = 0;
 
     // 4. CÁC BIẾN DÀNH CHO PHÂN TRANG
     private int currentPage = 1;
     private int pageSize = 10; // Đổi số này nếu bạn muốn hiển thị nhiều/ít dòng hơn trên 1 trang
 
     // Tính tổng số trang
-    private int totalPages => (int)Math.Ceiling((double)(activityLogs?.Count ?? 0) / pageSize);
-
-    // Lọc dữ liệu hiển thị cho trang hiện tại
-    private IEnumerable<ActivityLogDto> paginatedLogs => 
-        activityLogs?.Skip((currentPage - 1) * pageSize).Take(pageSize) ?? Array.Empty<ActivityLogDto>();
+    private int totalPages => (int)Math.Ceiling((double)totalLogCount / pageSize);
 
     // ==========================================
     // CÁC HÀM XỬ LÝ (METHODS)
@@ -354,11 +351,11 @@ h2 {
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadLogs();
-        await LoadStats(); 
+        await LoadLogs(1);
+        await LoadStats();
     }
 
-    private async Task LoadLogs()
+    private async Task LoadLogs(int page)
     {
         isLoading = true;
         errorMessage = null;
@@ -379,21 +376,18 @@ h2 {
             if (toDate.HasValue)
                 query["to"] = toDate.Value.ToString("yyyy-MM-dd");
 
+            query["page"] = page.ToString();
+            query["pageSize"] = pageSize.ToString();
+
             var url = QueryHelpers.AddQueryString("api/activitylogs", query);
 
-            activityLogs = await Http.GetFromJsonAsync<List<ActivityLogDto>>(url) 
-                         ?? new List<ActivityLogDto>();
-
-            // Tính toán Đăng nhập hôm nay
-            todayLogins = activityLogs.Count(x => 
-                x.ActivityType == "Login" && 
-                x.Timestamp.Date == DateTime.Today);
-
-            // Đếm tổng Thay đổi (Log) (Mọi thứ trừ Login)
-            totalChanges = activityLogs.Count(x => x.ActivityType != "Login");
-
-            // Đặt lại trang 1 mỗi khi tải dữ liệu mới
-            currentPage = 1;
+            var result = await Http.GetFromJsonAsync<ActivityLogPageDto>(url);
+            activityLogs = result?.Items ?? new List<ActivityLogDto>();
+            totalLogCount = result?.TotalCount ?? activityLogs.Count;
+            todayLogins = result?.TodayLogins ?? 0;
+            totalChanges = result?.TotalChanges ?? 0;
+            currentPage = result?.CurrentPage ?? page;
+            pageSize = result?.PageSize ?? pageSize;
         }
         catch (Exception ex)
         {
@@ -423,31 +417,35 @@ h2 {
 
     private async Task HandleSearch()
     {
-        await LoadLogs();
-        await LoadStats(); 
+        currentPage = 1;
+        await LoadLogs(currentPage);
+        await LoadStats();
     }
 
     // ==========================================
     // CÁC HÀM ĐIỀU KHIỂN NÚT BẤM PHÂN TRANG
     // ==========================================
-    private void PreviousPage()
+    private async Task PreviousPage()
     {
-        if (currentPage > 1) 
+        if (currentPage > 1)
         {
             currentPage--;
+            await LoadLogs(currentPage);
         }
     }
 
-    private void NextPage()
+    private async Task NextPage()
     {
-        if (currentPage < totalPages) 
+        if (currentPage < totalPages)
         {
             currentPage++;
+            await LoadLogs(currentPage);
         }
     }
 
-    private void GoToPage(int page)
+    private async Task GoToPage(int page)
     {
         currentPage = page;
+        await LoadLogs(currentPage);
     }
 }

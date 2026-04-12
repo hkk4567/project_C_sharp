@@ -1,6 +1,10 @@
 using System.Text.Json;
 
 namespace SmartTourGuide.Mobile.Services;
+// Mục đích file:
+// 1) Lấy tuyến đường đi bộ thực tế từ OSRM.
+// 2) Cache tuyến theo tọa độ POI để tăng tốc tải lại.
+// 3) Ưu tiên cache hợp lệ; fallback an toàn khi mất mạng.
 
 /// <summary>
 /// Gọi OSRM để lấy tuyến đường thực tế, cache kết quả vào file JSON.
@@ -19,17 +23,19 @@ public class RouteService
 {
     // ── Cấu hình ─────────────────────────────────────────────────────────────
     private const string OsrmBaseUrl = "https://router.project-osrm.org/route/v1/foot";
-    private const int MaxWaypointsPerReq = 25;       // Giới hạn của OSRM public API
-    private const int CoordPrecision = 4;        // Làm tròn khi tạo cache key (≈11 m)
-    private const double MaxCacheAgeDays = 30;       // Sau 30 ngày sẽ thử refresh nếu online
+    private const int MaxWaypointsPerReq = 25; // Giới hạn của OSRM public API
+    private const int CoordPrecision = 4; // Làm tròn khi tạo cache key (xấp xỉ 11m)
+    private const double MaxCacheAgeDays = 30; // Sau 30 ngày sẽ cố refresh nếu online
 
     private readonly HttpClient _http;
     private readonly string _routeCacheDir;
 
     public RouteService()
     {
+        // 1) HttpClient riêng cho route, timeout ngắn để tránh treo UI lâu.
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
 
+        // 2) Tạo thư mục cache route nếu chưa tồn tại.
         _routeCacheDir = Path.Combine(FileSystem.CacheDirectory, "routes");
         Directory.CreateDirectory(_routeCacheDir);
     }
@@ -49,9 +55,11 @@ public class RouteService
         IEnumerable<MauiLocation.Location> waypointsForCache,
         CancellationToken cancellationToken = default)
     {
+        // Chuẩn hóa input thành list để truy cập nhiều lần.
         var all = allWaypoints.ToList();
         var forKey = waypointsForCache.ToList();
 
+        // Không đủ điểm để gọi route engine thì trả đường thẳng ngay.
         if (all.Count < 2)
             return RouteResult.StraightLine(all);
 
@@ -131,7 +139,10 @@ public class RouteService
     {
         try
         {
+            // 1) Không có file cache thì trả null.
             if (!File.Exists(filePath)) return null;
+
+            // 2) Có file thì đọc và parse JSON.
             var json = await File.ReadAllTextAsync(filePath);
             return JsonSerializer.Deserialize<RouteCache>(json);
         }
@@ -146,6 +157,7 @@ public class RouteService
     {
         try
         {
+            // Lưu route mới nhất vào cache với timestamp UTC.
             var json = JsonSerializer.Serialize(new RouteCache
             {
                 SavedAt = DateTime.UtcNow,
@@ -167,10 +179,11 @@ public class RouteService
         List<MauiLocation.Location> pts,
         CancellationToken cancellationToken)
     {
+        // Trường hợp đủ nhỏ: gọi trực tiếp một request.
         if (pts.Count <= MaxWaypointsPerReq)
             return await FetchSegmentAsync(pts, cancellationToken);
 
-        // Chia batch nếu > MaxWaypointsPerReq điểm
+        // Nếu quá nhiều điểm: chia batch để phù hợp giới hạn OSRM.
         var combined = new List<MauiLocation.Location>();
         int step = MaxWaypointsPerReq - 1; // -1 để điểm cuối đoạn trước = điểm đầu đoạn sau
 
@@ -180,6 +193,7 @@ public class RouteService
             var segment = pts.GetRange(i, end - i);
             var result = await FetchSegmentAsync(segment, cancellationToken);
 
+            // Bỏ điểm đầu trùng giữa 2 đoạn liên tiếp.
             if (combined.Count > 0 && result.Count > 0)
                 result.RemoveAt(0); // bỏ điểm trùng ở đầu đoạn tiếp theo
 
@@ -201,18 +215,22 @@ public class RouteService
         var url = $"{OsrmBaseUrl}/{coordStr}?overview=full&geometries=geojson&steps=false";
         System.Diagnostics.Debug.WriteLine($"[RouteService] GET {url}");
 
+        // 1) Gọi OSRM.
         var response = await _http.GetAsync(url, cancellationToken);
         response.EnsureSuccessStatusCode();
 
+        // 2) Parse polyline GeoJSON thành danh sách điểm lat/lon.
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         return ParseOsrmGeoJson(json);
     }
 
     private static List<MauiLocation.Location> ParseOsrmGeoJson(string json)
     {
+        // 1) Parse JSON response.
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
+        // 2) Validate mã phản hồi OSRM.
         if (root.TryGetProperty("code", out var code) && code.GetString() != "Ok")
             throw new Exception($"OSRM code={code.GetString()}");
 
@@ -223,6 +241,7 @@ public class RouteService
         var coords = routes[0].GetProperty("geometry").GetProperty("coordinates");
         var result = new List<MauiLocation.Location>();
 
+        // 3) Chuyển từ [lon,lat] sang object Location(lat, lon).
         foreach (var coord in coords.EnumerateArray())
             result.Add(new MauiLocation.Location(coord[1].GetDouble(), coord[0].GetDouble()));
 
@@ -236,6 +255,7 @@ public class RouteService
     /// <summary>Xóa toàn bộ cache tuyến đường.</summary>
     public void ClearRouteCache()
     {
+        // Xóa tất cả file cache route JSON.
         foreach (var f in Directory.GetFiles(_routeCacheDir, "*.json"))
             File.Delete(f);
         System.Diagnostics.Debug.WriteLine("[RouteService] Đã xóa toàn bộ route cache.");
@@ -244,6 +264,7 @@ public class RouteService
     /// <summary>Kích thước cache tuyến đường (MB).</summary>
     public double GetCacheSizeMb()
     {
+        // Tính tổng dung lượng cache route để hiển thị thống kê.
         if (!Directory.Exists(_routeCacheDir)) return 0;
         long bytes = Directory.GetFiles(_routeCacheDir, "*.json")
                               .Sum(f => new FileInfo(f).Length);
@@ -274,7 +295,9 @@ public enum RouteSource
 /// <summary>Kết quả trả về từ RouteService.</summary>
 public class RouteResult
 {
+    // Danh sách tọa độ tuyến đường đã xử lý.
     public List<MauiLocation.Location> Points { get; }
+    // Nguồn dữ liệu của tuyến (OSRM, cache, fallback...).
     public RouteSource Source { get; }
 
     public RouteResult(List<MauiLocation.Location> points, RouteSource source)

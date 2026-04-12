@@ -207,7 +207,8 @@
                             &nbsp;|&nbsp;
                             Kết thúc: @_movement.Last().Timestamp.ToLocalTime().ToString("dd/MM HH:mm")
                         </MudText>
-                        <MudTable Items="_movement.Take(20).ToList()" Dense="true" Hover="true" Striped="true">
+                        <MudTable Items="_movement" Dense="true" Hover="true" Striped="true"
+                                  RowsPerPage="@_movementRowsPerPage">
                             <HeaderContent>
                                 <MudTh>Thời gian</MudTh>
                                 <MudTh>Vĩ độ</MudTh>
@@ -218,6 +219,11 @@
                                 <MudTd>@context.Latitude.ToString("0.000000")</MudTd>
                                 <MudTd>@context.Longitude.ToString("0.000000")</MudTd>
                             </RowTemplate>
+                            <PagerContent>
+                                <MudTablePager RowsPerPageString="Số dòng mỗi trang"
+                                               InfoFormat="{first_item}-{last_item} / {all_items}"
+                                               PageSizeOptions="new int[] { 5, 10, 20, 50 }" />
+                            </PagerContent>
                         </MudTable>
                     }
                 </MudPaper>
@@ -236,6 +242,7 @@
     private int _top = 10;
     private int _days = 7;
     private int _maxTopListen;
+    private int _movementRowsPerPage = 10;
 
     private SmartTourGuide.Shared.DTOs.OwnerAnalyticsSummaryDto _summary = new();
     private List<SmartTourGuide.Shared.DTOs.TopPoiDto> _topPois = new();

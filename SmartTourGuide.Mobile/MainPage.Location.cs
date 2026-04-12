@@ -1,21 +1,21 @@
 namespace SmartTourGuide.Mobile;
 
 /// <summary>
-/// Quản lý toàn bộ logic GPS real-time.
+/// File này quản lý luồng GPS thời gian thực cho MainPage.
 ///
 /// Luồng hoạt động:
 ///   OnAppearing → StartLocationListeningAsync()
-///     → Geolocation.LocationChanged event kích hoạt mỗi khi di chuyển
+///     → Geolocation.LocationChanged kích hoạt khi vị trí thay đổi
 ///       → Cập nhật dot vị trí trên bản đồ
 ///       → Gửi lên server (nếu đủ điều kiện)
 ///       → Kiểm tra geofence + highlight POI gần nhất
-///       → Nếu đang xem Tour và đã đi xa ≥ TourRerouteThresholdMeters
+///       → Nếu đang xem Tour và đã đi xa >= TourRerouteThresholdMeters
 ///         → Vẽ lại tuyến đường từ vị trí mới (dùng OSRM cache → rất nhanh)
 ///   OnDisappearing → StopLocationListening()
 /// </summary>
 public partial class MainPage
 {
-    // ── Ngưỡng di chuyển để vẽ lại tuyến tour (tránh re-render liên tục) ───
+    // ── Ngưỡng di chuyển để vẽ lại tuyến tour (tránh vẽ lại liên tục) ──────
     private const double TourRerouteThresholdMeters = 15.0;
     private const int timerefresh = 3;
 
@@ -48,7 +48,7 @@ public partial class MainPage
 
             var request = new GeolocationListeningRequest(
                 GeolocationAccuracy.Best,
-                minimumTime: TimeSpan.FromSeconds(timerefresh)); // cập nhật tối thiểu mỗi 1 giây
+                minimumTime: TimeSpan.FromSeconds(timerefresh)); // Cập nhật tối thiểu mỗi 3 giây
 
             var started = await Geolocation.StartListeningForegroundAsync(request);
             if (!started)
@@ -91,7 +91,7 @@ public partial class MainPage
 
     private void OnLocationChanged(object? sender, GeolocationLocationChangedEventArgs e)
     {
-        // Bỏ qua nếu user đang giả lập vị trí thủ công bằng cách tap lên bản đồ
+        // Bỏ qua khi người dùng đang giả lập vị trí thủ công bằng thao tác chạm bản đồ.
         if (_isManualLocationOverride) return;
 
         var loc = e.Location;
@@ -114,7 +114,7 @@ public partial class MainPage
             mapView.RefreshGraphics();
         });
 
-        // ── 2. Gửi vị trí lên server (throttle trong SendLocationIfNeededAsync) ──
+        // ── 2. Gửi vị trí lên server (đã throttle trong SendLocationIfNeededAsync) ──
         _ = SendLocationIfNeededAsync(loc.Latitude, loc.Longitude);
 
         // ── 3. Kiểm tra geofence + highlight POI gần nhất ───────────────
@@ -122,7 +122,7 @@ public partial class MainPage
         if (!_isCheckingGeofences)
             CheckGeofences();
 
-        // ── 4. Nếu đang xem Tour → kiểm tra xem có cần vẽ lại route không ──
+        // ── 4. Nếu đang xem Tour, kiểm tra có cần vẽ lại route hay không ─────
         if (_currentTour != null)
             _ = MaybeRerenderTourRouteAsync(loc);
     }
@@ -141,11 +141,11 @@ public partial class MainPage
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  VẼ LẠI TUYẾN TOUR KHI USER ĐI XA
+    //  VẼ LẠI TUYẾN TOUR KHI NGƯỜI DÙNG DI CHUYỂN XA
     // ════════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Chỉ vẽ lại tuyến đường Tour nếu user đã di chuyển ≥ TourRerouteThresholdMeters
+    /// Chỉ vẽ lại tuyến đường Tour nếu người dùng đã di chuyển >= TourRerouteThresholdMeters
     /// so với lần vẽ gần nhất.
     ///
     /// Vì OSRM route đã được cache theo POI, việc re-render chỉ cần đọc cache
@@ -166,11 +166,11 @@ public partial class MainPage
                 return; // Chưa đủ xa → bỏ qua
         }
 
-        // Lưu lại vị trí render hiện tại trước để tránh re-enter
+        // Lưu lại vị trí hiện tại trước để tránh gọi chồng.
         _lastTourRenderLocation = newLocation;
 
         System.Diagnostics.Debug.WriteLine(
-            $"[Location] User đã di chuyển, vẽ lại tuyến tour từ vị trí mới.");
+            $"[Location] Người dùng đã di chuyển, vẽ lại tuyến tour từ vị trí mới.");
 
         // RenderTourOnMap sẽ tự đọc từ OSRM cache (không gọi API mạng)
         // nên chạy rất nhanh dù được gọi thường xuyên
