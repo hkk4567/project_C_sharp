@@ -13,7 +13,10 @@ public partial class MainPage
         if (_isPlaying) { StopAudio(); return; }
         if (_currentSelectedPoi == null) return;
 
-        PrepareListenSession(_currentSelectedPoi.Id, allowReuseCurrent: true);
+        // ✅ FIX: allowReuseCurrent: false → luôn tạo session ID mới mỗi lần nhấn nút.
+        // Trước đây dùng true → lần nghe thứ 2 cùng POI REUSE Guid cũ → server-side dedup
+        // (ConcurrentDictionary, 15 phút) thấy SessionId đã tồn tại → return sớm, KHÔNG ghi log.
+        PrepareListenSession(_currentSelectedPoi.Id, allowReuseCurrent: false);
 
         _isPlaying = true;
         btnPlayAudio.Text = AppRes.BtnStop;
