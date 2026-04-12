@@ -7,11 +7,18 @@ using SmartTourGuide.Shared.Enums;
 using BC = BCrypt.Net.BCrypt;
 
 namespace SmartTourGuide.API.Controllers;
+// endpoint là /api/auth/register và /api/auth/login để xử 
+//lý đăng ký và đăng nhập tài khoản.
 
+// File này xử lý xác thực tài khoản.
+// - Đăng ký và đăng nhập người dùng
+// - Ghi activity log cho các thao tác auth
+// - Có endpoint debug để test việc lưu log
 [Route("api/[controller]")]
 [ApiController]
 public class AuthController : ControllerBase
 {
+    // DbContext dùng để thao tác với Users và ActivityLogs.
     private readonly AppDbContext _context;
 
     public AuthController(AppDbContext context)
@@ -19,27 +26,28 @@ public class AuthController : ControllerBase
         _context = context;
     }
 
-    // Hàm Helper dùng chung để lưu Log
+    // Hàm helper dùng chung để ghi activity log cho các thao tác đăng ký/đăng nhập.
     private void AddActivityLog(string activityType, string description, string username)
     {
-        // Lấy IP, xử lý trường hợp X-Forwarded-For trả về chuỗi dài gồm nhiều IP
+        // Lấy IP, ưu tiên header proxy nếu có.
         var ip = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        
+
         if (string.IsNullOrEmpty(ip))
         {
             ip = HttpContext.Connection.RemoteIpAddress?.ToString();
         }
         else
         {
-            // Nếu qua proxy, X-Forwarded-For có thể có dạng "IP1, IP2", ta chỉ lấy IP đầu tiên
+            // Nếu qua proxy, chỉ lấy IP đầu tiên trong danh sách.
             ip = ip.Split(',')[0].Trim();
         }
 
         ip ??= "Unknown";
 
-        // Cắt ngắn IP nếu quá dài để tránh lỗi Entity Framework khi lưu vào Database (ví dụ DB giới hạn 50 ký tự)
+        // Cắt ngắn IP nếu cần để tránh lỗi độ dài khi lưu vào database.
         if (ip.Length > 50) ip = ip.Substring(0, 50);
 
+        // Tạo record log và để SaveChanges ở hàm gọi xử lý.
         _context.ActivityLogs.Add(new ActivityLog
         {
             ActivityType = activityType,
@@ -54,9 +62,11 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterDto dto)
     {
+        // Không cho tạo trùng username.
         if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
             return BadRequest("Tên đăng nhập đã tồn tại.");
 
+        // Tạo user mới và hash mật khẩu trước khi lưu.
         var user = new User
         {
             Username = dto.Username,
@@ -67,8 +77,8 @@ public class AuthController : ControllerBase
         };
 
         _context.Users.Add(user);
-
-        // THÊM LOG CHO ĐĂNG KÝ
+        // audit là ghi log hoạt động, không phải ghi log lỗi. Nếu có lỗi sẽ trả về lỗi trước khi ghi log.
+        // Ghi log đăng ký để phục vụ audit.
         AddActivityLog("Register", $"Tạo tài khoản mới: {user.Username}", user.Username);
 
         await _context.SaveChangesAsync();
@@ -80,6 +90,7 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto)
     {
+        // Tìm user theo username để kiểm tra mật khẩu và trạng thái tài khoản.
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Username == dto.Username);
         Console.WriteLine("Đã vào login");
@@ -90,11 +101,12 @@ public class AuthController : ControllerBase
             return Unauthorized("Sai tài khoản hoặc mật khẩu");
         }
 
+        // Chặn đăng nhập nếu tài khoản đang bị khóa.
         if (user.IsLocked)
         {
             Console.WriteLine("Tài khoản đã bị khóa");
 
-            // Ghi log cho trường hợp đăng nhập bằng tài khoản đã bị khóa
+            // Ghi log cho trường hợp đăng nhập bằng tài khoản đã bị khóa.
             AddActivityLog("LoginBlocked", $"Từ chối đăng nhập do tài khoản bị khóa: {user.Username}", user.Username);
             await _context.SaveChangesAsync();
 
@@ -109,21 +121,25 @@ public class AuthController : ControllerBase
 
         Console.WriteLine("Login thành công");
 
-        // THÊM LOG CHO ĐĂNG NHẬP
+        // Ghi log đăng nhập thành công.
         AddActivityLog("Login", $"User đăng nhập: {user.Username}", user.Username);
 
+        // Lưu cả user lẫn log trong cùng một lần commit.
         var result = await _context.SaveChangesAsync();
 
         return Ok(new
         {
             message = "Đăng nhập thành công!",
-            saved = result, // 👈 thêm dòng này để debug
+            saved = result, // thêm dòng này để debug
             user = new { user.Id, user.Username, user.FullName, user.Role }
         });
     }
+
+    // Endpoint kiểm tra nhanh việc ghi ActivityLog trong môi trường dev/debug.
     [HttpGet("debug-log")]
     public async Task<IActionResult> DebugLog()
     {
+        // Tạo một log mẫu để xác nhận pipeline lưu log hoạt động.
         _context.ActivityLogs.Add(new ActivityLog
         {
             ActivityType = "DEBUG",
@@ -137,5 +153,4 @@ public class AuthController : ControllerBase
 
         return Ok(saved);
     }
-    //
 }

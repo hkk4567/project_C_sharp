@@ -5,6 +5,11 @@ using SmartTourGuide.API.Data.Entities;
 
 namespace SmartTourGuide.API.Controllers;
 
+// File này xử lý deep link cho POI.
+// - Nhận URL /poi/{poiId} được nhúng trong QR Code
+// - Trả về landing page khi app chưa được cài hoặc link chưa mở trực tiếp
+// - Cung cấp đường fallback để người dùng tải app hoặc xem trên trình duyệt
+
 /// <summary>
 /// Bắt URL /poi/{poiId} — đây chính là URL được nhúng trong QR Code.
 ///
@@ -20,7 +25,9 @@ namespace SmartTourGuide.API.Controllers;
 [Route("poi")]
 public class DeepLinkController : Controller
 {
+  // DbContext để tra cứu thông tin POI khi mở landing page.
   private readonly AppDbContext _context;
+  // Môi trường hosting dùng khi cần tham chiếu tài nguyên tĩnh của site.
   private readonly IWebHostEnvironment _env;
 
   public DeepLinkController(AppDbContext context, IWebHostEnvironment env)
@@ -33,18 +40,18 @@ public class DeepLinkController : Controller
   [HttpGet("{poiId:int}")]
   public async Task<IActionResult> Index(int poiId)
   {
-    // Lấy thông tin POI để hiển thị trên Landing Page
+    // Lấy thông tin POI đang được nhúng trong QR để hiển thị trên landing page.
     var poi = await _context.Pois
         .Where(p => p.Id == poiId && p.Status == PoiStatus.Active)
         .Select(p => new { p.Id, p.Name, p.Description, p.Address })
         .FirstOrDefaultAsync();
 
-    // Đường dẫn APK — đặt file tại wwwroot/downloads/SmartTourGuide.apk
+    // Tạo các URL fallback để người dùng có thể cài app hoặc mở bằng deep link.
     var baseUrl = $"{Request.Scheme}://{Request.Host}";
     var apkUrl = $"{baseUrl}/downloads/SmartTourGuide.apk";
     var deepLinkScheme = $"smarttourguide://poi/{poiId}?autoplay=true";
 
-    // Intent URL cho Android Chrome (fallback khi App Links chưa xác thực)
+    // Intent URL cho Android Chrome khi App Links chưa được xác thực.
     var intentUrl =
         $"intent://poi/{poiId}?autoplay=true#Intent;" +
         $"scheme=smarttourguide;" +
@@ -52,9 +59,10 @@ public class DeepLinkController : Controller
         $"S.browser_fallback_url={Uri.EscapeDataString($"{baseUrl}/poi/{poiId}")};" +
         $"end";
 
-    // Universal Link trực tiếp cho iOS Safari
+    // Universal link dùng cho iOS Safari.
     var universalLink = $"{baseUrl}/poi/{poiId}";
 
+    // Dựng HTML landing page động theo POI hiện tại.
     var html = BuildLandingHtml(
         poiId,
         poi?.Name ?? $"Điểm tham quan #{poiId}",
@@ -74,6 +82,7 @@ public class DeepLinkController : Controller
       int poiId, string poiName, string address, string description,
       string deepLinkScheme, string intentUrl, string apkUrl, string baseUrl)
   {
+    // Trả về HTML tĩnh có nhúng dữ liệu POI và các liên kết mở app / tải app.
     return $$"""
 <!DOCTYPE html>
 <html lang="vi">
@@ -144,6 +153,7 @@ public class DeepLinkController : Controller
 
   <div class="steps-wrapper">
     <div class="steps-title">Sau khi cài đặt:</div>
+    <!-- Hướng dẫn ngắn để người dùng hiểu cách quay lại QR sau khi cài app -->
     <div class="step">
       <div class="step-num">1</div>
       <div class="step-text">Tải và cài ứng dụng từ nút bên dưới</div>
@@ -163,6 +173,7 @@ public class DeepLinkController : Controller
     ⬇️ Tải ứng dụng (Android APK)
   </a>
 
+  <!-- Placeholder cho iOS; hiện tại chỉ hiển thị thông tin chờ App Store -->
   <a href="/" class="btn btn-secondary">
     🍎 App Store (iOS) Coming soon
   </a>
@@ -175,13 +186,13 @@ public class DeepLinkController : Controller
 </div>
 
 <script>
-  // Thử mở App qua custom scheme / Intent trước khi hiện nút tải
+  // Cố gắng mở app bằng deep link trước, nếu thất bại thì giữ landing page để tải APK.
   (function tryOpenApp() {
     var isAndroid = /Android/i.test(navigator.userAgent);
     var isIOS     = /iPhone|iPad/i.test(navigator.userAgent);
     var opened    = false;
 
-    // Khi người dùng vừa vào trang → thử deep link tức thì
+    // Chọn loại deep link phù hợp với thiết bị hiện tại.
     var deepLink = isAndroid
       ? "{{intentUrl}}"
       : "{{deepLinkScheme}}";
@@ -191,12 +202,12 @@ public class DeepLinkController : Controller
     frame.src = deepLink;
     document.body.appendChild(frame);
 
-    // Nếu App mở được, trang sẽ bị ẩn (visibilitychange) → flag opened
+    // Nếu app được mở, trình duyệt thường mất focus và chuyển sang hidden.
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) opened = true;
     });
 
-    // Sau 1.5s, nếu App không mở được → để nguyên giao diện tải APK
+    // Sau một khoảng chờ ngắn, nếu không mở được app thì không làm gì thêm.
     setTimeout(function () {
       document.body.removeChild(frame);
       if (opened) {
@@ -207,7 +218,7 @@ public class DeepLinkController : Controller
   })();
 
   function skipToWeb() {
-    // Ở đây có thể chuyển sang trang web tĩnh mô tả POI
+    // Chuyển sang API/web fallback nếu người dùng muốn xem trên trình duyệt.
     window.location.href = '{{baseUrl}}/api/pois/{{poiId}}';
   }
 </script>

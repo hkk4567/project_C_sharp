@@ -6,6 +6,12 @@ using SmartTourGuide.Shared.Enums;
 using SmartTourGuide.Shared.DTOs;
 
 namespace SmartTourGuide.API.Controllers;
+
+// File này dùng để thu thập và tổng hợp dữ liệu analytics của hệ thống.
+// - Ghi nhận lượt nghe audio và lượt xem POI
+// - Thống kê top POI, thời lượng nghe trung bình, heatmap
+// - Cung cấp báo cáo riêng cho owner và admin
+
 /// <summary>
 /// Controller xử lý toàn bộ 4 tính năng Analytics của slide:
 /// 1. POST poi-listen     → Ghi nhận lượt nghe audio
@@ -17,10 +23,13 @@ namespace SmartTourGuide.API.Controllers;
 [ApiController]
 public class AnalyticsController : ControllerBase
 {
+    // DbContext dùng để truy vấn dữ liệu analytics từ nhiều bảng.
     private readonly AppDbContext _context;
+    // Chống ghi trùng nhiều lần cho cùng một session nghe trong thời gian ngắn.
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> RecentListenSessions = new();
     public AnalyticsController(AppDbContext context) => _context = context;
 
+    // Lấy tên người gửi request từ Identity hoặc header dự phòng.
     private string GetCurrentUsername()
     {
         var name = User.Identity?.Name;
@@ -32,6 +41,7 @@ public class AnalyticsController : ControllerBase
         return string.Empty;
     }
 
+    // Xác định user đang gọi API để kiểm tra quyền truy cập owner.
     private async Task<User?> GetRequesterAsync()
     {
         var username = GetCurrentUsername();
@@ -40,11 +50,13 @@ public class AnalyticsController : ControllerBase
         return await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
     }
 
+    // Owner chỉ xem được dữ liệu của chính mình, admin được xem tất cả.
     private static bool CanAccessOwnerData(User requester, int ownerId)
     {
         return requester.Role == UserRole.Admin || requester.Id == ownerId;
     }
 
+    // Mô tả vùng POI của owner để lọc điểm vị trí quanh khu vực đó.
     private sealed class OwnerPoiArea
     {
         public double Latitude { get; set; }
@@ -52,8 +64,10 @@ public class AnalyticsController : ControllerBase
         public double RadiusMeters { get; set; }
     }
 
+    // Quy đổi khoảng cách mét sang độ vĩ độ gần đúng.
     private static double GetLatDelta(double meters) => meters / 111_320d;
 
+    // Quy đổi khoảng cách mét sang độ kinh độ, có xét theo vĩ độ.
     private static double GetLonDelta(double meters, double latitude)
     {
         var cos = Math.Cos(latitude * Math.PI / 180d);
@@ -61,6 +75,7 @@ public class AnalyticsController : ControllerBase
         return meters / (111_320d * cos);
     }
 
+    // Tính khoảng cách giữa 2 tọa độ GPS bằng công thức Haversine.
     private static double DistanceMeters(double lat1, double lon1, double lat2, double lon2)
     {
         const double earthRadius = 6_371_000d;
@@ -74,6 +89,7 @@ public class AnalyticsController : ControllerBase
         return earthRadius * c;
     }
 
+    // Kiểm tra log vị trí có nằm trong bất kỳ vùng POI nào của owner không.
     private static bool IsInAnyOwnerArea(UserLocationLog log, IReadOnlyCollection<OwnerPoiArea> areas, double bufferMeters)
     {
         foreach (var area in areas)
@@ -91,6 +107,7 @@ public class AnalyticsController : ControllerBase
     [HttpPost("poi-listen")]
     public async Task<IActionResult> LogListen([FromBody] PoiListenLogDto dto)
     {
+        // Nếu có SessionId thì dùng làm khóa chống ghi log lặp.
         if (!string.IsNullOrWhiteSpace(dto.SessionId))
         {
             var now = DateTime.UtcNow;
@@ -103,6 +120,7 @@ public class AnalyticsController : ControllerBase
             RecentListenSessions[dto.SessionId] = now;
         }
 
+        // Mỗi lần nghe hợp lệ sẽ tạo một record mới trong bảng listen logs.
         // Mỗi lần nghe hợp lệ sẽ tạo một record mới.
         _context.PoiListenLogs.Add(new PoiListenLog
         {
@@ -121,6 +139,7 @@ public class AnalyticsController : ControllerBase
     [HttpGet("top-pois")]
     public async Task<ActionResult<List<TopPoiDto>>> GetTopPois([FromQuery] int top = 10)
     {
+        // Gom nhóm theo POI rồi đếm số lượt nghe để lấy top phổ biến nhất.
         var result = await _context.PoiListenLogs
             .GroupBy(l => l.PoiId)
             .Select(g => new
@@ -148,6 +167,7 @@ public class AnalyticsController : ControllerBase
     [HttpGet("avg-listen-time")]
     public async Task<ActionResult<List<AvgListenTimeDto>>> GetAvgListenTime()
     {
+        // Tính thời lượng nghe trung bình theo từng POI.
         var result = await _context.PoiListenLogs
             .GroupBy(l => l.PoiId)
             .Select(g => new
@@ -173,6 +193,7 @@ public class AnalyticsController : ControllerBase
     [HttpGet("heatmap")]
     public async Task<ActionResult<List<LocationLogDto>>> GetHeatmap([FromQuery] int hours = 24)
     {
+        // Chỉ lấy dữ liệu vị trí trong khoảng thời gian gần đây để vẽ heatmap.
         var since = DateTime.UtcNow.AddHours(-hours);
         var points = await _context.UserLocationLogs
             .Where(x => x.Timestamp >= since)
@@ -193,12 +214,15 @@ public class AnalyticsController : ControllerBase
     [HttpGet("owner/{ownerId:int}/top-pois")]
     public async Task<ActionResult<List<TopPoiDto>>> GetOwnerTopPois(int ownerId, [FromQuery] int top = 10)
     {
+        // Kiểm tra đăng nhập và quyền truy cập trước khi trả dữ liệu của owner.
         var requester = await GetRequesterAsync();
         if (requester == null) return Unauthorized("Chưa đăng nhập.");
         if (!CanAccessOwnerData(requester, ownerId)) return Forbid();
 
+        // Giới hạn số lượng kết quả để tránh trả về quá nhiều dữ liệu.
         var safeTop = Math.Clamp(top, 1, 100);
 
+        // Chỉ lấy các POI thuộc owner này rồi đếm số lượt nghe.
         var result = await _context.PoiListenLogs
             .Join(_context.Pois,
                 log => log.PoiId,
@@ -222,6 +246,7 @@ public class AnalyticsController : ControllerBase
     [HttpGet("owner/{ownerId:int}/summary")]
     public async Task<ActionResult<OwnerAnalyticsSummaryDto>> GetOwnerSummary(int ownerId)
     {
+        // Chặn truy cập trái phép vào dữ liệu thống kê của owner.
         var requester = await GetRequesterAsync();
         if (requester == null) return Unauthorized("Chưa đăng nhập.");
         if (!CanAccessOwnerData(requester, ownerId)) return Forbid();
@@ -235,11 +260,13 @@ public class AnalyticsController : ControllerBase
             .Select(p => p.Id)
             .ToListAsync();
 
+        // Nếu owner chưa có POI thì trả summary rỗng để client vẫn render bình thường.
         if (ownerPoiIds.Count == 0)
         {
             return Ok(new OwnerAnalyticsSummaryDto { OwnerId = ownerId });
         }
 
+        // Thống kê theo 7 ngày và 30 ngày gần nhất.
         var weekCount = await _context.PoiListenLogs
             .Where(l => ownerPoiIds.Contains(l.PoiId) && l.Timestamp >= sinceWeek)
             .CountAsync();
@@ -273,14 +300,17 @@ public class AnalyticsController : ControllerBase
     [HttpGet("admin/summary")]
     public async Task<ActionResult<AdminDashboardSummaryDto>> GetAdminSummary()
     {
+        // Mốc 7 ngày gần nhất để dựng series theo ngày.
         var sinceWeek = DateTime.UtcNow.Date.AddDays(-6);
 
+        // Các chỉ số tổng quan của hệ thống.
         var totalPois = await _context.Pois.CountAsync();
         var pendingPois = await _context.Pois.CountAsync(p => p.Status == PoiStatus.Pending);
         var totalUsers = await _context.Users.CountAsync();
         var lockedUsers = await _context.Users.CountAsync(u => u.IsLocked);
         var totalTours = await _context.Tours.CountAsync();
 
+        // Gom số lượt nghe theo ngày để phục vụ biểu đồ.
         var weeklyGrouped = await _context.PoiListenLogs
             .Where(l => l.Timestamp >= sinceWeek)
             .GroupBy(l => l.Timestamp.Date)
@@ -294,6 +324,7 @@ public class AnalyticsController : ControllerBase
         var weeklyMap = weeklyGrouped.ToDictionary(x => x.Date, x => x.Count);
         var weeklySeries = new List<AdminDailyCountDto>();
 
+        // Điền đủ các ngày liên tiếp, kể cả ngày không có dữ liệu.
         for (var date = sinceWeek; date <= DateTime.UtcNow.Date; date = date.AddDays(1))
         {
             weeklySeries.Add(new AdminDailyCountDto
@@ -303,6 +334,7 @@ public class AnalyticsController : ControllerBase
             });
         }
 
+        // Lấy 5 hoạt động gần nhất để hiển thị trên dashboard admin.
         var recentActivities = await _context.ActivityLogs
             .OrderByDescending(a => a.Timestamp)
             .Take(5)
@@ -333,12 +365,15 @@ public class AnalyticsController : ControllerBase
     [HttpGet("owner/{ownerId:int}/avg-listen-time")]
     public async Task<ActionResult<List<AvgListenTimeDto>>> GetOwnerAvgListenTime(int ownerId, [FromQuery] int top = 20)
     {
+        // Kiểm tra quyền trước khi trả thống kê của owner.
         var requester = await GetRequesterAsync();
         if (requester == null) return Unauthorized("Chưa đăng nhập.");
         if (!CanAccessOwnerData(requester, ownerId)) return Forbid();
 
+        // Giới hạn số dòng trả về để giữ phản hồi gọn và an toàn.
         var safeTop = Math.Clamp(top, 1, 200);
 
+        // Tính thời lượng nghe trung bình theo từng POI của owner.
         var result = await _context.PoiListenLogs
             .Join(_context.Pois,
                 log => log.PoiId,
@@ -362,14 +397,17 @@ public class AnalyticsController : ControllerBase
     [HttpGet("owner/{ownerId:int}/daily-listens")]
     public async Task<ActionResult<List<OwnerDailyListenDto>>> GetOwnerDailyListens(int ownerId, [FromQuery] int days = 7)
     {
+        // Kiểm tra quyền trước khi lấy chuỗi lượt nghe theo ngày.
         var requester = await GetRequesterAsync();
         if (requester == null) return Unauthorized("Chưa đăng nhập.");
         if (!CanAccessOwnerData(requester, ownerId)) return Forbid();
 
+        // Chuẩn hóa số ngày để không vượt giới hạn cho phép.
         var safeDays = Math.Clamp(days, 1, 90);
         var startDate = DateTime.UtcNow.Date.AddDays(-(safeDays - 1));
         var endDate = DateTime.UtcNow.Date;
 
+        // Gom dữ liệu theo ngày rồi map sang series đầy đủ.
         var grouped = await _context.PoiListenLogs
             .Join(_context.Pois,
                 log => log.PoiId,
@@ -383,6 +421,7 @@ public class AnalyticsController : ControllerBase
         var map = grouped.ToDictionary(x => x.Date, x => x.Count);
 
         var result = new List<OwnerDailyListenDto>();
+        // Tạo đủ mọi ngày trong khoảng chọn để frontend dễ dựng biểu đồ.
         for (var date = startDate; date <= endDate; date = date.AddDays(1))
         {
             result.Add(new OwnerDailyListenDto
@@ -406,10 +445,12 @@ public class AnalyticsController : ControllerBase
         if (requester == null) return Unauthorized("Chưa đăng nhập.");
         if (!CanAccessOwnerData(requester, ownerId)) return Forbid();
 
+        // Giới hạn tham số để tránh query quá rộng hoặc quá nặng.
         var safeHours = Math.Clamp(hours, 1, 720);
         var safeMaxPoints = Math.Clamp(maxPoints, 10, 2000);
         var safeBuffer = Math.Clamp(areaBufferMeters, 0, 500);
 
+        // Lấy toàn bộ vùng POI của owner để xác định vùng di chuyển liên quan.
         var ownerAreas = await _context.Pois
             .Where(p => p.OwnerId == ownerId)
             .Select(p => new OwnerPoiArea
@@ -424,6 +465,7 @@ public class AnalyticsController : ControllerBase
 
         if (ownerAreas.Count == 0) return Ok(new List<LocationLogDto>());
 
+        // Tạo khung bounding box trước để lọc nhanh dữ liệu vị trí.
         var minLat = double.MaxValue;
         var maxLat = double.MinValue;
         var minLon = double.MaxValue;
@@ -442,6 +484,7 @@ public class AnalyticsController : ControllerBase
 
         var since = DateTime.UtcNow.AddHours(-safeHours);
 
+        // Lọc sơ bộ bằng thời gian và bounding box để giảm khối lượng dữ liệu.
         var rawPoints = await _context.UserLocationLogs
             .Where(x => x.Timestamp >= since
                         && x.Latitude >= minLat && x.Latitude <= maxLat
@@ -450,6 +493,7 @@ public class AnalyticsController : ControllerBase
             .Take(20000)
             .ToListAsync();
 
+        // Lọc chính xác bằng khoảng cách tới từng vùng POI của owner.
         var filtered = rawPoints
             .Where(x => IsInAnyOwnerArea(x, ownerAreas, safeBuffer))
             .OrderBy(x => x.Timestamp)
@@ -493,7 +537,9 @@ public class AnalyticsController : ControllerBase
         if (requester == null) return Unauthorized("Chưa đăng nhập.");
         if (!CanAccessOwnerData(requester, ownerId)) return Forbid();
 
+        // Giới hạn số điểm trả về để heatmap không quá nặng.
         var safeMaxPoints = Math.Clamp(maxPoints, 5, 500);
+        // Lấy các POI có lượt nghe cao nhất để tạo hotspot cho heatmap.
         var hotspots = await _context.Pois
             .Where(p => p.OwnerId == ownerId)
             .GroupJoin(

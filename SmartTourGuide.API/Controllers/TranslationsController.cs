@@ -7,11 +7,18 @@ using SmartTourGuide.Shared.DTOs;
 
 namespace SmartTourGuide.API.Controllers;
 
+// File này quản lý bản dịch cho POI.
+// - Lấy text dịch và danh sách audio theo ngôn ngữ
+// - Lưu/cập nhật bản dịch kèm file audio
+// - Đưa POI về Pending khi nội dung dịch thay đổi
+
 [Route("api/[controller]")]
 [ApiController]
 public class TranslationsController : ControllerBase
 {
+    // DbContext để làm việc với POI, bản dịch, media và activity log.
     private readonly AppDbContext _context;
+    // Service lưu file audio khi upload bản dịch mới.
     private readonly FileStorageService _fileService;
 
     public TranslationsController(AppDbContext context, FileStorageService fileService)
@@ -20,6 +27,7 @@ public class TranslationsController : ControllerBase
         _fileService = fileService;
     }
 
+    // Lấy username hiện tại để ghi lại ai đã thêm/cập nhật bản dịch.
     private string GetCurrentUsername()
     {
         var name = User.Identity?.Name;
@@ -35,11 +43,11 @@ public class TranslationsController : ControllerBase
     [HttpGet("{poiId}/{langCode}")]
     public async Task<ActionResult<PoiTranslationDto>> GetTranslation(int poiId, string langCode)
     {
-        // A. Lấy Text
+        // Lấy phần text dịch của POI theo đúng ngôn ngữ.
         var trans = await _context.PoiTranslations
             .FirstOrDefaultAsync(x => x.PoiId == poiId && x.LanguageCode == langCode);
 
-        // B. Lấy Audio thuộc ngôn ngữ này
+        // Lấy danh sách audio thuộc đúng ngôn ngữ.
         var audios = await _context.MediaAssets
             .Where(m => m.PoiId == poiId
                      && m.Type == MediaType.AudioFile
@@ -55,6 +63,7 @@ public class TranslationsController : ControllerBase
 
         if (trans == null)
         {
+            // Nếu chưa có text dịch thì vẫn trả audio để frontend không bị thiếu dữ liệu.
             return Ok(new PoiTranslationDto
             {
                 PoiId = poiId,
@@ -66,6 +75,7 @@ public class TranslationsController : ControllerBase
             });
         }
 
+        // Nếu có text dịch thì trả luôn text + audio trong một DTO.
         return Ok(new PoiTranslationDto
         {
             PoiId = trans.PoiId,
@@ -81,15 +91,17 @@ public class TranslationsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SaveTranslation([FromForm] PoiTranslationDto dto, [FromForm] List<IFormFile> audioFiles)
     {
+        // Dùng cờ này để biết đây là bản dịch mới hay cập nhật bản dịch cũ.
         var isNewTranslation = false;
 
-        // --- PHẦN 1: LƯU TEXT ---
+        // Phần 1: lưu nội dung text dịch.
         var trans = await _context.PoiTranslations
             .FirstOrDefaultAsync(x => x.PoiId == dto.PoiId && x.LanguageCode == dto.LanguageCode);
 
         if (trans == null)
         {
             isNewTranslation = true;
+            // Chưa có bản dịch thì tạo mới.
             trans = new PoiTranslation
             {
                 PoiId = dto.PoiId,
@@ -103,19 +115,21 @@ public class TranslationsController : ControllerBase
         }
         else
         {
+            // Đã có rồi thì cập nhật lại nội dung.
             trans.TranslatedName = dto.Name;
             trans.TranslatedDescription = dto.Description;
             trans.TranslatedAddress = dto.Address;
         }
 
-        // --- PHẦN 2: LƯU AUDIO (Nếu có upload thêm) ---
+        // Phần 2: lưu thêm file audio nếu frontend upload kèm.
         if (audioFiles != null && audioFiles.Count > 0)
         {
             foreach (var file in audioFiles)
             {
+                // Lưu file vào thư mục audio và nhận đường dẫn trả về.
                 var url = await _fileService.SaveFileAsync(file, "audio");
 
-                // Lưu vào MediaAssets với LanguageCode tương ứng
+                // Lưu metadata của file vào MediaAssets và gắn ngôn ngữ tương ứng.
                 _context.MediaAssets.Add(new MediaAsset
                 {
                     PoiId = dto.PoiId,
@@ -125,13 +139,15 @@ public class TranslationsController : ControllerBase
                 });
             }
         }
-        // --- PHẦN 3: RESET STATUS POI VỀ PENDING ---
+
+        // Phần 3: khi nội dung thay đổi, đưa POI về Pending để admin duyệt lại.
         var poi = await _context.Pois.FindAsync(dto.PoiId);
         if (poi != null && poi.Status == PoiStatus.Active)
         {
             poi.Status = PoiStatus.Pending;
         }
 
+        // Ghi activity log để biết ai đã thay đổi bản dịch nào.
         var username = GetCurrentUsername();
         _context.ActivityLogs.Add(new ActivityLog
         {

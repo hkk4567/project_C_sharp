@@ -7,10 +7,16 @@ using BC = BCrypt.Net.BCrypt;
 
 namespace SmartTourGuide.API.Controllers;
 
+// File này quản lý người dùng trong hệ thống.
+// - Xem, tạo, cập nhật, khóa/mở khóa tài khoản
+// - Đổi mật khẩu cho user
+// - Ghi activity log cho các thao tác quản trị
+
 [Route("api/[controller]")]
 [ApiController]
 public class UsersController : ControllerBase
 {
+    // DbContext dùng để thao tác với Users và ActivityLogs.
     private readonly AppDbContext _context;
 
     public UsersController(AppDbContext context)
@@ -22,11 +28,11 @@ public class UsersController : ControllerBase
     // Ưu tiên: JWT Claims -> Header X-User-Name -> "Unknown"
     private string GetCurrentUsername()
     {
-        // 1. Thử lấy từ JWT (khi có xác thực)
+        // Ưu tiên lấy từ JWT/Identity nếu request đã xác thực.
         var name = User.Identity?.Name;
         if (!string.IsNullOrEmpty(name)) return name;
 
-        // 2. Fallback: đọc header X-User-Name mà frontend gửi lên sau khi login
+        // Fallback: đọc từ header X-User-Name khi client chưa dùng JWT đầy đủ.
         var headerName = HttpContext.Request.Headers["X-User-Name"].FirstOrDefault();
         if (!string.IsNullOrEmpty(headerName)) return headerName;
 
@@ -36,20 +42,25 @@ public class UsersController : ControllerBase
     // 👉 HÀM HELPER DÙNG CHUNG ĐỂ LƯU LOG (Đã xử lý IP an toàn)
     private void AddActivityLog(string activityType, string description, string username)
     {
+        // Ưu tiên IP thật từ proxy nếu có.
         var ip = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
 
         if (string.IsNullOrEmpty(ip))
         {
+            // Nếu không có proxy thì lấy IP trực tiếp của request.
             ip = HttpContext.Connection.RemoteIpAddress?.ToString();
         }
         else
         {
-            ip = ip.Split(',')[0].Trim(); // Lấy IP đầu tiên nếu qua proxy
+            // Nếu qua proxy thì chỉ lấy IP đầu tiên trong chuỗi.
+            ip = ip.Split(',')[0].Trim();
         }
 
         ip ??= "Unknown";
-        if (ip.Length > 50) ip = ip.Substring(0, 50); // Tránh lỗi vượt quá số ký tự của Cột DB
+        // Cắt ngắn để tránh lỗi vượt quá giới hạn độ dài của cột trong DB.
+        if (ip.Length > 50) ip = ip.Substring(0, 50);
 
+        // Ghi một activity log mới, SaveChanges sẽ gọi ở hàm nghiệp vụ.
         _context.ActivityLogs.Add(new ActivityLog
         {
             ActivityType = activityType,
@@ -64,6 +75,7 @@ public class UsersController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetProfile(int id)
     {
+        // Chỉ lấy các trường cần thiết để trả về cho client.
         var user = await _context.Users
             .Select(u => new { u.Id, u.Username, u.FullName, u.Email, u.Role })
             .FirstOrDefaultAsync(u => u.Id == id);
@@ -76,14 +88,16 @@ public class UsersController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] CreateUpdateUserDto dto)
     {
+        // Tìm user cần cập nhật.
         var user = await _context.Users.FindAsync(id);
         if (user == null) return NotFound();
 
+        // Cập nhật các trường cơ bản.
         user.FullName = dto.FullName;
         user.Email = dto.Email;
         user.Role = dto.Role;
 
-        // 👉 GHI LOG: dùng GetCurrentUsername() để lấy NGƯỜI THỰC HIỆN (admin), không phải target
+        // Ghi log theo người thực hiện thao tác, không phải user bị sửa.
         var actor = GetCurrentUsername();
         AddActivityLog("UpdateUser", $"[{actor}] cập nhật thông tin người dùng: {user.Username}", actor);
 
@@ -95,20 +109,21 @@ public class UsersController : ControllerBase
     [HttpPut("{id}/change-password")]
     public async Task<IActionResult> ChangePassword(int id, [FromBody] ChangePasswordDto dto)
     {
+        // Tìm tài khoản cần đổi mật khẩu.
         var user = await _context.Users.FindAsync(id);
         if (user == null) return NotFound();
 
+        // Xác thực mật khẩu cũ trước khi cho phép đổi.
         if (!BC.Verify(dto.OldPassword, user.PasswordHash))
         {
             return BadRequest("Mật khẩu cũ không chính xác.");
         }
 
+        // Hash lại mật khẩu mới trước khi lưu vào DB.
         user.PasswordHash = BC.HashPassword(dto.NewPassword);
 
-        // 👉 GHI LOG: người dùng tự đổi mật khẩu của chính họ -> dùng user.Username là đúng
-        // Nhưng nếu admin đổi giúp thì log actor
+        // Xác định ai là người thực hiện thao tác để ghi log phù hợp.
         var actor = GetCurrentUsername();
-        // Nếu không xác định được actor hoặc actor chính là user đó -> ghi username của họ
         var logActor = string.IsNullOrEmpty(actor) || actor == "Unknown" ? user.Username : actor;
         AddActivityLog("ChangePassword", $"[{logActor}] thay đổi mật khẩu tài khoản: {user.Username}", logActor);
 
@@ -121,6 +136,7 @@ public class UsersController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<UserDto>>> GetAll()
     {
+        // Lấy toàn bộ user và map sang DTO để tránh trả dư dữ liệu nhạy cảm.
         var users = await _context.Users.ToListAsync();
         return users.Select(u => new UserDto
         {
@@ -137,9 +153,11 @@ public class UsersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateUpdateUserDto dto)
     {
+        // Không cho tạo trùng username.
         if (await _context.Users.AnyAsync(u => u.Username == dto.Username))
             return BadRequest("Tên đăng nhập đã tồn tại!");
 
+        // Tạo tài khoản mới và hash mật khẩu ngay khi lưu.
         var user = new User
         {
             Username = dto.Username,
@@ -152,11 +170,11 @@ public class UsersController : ControllerBase
 
         _context.Users.Add(user);
 
-        // 👉 GHI LOG TẠO USER: actor là admin đang thực hiện, không phải user mới tạo
+        // Ghi log theo admin đang thực hiện thao tác tạo user.
         var actor = GetCurrentUsername();
         AddActivityLog("CreateUser", $"[{actor}] tạo user mới: {user.Username}", actor);
 
-        // 👉 Chỉ gọi SaveChanges 1 LẦN DUY NHẤT ở cuối cùng
+        // Gọi SaveChanges một lần để lưu cả user và log cùng lúc.
         await _context.SaveChangesAsync();
 
         return Ok(new { message = "Tạo user thành công" });
@@ -166,13 +184,14 @@ public class UsersController : ControllerBase
     [HttpPut("{id}/lock")]
     public async Task<IActionResult> ToggleLock(int id)
     {
+        // Tìm user cần khóa/mở khóa.
         var user = await _context.Users.FindAsync(id);
         if (user == null) return NotFound();
 
-        // Đảo ngược trạng thái
+        // Đảo trạng thái IsLocked hiện tại.
         user.IsLocked = !user.IsLocked;
 
-        // 👉 GHI LOG KHÓA / MỞ KHÓA: actor là admin, target là user bị khóa/mở
+        // Ghi log thao tác khóa/mở khóa tài khoản.
         string actionText = user.IsLocked ? "Khóa" : "Mở khóa";
         var actor = GetCurrentUsername();
         AddActivityLog("ToggleLock", $"[{actor}] {actionText.ToLower()} tài khoản: {user.Username}", actor);
@@ -185,6 +204,7 @@ public class UsersController : ControllerBase
     [HttpGet("by-username/{username}")]
     public async Task<IActionResult> GetByUsername(string username)
     {
+        // Tìm user theo username để lấy thông tin hiển thị trên UI.
         var user = await _context.Users
             .Where(u => u.Username == username)
             .FirstOrDefaultAsync();

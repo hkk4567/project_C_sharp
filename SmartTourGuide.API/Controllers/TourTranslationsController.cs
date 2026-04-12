@@ -6,6 +6,11 @@ using SmartTourGuide.Shared.DTOs;
 
 namespace SmartTourGuide.API.Controllers;
 
+// File này quản lý bản dịch cho Tour.
+// - Lấy danh sách bản dịch theo tour hoặc theo ngôn ngữ
+// - Tạo mới, cập nhật, xóa bản dịch
+// - Ghi activity log khi có thay đổi bản dịch
+
 /// <summary>
 /// Quản lý bản dịch (i18n) cho Tour.
 /// Tách riêng khỏi ToursController để dễ kiểm soát lỗi và mở rộng sau.
@@ -14,6 +19,7 @@ namespace SmartTourGuide.API.Controllers;
 [ApiController]
 public class TourTranslationsController : ControllerBase
 {
+    // DbContext dùng để truy vấn Tour, TourTranslation và ActivityLog.
     private readonly AppDbContext _context;
 
     public TourTranslationsController(AppDbContext context)
@@ -21,6 +27,7 @@ public class TourTranslationsController : ControllerBase
         _context = context;
     }
 
+    // Lấy username hiện tại để ghi log thao tác bản dịch.
     private string GetCurrentUsername()
     {
         var name = User.Identity?.Name;
@@ -39,11 +46,12 @@ public class TourTranslationsController : ControllerBase
     [HttpGet("{tourId}")]
     public async Task<ActionResult<List<TourTranslationDto>>> GetAllByTour(int tourId)
     {
-        // Kiểm tra Tour tồn tại trước
+        // Kiểm tra Tour tồn tại trước để tránh trả dữ liệu cho Id không hợp lệ.
         var tourExists = await _context.Tours.AnyAsync(t => t.Id == tourId);
         if (!tourExists)
             return NotFound(new { message = $"Không tìm thấy Tour với Id = {tourId}." });
 
+        // DTO (Data Transfer Object) chỉ trả về các trường cần cho frontend.
         var translations = await _context.TourTranslations
             .Where(t => t.TourId == tourId)
             .OrderBy(t => t.LanguageCode)
@@ -68,13 +76,13 @@ public class TourTranslationsController : ControllerBase
     [HttpGet("{tourId}/{langCode}")]
     public async Task<ActionResult<TourTranslationDto>> GetByLanguage(int tourId, string langCode)
     {
+        // Tìm bản dịch đúng theo TourId và mã ngôn ngữ.
         var trans = await _context.TourTranslations
             .FirstOrDefaultAsync(t => t.TourId == tourId && t.LanguageCode == langCode);
 
         if (trans == null)
         {
-            // Trả về object rỗng (giống pattern của TranslationsController POI)
-            // để phía Frontend biết chưa có bản dịch, không bị crash
+            // Trả object rỗng để frontend biết chưa có bản dịch mà không bị lỗi parse.
             return Ok(new TourTranslationDto
             {
                 Id = 0,
@@ -103,12 +111,12 @@ public class TourTranslationsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> SaveTranslation([FromBody] SaveTourTranslationDto dto)
     {
-        // Validate Tour tồn tại
+        // Kiểm tra Tour tồn tại trước khi lưu bản dịch.
         var tourExists = await _context.Tours.AnyAsync(t => t.Id == dto.TourId);
         if (!tourExists)
             return NotFound(new { message = $"Không tìm thấy Tour với Id = {dto.TourId}." });
 
-        // Tìm bản dịch đã có (nếu có -> Update, chưa có -> Insert)
+        // Upsert nghĩa là: nếu đã có thì cập nhật, chưa có thì tạo mới.
         var existing = await _context.TourTranslations
             .FirstOrDefaultAsync(t => t.TourId == dto.TourId && t.LanguageCode == dto.LanguageCode);
         var isNewTranslation = existing == null;
@@ -116,7 +124,7 @@ public class TourTranslationsController : ControllerBase
 
         if (existing == null)
         {
-            // --- INSERT ---
+            // Tạo mới bản dịch khi chưa tồn tại.
             var newTrans = new TourTranslation
             {
                 TourId = dto.TourId,
@@ -130,11 +138,12 @@ public class TourTranslationsController : ControllerBase
         }
         else
         {
-            // --- UPDATE ---
+            // Cập nhật bản dịch đã có.
             existing.TranslatedName = dto.TranslatedName.Trim();
             existing.TranslatedDescription = dto.TranslatedDescription.Trim();
         }
 
+        // Ghi log để theo dõi ai đã thêm hoặc sửa bản dịch nào.
         var username = GetCurrentUsername();
         _context.ActivityLogs.Add(new ActivityLog
         {
@@ -149,6 +158,7 @@ public class TourTranslationsController : ControllerBase
 
         if (isNewTranslation)
         {
+            // CreatedAtAction trả về trạng thái 201 và gắn luôn đường dẫn tới bản dịch vừa tạo.
             return CreatedAtAction(
                 nameof(GetByLanguage),
                 new { tourId = existing.TourId, langCode = existing.LanguageCode },
@@ -167,12 +177,14 @@ public class TourTranslationsController : ControllerBase
     [HttpDelete("{tourId}/{langCode}")]
     public async Task<IActionResult> DeleteTranslation(int tourId, string langCode)
     {
+        // Tìm đúng bản dịch theo tour và ngôn ngữ trước khi xóa.
         var trans = await _context.TourTranslations
             .FirstOrDefaultAsync(t => t.TourId == tourId && t.LanguageCode == langCode);
 
         if (trans == null)
             return NotFound(new { message = $"Không tìm thấy bản dịch '{langCode}' cho Tour Id = {tourId}." });
 
+        // Xóa bản dịch khỏi database.
         _context.TourTranslations.Remove(trans);
         await _context.SaveChangesAsync();
 

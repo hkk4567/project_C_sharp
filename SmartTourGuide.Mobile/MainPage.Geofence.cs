@@ -45,10 +45,21 @@ public partial class MainPage
             {
                 if (_currentlyPlayingGeofencePoi != null)
                 {
-                    _ = LogAudioPlaybackAsync(_currentlyPlayingGeofencePoi.Id, _playStartTime);
+                    // ✅ FIX: Chỉ log nếu visit vẫn đang active (tức là audio đang phát lúc rời vùng).
+                    // Nếu audio đã kết thúc tự nhiên (_isGeofenceVisitActive = false do finally trong
+                    // TriggerGeofenceAudioQueue), log đã được gửi rồi → KHÔNG log lại để tránh +2.
+                    if (_isGeofenceVisitActive)
+                        _ = LogAudioPlaybackAsync(_currentlyPlayingGeofencePoi.Id, _playStartTime);
+
                     StopAudio();
                     _currentlyPlayingGeofencePoi = null;
                     _isGeofenceVisitActive = false;
+
+                    // ✅ FIX: Xóa HashSet khi rời vùng để lần vào vùng tiếp theo được log bình thường.
+                    // Trước đây HashSet không bao giờ bị clear khi rời vùng cùng POI
+                    // → lần 2 vào vùng bị chặn log sai chỗ.
+                    _loggedPoisInCurrentGeofenceVisit.Clear();
+
                     _statusPriority = 0;
                     SetStatus(AppRes.StatusGeofenceLeft, priority: 0, autoRevertMs: 2000);
                 }
@@ -117,6 +128,11 @@ public partial class MainPage
         var urls = poi.AudioUrls;
         if (urls == null || urls.Count == 0) return;
 
+        //Tạo session ID mới cho mỗi lần vào vùng geofence.
+        // allowReuseCurrent: false → luôn tạo session mới (không tái dùng session cũ từ lần trước).
+        // Giúp server-side dedup (15 phút) hoạt động đúng khi cùng POI được vào nhiều lần liên tiếp.
+        PrepareListenSession(poi.Id, allowReuseCurrent: false);
+
         // Lấy index đang phát dở của POI này từ Dictionary
         if (!_poiAudioIndex.TryGetValue(poi.Id, out int currentIndex))
             currentIndex = 0;
@@ -163,7 +179,11 @@ public partial class MainPage
                 }
                 catch (OperationCanceledException)
                 {
-                    _ = LogAudioPlaybackAsync(poi.Id, fileStartTime);
+                    // ✅ FIX: KHÔNG log ở đây nữa.
+                    // Khi bị cancel do rời vùng, CheckGeofences (leave block) đã gọi
+                    // LogAudioPlaybackAsync rồi (khi _isGeofenceVisitActive = true).
+                    // Nếu log thêm ở đây → race condition: _isGeofenceVisitActive có thể
+                    // đã = false (do CheckGeofences chạy trước) → bypass dedup → +2 lượt nghe.
                     throw;
                 }
             }

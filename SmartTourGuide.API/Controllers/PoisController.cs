@@ -7,6 +7,11 @@ using SmartTourGuide.Shared.DTOs;
 
 namespace SmartTourGuide.API.Controllers;
 
+// File này quản lý toàn bộ nghiệp vụ của POI (địa điểm).
+// - Mobile: lấy danh sách POI đang hoạt động
+// - Owner: tạo, sửa, xóa POI của mình
+// - Admin: duyệt, từ chối, xem chi tiết và cập nhật geofence
+
 /// <summary>
 /// Controller quản lý toàn bộ nghiệp vụ liên quan đến Địa điểm (POI - Point of Interest).
 ///
@@ -23,8 +28,11 @@ namespace SmartTourGuide.API.Controllers;
 [Route("api/[controller]")]
 public class PoisController : ControllerBase
 {
+    // DbContext thao tác với POI, log, notification và dữ liệu liên quan.
     private readonly AppDbContext _context;
+    // Dùng để lưu file ảnh/audio khi tạo hoặc cập nhật POI.
     private readonly FileStorageService _fileService;
+    // Cần thiết khi xóa file vật lý trong wwwroot.
     private readonly IWebHostEnvironment _env;
 
     public PoisController(AppDbContext context, FileStorageService fileService, IWebHostEnvironment env)
@@ -44,9 +52,11 @@ public class PoisController : ControllerBase
     /// </summary>
     private string GetCurrentUsername()
     {
+        // Ưu tiên lấy từ Claims/Identity nếu request đã đăng nhập.
         var name = User.Identity?.Name;
         if (!string.IsNullOrEmpty(name)) return name;
 
+        // Fallback cho các request test hoặc khi client chỉ gửi header.
         var headerName = HttpContext.Request.Headers["X-User-Name"].FirstOrDefault();
         if (!string.IsNullOrEmpty(headerName)) return headerName;
 
@@ -76,14 +86,14 @@ public class PoisController : ControllerBase
     [HttpGet("mobile")]
     public async Task<ActionResult<IEnumerable<PoiDto>>> GetMobilePois([FromQuery] string langCode = "vi-VN")
     {
-        // 1. Lấy Query các địa điểm đang Active
+        // Chỉ lấy POI đang Active để app mobile hiển thị dữ liệu đã duyệt.
         var query = _context.Pois
             .Include(p => p.GeofenceSetting)
             .Include(p => p.MediaAssets)
             .Where(p => p.Status == PoiStatus.Active)
             .AsQueryable();
 
-        // 2. TỐI ƯU: Vừa lọc, vừa lấy bản dịch trong 1 câu truy vấn SQL (Left Join)
+        // Lấy bản dịch theo ngôn ngữ ngay trong truy vấn để giảm round-trip DB.
         var mobileQuery = query.Select(p => new
         {
             Poi = p,
@@ -91,8 +101,7 @@ public class PoisController : ControllerBase
                 .FirstOrDefault(t => t.PoiId == p.Id && t.LanguageCode == langCode)
         });
 
-        // 3. LOGIC QUAN TRỌNG: 
-        // Nếu là ngôn ngữ nước ngoài, bắt buộc phải có bản dịch mới lấy (Translation != null)
+        // Nếu là ngôn ngữ khác tiếng Việt thì bắt buộc phải có bản dịch.
         if (langCode != "vi-VN")
         {
             mobileQuery = mobileQuery.Where(x => x.Translation != null);
@@ -106,7 +115,7 @@ public class PoisController : ControllerBase
             var p = x.Poi;
             var trans = x.Translation;
 
-            // Lọc audio theo ngôn ngữ
+            // Chỉ trả audio đúng ngôn ngữ để app phát đúng nội dung.
             var audioList = p.MediaAssets.Where(m => m.Type == MediaType.AudioFile);
             if (langCode != "vi-VN")
                 audioList = audioList.Where(m => m.LanguageCode == langCode);
@@ -137,14 +146,14 @@ public class PoisController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<PoiDto>>> GetPois([FromQuery] string langCode = "vi-VN")
     {
-        // Lấy danh sách địa điểm Active
+        // Endpoint cho web/admin: lấy các POI đã được duyệt và đang hoạt động.
         var pois = await _context.Pois
             .Include(p => p.GeofenceSetting)
             .Include(p => p.MediaAssets)
             .Where(p => p.Status == PoiStatus.Active)
             .ToListAsync();
 
-        // Lấy tất cả bản dịch theo ngôn ngữ yêu cầu (nếu khác tiếng Việt)
+        // Nếu là ngôn ngữ khác tiếng Việt thì lấy trước danh sách bản dịch tương ứng.
         var translations = new List<PoiTranslation>();
         if (langCode != "vi-VN")
         {
@@ -155,19 +164,19 @@ public class PoisController : ControllerBase
 
         var result = pois.Select(p =>
         {
-            // Tìm xem địa điểm này có bản dịch không
+            // Tìm bản dịch của POI hiện tại trong tập dữ liệu đã tải.
             var trans = translations.FirstOrDefault(t => t.PoiId == p.Id);
 
-            // Lọc file Audio theo ngôn ngữ
+            // Lọc audio theo ngôn ngữ yêu cầu.
             var audioList = p.MediaAssets.Where(m => m.Type == MediaType.AudioFile);
             if (langCode != "vi-VN")
             {
-                // Nếu ngôn ngữ khác, lấy audio của ngôn ngữ đó
+                // Ngôn ngữ khác thì chỉ lấy audio tương ứng.
                 audioList = audioList.Where(m => m.LanguageCode == langCode);
             }
             else
             {
-                // Nếu tiếng Việt, lấy audio gốc (vi-VN hoặc chưa set)
+                // Tiếng Việt thì lấy audio gốc hoặc audio chưa khai báo ngôn ngữ.
                 audioList = audioList.Where(m => m.LanguageCode == "vi-VN" || string.IsNullOrEmpty(m.LanguageCode));
             }
 
@@ -197,7 +206,7 @@ public class PoisController : ControllerBase
     [HttpPost]
     public async Task<ActionResult> CreatePoi([FromForm] CreatePoiDto dto, [FromForm] List<IFormFile> files)
     {
-        // 1. Khởi tạo POI mới
+        // Khởi tạo POI mới ở trạng thái Pending để chờ admin duyệt.
         var newPoi = new Poi
         {
             Name = dto.Name,
@@ -212,10 +221,10 @@ public class PoisController : ControllerBase
 
         _context.Pois.Add(newPoi);
 
-        // 🔥 BẮT BUỘC PHẢI CÓ DÒNG NÀY ĐỂ MYSQL TẠO RA ID CHO ĐỊA ĐIỂM 🔥
+        // Lưu sớm để DB sinh Id cho POI trước khi thêm MediaAssets.
         await _context.SaveChangesAsync();
 
-        // 2. Xử lý Upload file 
+        // Xử lý upload ảnh/audio gắn với POI vừa tạo.
         if (files != null && files.Count > 0)
         {
             foreach (var file in files)
@@ -234,15 +243,16 @@ public class PoisController : ControllerBase
             }
         }
 
-        // 3. Xử lý Ghi Log
-        // Ưu tiên: JWT/Header -> OwnerId từ DB (fallback khi owner tự tạo POI của mình)
+        // Xác định username người tạo để ghi log đúng nguồn.
         var currentUsername = GetCurrentUsername();
         if (currentUsername == "Unknown")
         {
+            // Nếu request không có username, dùng OwnerId từ form làm fallback.
             var owner = await _context.Users.FindAsync(dto.OwnerId);
             currentUsername = owner?.Username ?? $"Owner_{dto.OwnerId}";
         }
 
+        // Ghi activity log cho thao tác tạo POI.
         var log = new ActivityLog
         {
             ActivityType = "CreatePOI",
@@ -254,7 +264,7 @@ public class PoisController : ControllerBase
 
         _context.ActivityLogs.Add(log);
 
-        // 3.1. Tạo thông báo cho tất cả Admin về yêu cầu duyệt POI mới
+        // Tạo notification cho toàn bộ admin để họ biết có POI mới cần duyệt.
         var adminIds = await _context.Users
             .Where(u => u.Role == SmartTourGuide.Shared.Enums.UserRole.Admin)
             .Select(u => u.Id)
@@ -274,7 +284,7 @@ public class PoisController : ControllerBase
             });
         }
 
-        // 4. Lưu lại toàn bộ File Media và Log
+        // Commit toàn bộ POI, media, log và notifications trong một lần lưu.
         await _context.SaveChangesAsync();
 
         return Ok(new { message = "Tạo thành công, vui lòng chờ Admin duyệt!", id = newPoi.Id });
@@ -285,6 +295,7 @@ public class PoisController : ControllerBase
     [HttpGet("owner/{ownerId}")]
     public async Task<ActionResult<IEnumerable<PoiDto>>> GetPoisByOwner(int ownerId)
     {
+        // Lấy danh sách POI thuộc riêng một owner để màn hình quản lý hiển thị.
         var pois = await _context.Pois
             .Include(p => p.GeofenceSetting)
             .Include(p => p.MediaAssets)
@@ -327,13 +338,13 @@ public class PoisController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeletePoi(int id)
     {
-        // ✅ Include MediaAssets để lấy danh sách file cần xóa vật lý
+        // Include MediaAssets để xóa luôn file vật lý tương ứng trên ổ đĩa.
         var poi = await _context.Pois
             .Include(p => p.MediaAssets)
             .FirstOrDefaultAsync(p => p.Id == id);
         if (poi == null) return NotFound("Không tìm thấy địa điểm.");
 
-        // --- CHECK TOUR ---
+        // Không cho xóa nếu POI đang được dùng trong Tour.
         bool isInAnyTour = await _context.TourDetails.AnyAsync(td => td.PoiId == id);
 
         if (isInAnyTour)
@@ -341,7 +352,7 @@ public class PoisController : ControllerBase
             return BadRequest("Địa điểm này đang nằm trong một Tuyến Du Lịch (Tour). Vui lòng liên hệ Admin để gỡ địa điểm ra khỏi Tour trước khi xóa!");
         }
 
-        // --- XÓA FILE VẬT LÝ TRONG WWWROOT ---
+        // Xóa toàn bộ file ảnh/audio trên wwwroot trước khi xóa record POI.
         var webRootPath = string.IsNullOrEmpty(_env.WebRootPath)
             ? Path.Combine(_env.ContentRootPath, "wwwroot")
             : _env.WebRootPath;
@@ -359,7 +370,7 @@ public class PoisController : ControllerBase
                 System.IO.File.Delete(fullPath);
         }
 
-        // --- XÓA TRANSLATIONS ---
+        // Xóa toàn bộ bản dịch của POI để tránh dữ liệu mồ côi.
         var translations = await _context.PoiTranslations
             .Where(t => t.PoiId == id)
             .ToListAsync();
@@ -369,21 +380,21 @@ public class PoisController : ControllerBase
             _context.PoiTranslations.RemoveRange(translations);
         }
 
-        // 🔥 LẤY THÔNG TIN TRƯỚC KHI XÓA
+        // Lưu lại thông tin cần thiết trước khi xóa để ghi log.
         var poiName = poi.Name;
 
-        // 👉 Lấy username từ bảng Users (theo OwnerId)
+        // Lấy username chủ sở hữu từ bảng Users.
         var user = await _context.Users.FindAsync(poi.OwnerId);
         var username = user?.Username ?? "Unknown";
 
-        // 👉 Lấy IP
+        // Lấy IP của request để phục vụ audit.
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
 
         _context.Pois.Remove(poi);
 
         await _context.SaveChangesAsync();
 
-        // 🔥 GHI LOG ĐÚNG FORMAT DB CỦA BẠN
+        // Ghi log thao tác xóa sau khi đã xóa thành công.
         var log = new ActivityLog
         {
             ActivityType = "DeletePOI",
@@ -403,29 +414,31 @@ public class PoisController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdatePoi(int id, [FromForm] CreatePoiDto dto, [FromForm] List<IFormFile> files)
     {
+        // Tìm POI cần cập nhật.
         var poi = await _context.Pois.FindAsync(id);
         if (poi == null) return NotFound("Không tìm thấy địa điểm.");
 
-        // 🔥 LẤY THÔNG TIN CŨ
+        // Lưu tên cũ để ghi log theo kiểu trước/sau.
         var oldName = poi.Name;
 
-        // 👉 Lấy username thật từ DB
+        // Lấy username thật từ DB để ghi log.
         var user = await _context.Users.FindAsync(poi.OwnerId);
         var username = user?.Username ?? "Unknown";
 
-        // 1. Cập nhật thông tin
+        // Cập nhật thông tin cơ bản của POI.
         poi.Name = dto.Name;
         poi.Description = dto.Description ?? string.Empty;
         poi.Address = dto.Address ?? "N/A";
         poi.Latitude = dto.Latitude;
         poi.Longitude = dto.Longitude;
 
-        // 2. Logic nghiệp vụ
+        // Khi có chỉnh sửa thì đưa POI về Pending để admin duyệt lại.
         if (poi.Status != PoiStatus.Pending)
         {
             poi.Status = PoiStatus.Pending;
         }
-        // 3. Upload file
+
+        // Nếu có file mới thì lưu thêm ảnh/audio cho POI.
         if (files != null && files.Count > 0)
         {
             foreach (var file in files)
@@ -444,10 +457,10 @@ public class PoisController : ControllerBase
             }
         }
 
-        // ✅ SAVE TRƯỚC
+        // Lưu thay đổi POI và media trước khi ghi log.
         await _context.SaveChangesAsync();
 
-        // 🔥 GHI LOG SAU KHI THÀNH CÔNG
+        // Ghi activity log sau khi cập nhật thành công.
         var log = new ActivityLog
         {
             ActivityType = "UpdatePOI",
@@ -467,6 +480,7 @@ public class PoisController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<PoiDto>> GetPoi(int id)
     {
+        // Lấy POI kèm hình, audio và cấu hình geofence để phục vụ màn hình edit.
         var p = await _context.Pois
             .Include(p => p.GeofenceSetting)
             .Include(p => p.MediaAssets) // QUAN TRỌNG: Bổ sung dòng này để lấy Ảnh/Audio cũ
@@ -485,11 +499,11 @@ public class PoisController : ControllerBase
             Status = p.Status.ToString(),
             OwnerId = p.OwnerId,
 
-            // Map thông tin cấu hình Geofence
+            // Map cấu hình geofence sang DTO.
             TriggerRadius = p.GeofenceSetting?.TriggerRadiusInMeters ?? 50,
             Priority = p.GeofenceSetting?.Priority ?? 1,
 
-            // BẮT BUỘC: Map Ảnh và Audio để trang Sửa (Edit) hiển thị được dữ liệu cũ
+            // Trả lại media cũ để form sửa có thể hiển thị đầy đủ dữ liệu.
             ImageUrls = p.MediaAssets.Where(m => m.Type == MediaType.Image).Select(m => m.UrlOrContent).ToList(),
             AudioUrls = p.MediaAssets.Where(m => m.Type == MediaType.AudioFile).Select(m => m.UrlOrContent).ToList(),
             ExistingAudios = p.MediaAssets
@@ -504,6 +518,7 @@ public class PoisController : ControllerBase
     [HttpPut("{id}/approve")]
     public async Task<IActionResult> ApprovePoi(int id)
     {
+        // Admin duyệt POI bằng cách chuyển sang trạng thái Active.
         var poi = await _context.Pois.FindAsync(id);
         if (poi == null) return NotFound();
 
@@ -526,7 +541,7 @@ public class PoisController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        // 🔥 LOG
+        // Ghi activity log cho hành động duyệt POI.
         _context.ActivityLogs.Add(new ActivityLog
         {
             ActivityType = "ApprovePOI",
@@ -544,6 +559,7 @@ public class PoisController : ControllerBase
     [HttpGet("pending")]
     public async Task<ActionResult<IEnumerable<PoiDto>>> GetPendingPois()
     {
+        // Chỉ lấy những POI đang chờ duyệt để admin xử lý.
         var pois = await _context.Pois
             .Include(p => p.GeofenceSetting)
             .Include(p => p.MediaAssets) // Bổ sung Include MediaAssets
@@ -560,7 +576,7 @@ public class PoisController : ControllerBase
             Latitude = p.Latitude,
             Longitude = p.Longitude,
 
-            // Bổ sung lấy ảnh đại diện để hiển thị trên UI Admin
+            // Lấy ảnh đại diện để giao diện admin xem nhanh.
             ImageUrls = p.MediaAssets.Where(m => m.Type == MediaType.Image).Select(m => m.UrlOrContent).ToList()
         });
 
@@ -572,20 +588,20 @@ public class PoisController : ControllerBase
     // [Authorize(Roles = "Admin")] // Bỏ comment dòng này khi bạn đã có JWT Token thực, test thì tạm ẩn
     public async Task<IActionResult> UpdateGeofence(int id, [FromBody] UpdateGeofenceDto dto)
     {
-        // 1. Lấy POI kèm theo bảng Setting
+        // Lấy POI cùng GeofenceSetting hiện tại.
         var poi = await _context.Pois
             .Include(p => p.GeofenceSetting)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (poi == null) return NotFound("Địa điểm không tồn tại");
 
-        // 2. Nếu chưa có setting (dữ liệu cũ), tạo mới
+        // Nếu POI chưa có setting thì tạo mới để cập nhật.
         if (poi.GeofenceSetting == null)
         {
             poi.GeofenceSetting = new GeofenceSetting { PoiId = id };
         }
 
-        // 3. Cập nhật dữ liệu
+        // Cập nhật thông số geofence từ DTO.
         poi.GeofenceSetting.TriggerRadiusInMeters = dto.TriggerRadiusInMeters;
         poi.GeofenceSetting.CooldownInSeconds = dto.CooldownInSeconds;
         poi.GeofenceSetting.Priority = dto.Priority;
@@ -599,6 +615,7 @@ public class PoisController : ControllerBase
     [HttpGet("admin/{id}")]
     public async Task<ActionResult<PoiDto>> GetPoiForAdmin(int id)
     {
+        // Admin cần xem đủ media và cấu hình để duyệt chính xác.
         var p = await _context.Pois
             .Include(p => p.GeofenceSetting)
             .Include(p => p.MediaAssets) // Quan trọng: Admin cần xem ảnh/nghe audio để duyệt
@@ -645,6 +662,7 @@ public class PoisController : ControllerBase
     [HttpPut("{id}/reject")]
     public async Task<IActionResult> RejectPoi(int id)
     {
+        // Chuyển POI sang trạng thái Rejected khi admin từ chối.
         var poi = await _context.Pois.FindAsync(id);
         if (poi == null) return NotFound("Không tìm thấy địa điểm.");
 
@@ -654,7 +672,7 @@ public class PoisController : ControllerBase
         // Chuyển trạng thái sang Rejected
         poi.Status = PoiStatus.Rejected;
 
-        // Tạo thông báo cho chủ gian hàng: từ chối do địa chỉ không khớp
+        // Gửi thông báo cho owner biết lý do bị từ chối.
         _context.OwnerNotifications.Add(new OwnerNotification
         {
             OwnerId = poi.OwnerId,
@@ -668,7 +686,7 @@ public class PoisController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        // 🔥 GHI LOG
+        // Ghi activity log cho thao tác từ chối POI.
         _context.ActivityLogs.Add(new ActivityLog
         {
             ActivityType = "RejectPOI",
@@ -686,7 +704,7 @@ public class PoisController : ControllerBase
     [HttpGet("pending-count")]
     public async Task<ActionResult<int>> GetPendingCount()
     {
-        // Sử dụng đúng Enum PoiStatus.Pending của bạn
+        // Đếm số POI đang chờ duyệt để phục vụ dashboard/thống kê.
         var count = await _context.Pois.CountAsync(p => p.Status == PoiStatus.Pending);
         return Ok(count);
     }
