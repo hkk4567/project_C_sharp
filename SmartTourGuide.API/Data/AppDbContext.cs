@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using SmartTourGuide.API.Data.Entities; // Chứa các entity map với bảng DB
-
+// Truy cập dữ liệu (SELECT, INSERT, UPDATE, DELETE)
+// Định nghĩa các bảng trong DB bằng code
+// Cấu hình quan hệ giữa các bảng
+// Thiết lập ràng buộc (constraint), index, behavior khi xóa
 namespace SmartTourGuide.API.Data
 {
     public class AppDbContext : DbContext
