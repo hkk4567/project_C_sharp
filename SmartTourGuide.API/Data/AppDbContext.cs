@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using SmartTourGuide.API.Data.Entities; // Nhớ using namespace chứa các class Entity ở câu trả lời trước
+using SmartTourGuide.API.Data.Entities; // Chứa các entity map với bảng DB
 
 namespace SmartTourGuide.API.Data
 {
@@ -9,7 +9,7 @@ namespace SmartTourGuide.API.Data
         {
         }
 
-        // Khai báo các bảng
+        // DbSet đại diện cho các bảng chính trong hệ thống
         public DbSet<User> Users { get; set; }
         public DbSet<Poi> Pois { get; set; }
         public DbSet<GeofenceSetting> GeofenceSettings { get; set; }
@@ -27,75 +27,71 @@ namespace SmartTourGuide.API.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // --- Cấu hình User ---
-            // Đặt tên bảng là Users (vì User đôi khi trùng từ khóa hệ thống)
+            // User: đặt tên bảng tường minh và ép Username duy nhất
             modelBuilder.Entity<User>().ToTable("Users");
             modelBuilder.Entity<User>()
-                .HasIndex(u => u.Username).IsUnique(); // Username không được trùng
+                .HasIndex(u => u.Username).IsUnique(); // Tránh trùng tài khoản đăng nhập
 
-            // --- Cấu hình quan hệ User (Chủ gian hàng) -> POI ---
+            // Poi -> Owner (User): 1 owner có nhiều POI, không xóa dây chuyền POI khi xóa owner
             modelBuilder.Entity<Poi>()
                 .HasOne(p => p.Owner)
                 .WithMany(u => u.OwnedPois)
                 .HasForeignKey(p => p.OwnerId)
-                .OnDelete(DeleteBehavior.Restrict); // Xóa User thì KHÔNG xóa POI ngay (để an toàn dữ liệu)
+                .OnDelete(DeleteBehavior.Restrict); // Bảo toàn dữ liệu POI
 
-            // --- Cấu hình Geofence Setting (1-1 với POI) ---
+            // Poi <-> GeofenceSetting (1-1): geofence phụ thuộc POI
             modelBuilder.Entity<Poi>()
                 .HasOne(p => p.GeofenceSetting)
                 .WithOne(gp => gp.Poi)
                 .HasForeignKey<GeofenceSetting>(gp => gp.PoiId)
-                .OnDelete(DeleteBehavior.Cascade); // Xóa POI thì xóa luôn Setting
+                .OnDelete(DeleteBehavior.Cascade); // Xóa POI thì xóa geofence
 
-            // --- Cấu hình Media Asset (1-nhiều với POI) ---
+            // MediaAsset -> Poi (1-n): media phụ thuộc POI
             modelBuilder.Entity<MediaAsset>()
                 .HasOne(m => m.Poi)
                 .WithMany(p => p.MediaAssets)
                 .HasForeignKey(m => m.PoiId)
-                .OnDelete(DeleteBehavior.Cascade); // Xóa POI thì xóa luôn ảnh/audio
+                .OnDelete(DeleteBehavior.Cascade); // Dọn dữ liệu con khi xóa POI
 
-            // --- Cấu hình User Location Log ---
+            // UserLocationLog: lưu lịch sử vị trí, hỗ trợ cả user đăng nhập và khách
             modelBuilder.Entity<UserLocationLog>(entity =>
                 {
-                    // 1. Chỉ định khóa chính
+                    // Khóa chính
                     entity.HasKey(e => e.Id);
 
-                    // 2. Tạo Index (Giữ nguyên vì nó tốt cho hiệu năng)
+                    // Index để tối ưu truy vấn theo user và thời gian
                     entity.HasIndex(e => e.UserId);
                     entity.HasIndex(e => e.Timestamp);
 
-                    // 3. SỬA CHỖ NÀY: Thay HasOne<User>() bằng HasOne(e => e.User)
-                    entity.HasOne(e => e.User)           // Trỏ trực tiếp vào thuộc tính User trong Class
-                        .WithMany()                    // Một User có nhiều Logs
-                        .HasForeignKey(e => e.UserId)  // Dùng chung cột UserId này, không đẻ thêm cột ảo
+                    // Map navigation trực tiếp để dùng đúng FK UserId, tránh phát sinh cột thừa
+                    entity.HasOne(e => e.User)
+                        .WithMany()
+                        .HasForeignKey(e => e.UserId)
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired(false);            // Cực kỳ quan trọng: Cho phép UserId là NULL (khách vãng lai)
+                        .IsRequired(false); // Cho phép log của khách vãng lai (UserId null)
                 });
-            // --- CẤU HÌNH TOUR DETAIL (QUAN HỆ N-N) ---
+            // TourDetail: bảng liên kết N-N giữa Tour và Poi
 
-            // 1. Tour xóa -> Chi tiết xóa theo (Cascade)
+            // Tour xóa -> dòng liên kết xóa theo
             modelBuilder.Entity<TourDetail>()
                 .HasOne(td => td.Tour)
                 .WithMany(t => t.TourDetails)
                 .HasForeignKey(td => td.TourId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // 2. Poi xóa -> Không cho xóa nếu đang nằm trong Tour (Restrict) 
-            // Hoặc xóa luôn chi tiết tour (Cascade) -> Tùy nghiệp vụ. 
-            // Ở đây mình chọn Restrict để an toàn dữ liệu.
+            // Poi xóa -> chặn nếu còn trong tour, tránh mất cấu trúc tour
             modelBuilder.Entity<TourDetail>()
                 .HasOne(td => td.Poi)
-                .WithMany() // Poi entity không cần chứa list TourDetail ngược lại
+                .WithMany() // Không cần navigation ngược trong Poi
                 .HasForeignKey(td => td.PoiId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // --- CẤU HÌNH TOUR TRANSLATION ---
+            // TourTranslation: mỗi tour chỉ có 1 bản dịch trên mỗi ngôn ngữ
             modelBuilder.Entity<TourTranslation>(entity =>
             {
-                // Mỗi Tour chỉ có 1 bản dịch cho 1 ngôn ngữ (unique index)
                 entity.HasIndex(t => new { t.TourId, t.LanguageCode }).IsUnique();
 
-                // Tour xóa -> Bản dịch xóa theo
+                // Tour xóa -> bản dịch xóa theo
                 entity.HasOne(t => t.Tour)
                     .WithMany(tour => tour.TourTranslations)
                     .HasForeignKey(t => t.TourId)
@@ -103,7 +99,7 @@ namespace SmartTourGuide.API.Data
             });
 
 
-            // --- Cấu hình Poi Listen Log ---
+            // PoiListenLog: tối ưu thống kê theo POI và mốc thời gian
             modelBuilder.Entity<PoiListenLog>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -111,11 +107,12 @@ namespace SmartTourGuide.API.Data
                 entity.HasIndex(e => e.Timestamp);
             });
 
-            // --- Cấu hình Owner Notification ---
+            // OwnerNotification: thông báo cho chủ POI
             modelBuilder.Entity<OwnerNotification>(entity =>
             {
                 entity.ToTable("OwnerNotifications");
 
+                // Index phục vụ lọc theo trạng thái đọc và thời gian tạo
                 entity.HasIndex(e => e.OwnerId);
                 entity.HasIndex(e => new { e.OwnerId, e.IsRead, e.CreatedAt });
 
@@ -127,14 +124,15 @@ namespace SmartTourGuide.API.Data
                 entity.HasOne<Poi>()
                     .WithMany()
                     .HasForeignKey(e => e.PoiId)
-                    .OnDelete(DeleteBehavior.SetNull);
+                    .OnDelete(DeleteBehavior.SetNull); // Giữ lịch sử thông báo khi POI bị xóa
             });
 
-            // --- Cấu hình Admin Notification ---
+            // AdminNotification: thông báo cho tài khoản quản trị
             modelBuilder.Entity<AdminNotification>(entity =>
             {
                 entity.ToTable("AdminNotifications");
 
+                // Index phục vụ màn hình danh sách thông báo admin
                 entity.HasIndex(e => e.AdminId);
                 entity.HasIndex(e => new { e.AdminId, e.IsRead, e.CreatedAt });
 
@@ -146,7 +144,7 @@ namespace SmartTourGuide.API.Data
                 entity.HasOne<Poi>()
                     .WithMany()
                     .HasForeignKey(e => e.PoiId)
-                    .OnDelete(DeleteBehavior.SetNull);
+                    .OnDelete(DeleteBehavior.SetNull); // Không mất thông báo cũ nếu POI đã bị xóa
             });
         }
     }
