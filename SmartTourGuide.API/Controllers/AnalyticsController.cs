@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartTourGuide.API.Data;
 using SmartTourGuide.API.Data.Entities;
+using SmartTourGuide.API.Services;
 using SmartTourGuide.Shared.Enums;
 using SmartTourGuide.Shared.DTOs;
 
@@ -110,7 +111,7 @@ public class AnalyticsController : ControllerBase
         // Nếu có SessionId thì dùng làm khóa chống ghi log lặp.
         if (!string.IsNullOrWhiteSpace(dto.SessionId))
         {
-            var now = DateTime.UtcNow;
+            var now = VietnamTime.Now;
             if (RecentListenSessions.TryGetValue(dto.SessionId, out var lastSeen)
                 && now - lastSeen < TimeSpan.FromMinutes(15))
             {
@@ -127,7 +128,7 @@ public class AnalyticsController : ControllerBase
             PoiId = dto.PoiId,
             DeviceId = dto.DeviceId,
             ListenDurationSec = dto.ListenDurationSec,
-            Timestamp = DateTime.UtcNow
+            Timestamp = VietnamTime.Now
         });
 
         await _context.SaveChangesAsync();
@@ -194,7 +195,7 @@ public class AnalyticsController : ControllerBase
     public async Task<ActionResult<List<LocationLogDto>>> GetHeatmap([FromQuery] int hours = 24)
     {
         // Chỉ lấy dữ liệu vị trí trong khoảng thời gian gần đây để vẽ heatmap.
-        var since = DateTime.UtcNow.AddHours(-hours);
+        var since = VietnamTime.Now.AddHours(-hours);
         var points = await _context.UserLocationLogs
             .Where(x => x.Timestamp >= since)
             .Select(x => new LocationLogDto
@@ -251,7 +252,7 @@ public class AnalyticsController : ControllerBase
         if (requester == null) return Unauthorized("Chưa đăng nhập.");
         if (!CanAccessOwnerData(requester, ownerId)) return Forbid();
 
-        var now = DateTime.UtcNow;
+        var now = VietnamTime.Now;
         var sinceWeek = now.AddDays(-7);
         var sinceMonth = now.AddDays(-30);
 
@@ -301,12 +302,18 @@ public class AnalyticsController : ControllerBase
     public async Task<ActionResult<AdminDashboardSummaryDto>> GetAdminSummary()
     {
         // Mốc 7 ngày gần nhất để dựng series theo ngày.
-        var sinceWeek = DateTime.UtcNow.Date.AddDays(-6);
+        var sinceWeek = VietnamTime.Now.Date.AddDays(-6);
+        var activeSince = VietnamTime.Now.AddSeconds(-20);
 
         // Các chỉ số tổng quan của hệ thống.
         var totalPois = await _context.Pois.CountAsync();
         var pendingPois = await _context.Pois.CountAsync(p => p.Status == PoiStatus.Pending);
         var totalUsers = await _context.Users.CountAsync();
+        var activeUsersNow = await _context.UserLocationLogs
+            .Where(x => x.Timestamp >= activeSince && x.DeviceId != null && x.DeviceId != "")
+            .Select(x => x.DeviceId!)
+            .Distinct()
+            .CountAsync();
         var lockedUsers = await _context.Users.CountAsync(u => u.IsLocked);
         var totalTours = await _context.Tours.CountAsync();
 
@@ -325,7 +332,7 @@ public class AnalyticsController : ControllerBase
         var weeklySeries = new List<AdminDailyCountDto>();
 
         // Điền đủ các ngày liên tiếp, kể cả ngày không có dữ liệu.
-        for (var date = sinceWeek; date <= DateTime.UtcNow.Date; date = date.AddDays(1))
+        for (var date = sinceWeek; date <= VietnamTime.Now.Date; date = date.AddDays(1))
         {
             weeklySeries.Add(new AdminDailyCountDto
             {
@@ -354,6 +361,7 @@ public class AnalyticsController : ControllerBase
             TotalPois = totalPois,
             PendingPois = pendingPois,
             TotalUsers = totalUsers,
+            ActiveUsersNow = activeUsersNow,
             LockedUsers = lockedUsers,
             TotalTours = totalTours,
             TotalListenEventsWeek = weeklySeries.Sum(x => x.Count),
@@ -404,8 +412,8 @@ public class AnalyticsController : ControllerBase
 
         // Chuẩn hóa số ngày để không vượt giới hạn cho phép.
         var safeDays = Math.Clamp(days, 1, 90);
-        var startDate = DateTime.UtcNow.Date.AddDays(-(safeDays - 1));
-        var endDate = DateTime.UtcNow.Date;
+        var startDate = VietnamTime.Now.Date.AddDays(-(safeDays - 1));
+        var endDate = VietnamTime.Now.Date;
 
         // Gom dữ liệu theo ngày rồi map sang series đầy đủ.
         var grouped = await _context.PoiListenLogs
@@ -482,7 +490,7 @@ public class AnalyticsController : ControllerBase
             maxLon = Math.Max(maxLon, area.Longitude + lonDelta);
         }
 
-        var since = DateTime.UtcNow.AddHours(-safeHours);
+        var since = VietnamTime.Now.AddHours(-safeHours);
 
         // Lọc sơ bộ bằng thời gian và bounding box để giảm khối lượng dữ liệu.
         var rawPoints = await _context.UserLocationLogs

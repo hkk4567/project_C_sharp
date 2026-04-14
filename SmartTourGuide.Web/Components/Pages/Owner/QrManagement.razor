@@ -13,34 +13,16 @@
         <p class="subtitle">Tạo mã QR cho từng điểm tham quan. Khách quét QR sẽ tự động mở App và phát audio.</p>
     </div>
 
-    <!-- Tunnel URL Config Card -->
     <div class="config-card">
         <div class="config-header">
             <span class="config-icon">🌐</span>
             <div>
-                <h3>URL Dev Tunnel / Ngrok</h3>
-                <p>Bắt buộc có HTTPS. Lấy URL từ Visual Studio → View → Other Windows → Dev Tunnels. https://2tlcgj8k-7058.asse.devtunnels.ms</p>
+                <h3>Đường dẫn hệ thống (Dev Tunnel)</h3>
+                <p>Mã QR sẽ được tạo mặc định với địa chỉ: <strong>@TunnelUrl</strong></p>
             </div>
         </div>
-        <div class="input-row">
-            <input @bind="TunnelUrl"
-                   @bind:event="oninput"
-                   type="url"
-                   class="tunnel-input"
-                   placeholder="https://2tlcgj8k-7058.asse.devtunnels.ms" />
-            <button class="btn-verify" @onclick="VerifyTunnel" disabled="@(string.IsNullOrWhiteSpace(TunnelUrl))">
-                @if (_verifying) { <span class="spinner"></span> } else { <span>Kiểm tra</span> }
-            </button>
-        </div>
-        @if (_tunnelStatus != null)
-        {
-            <div class="tunnel-status @(_tunnelOk ? "ok" : "err")">
-                @(_tunnelOk ? "✅" : "❌") @_tunnelStatus
-            </div>
-        }
     </div>
 
-    <!-- POI List -->
     @if (_loading)
     {
         <div class="loading-state">
@@ -80,7 +62,7 @@
                     <div class="poi-actions">
                         <button class="btn-generate"
                                 @onclick="() => GenerateQr(poi.Id)"
-                                disabled="@(string.IsNullOrWhiteSpace(TunnelUrl) || _generatingId == poi.Id)">
+                                disabled="@(_generatingId == poi.Id)">
                             @if (_generatingId == poi.Id)
                             {
                                 <span class="spinner"></span>
@@ -93,7 +75,6 @@
                         </button>
                     </div>
 
-                    <!-- QR Preview Panel -->
                     @if (_qrPreviews.TryGetValue(poi.Id, out var qrData) && qrData != null)
                     {
                         <div class="qr-preview-panel">
@@ -139,7 +120,6 @@
     }
 </div>
 
-<!-- Hidden canvas for print -->
 <div id="print-area" style="display:none">
     <div id="print-content"></div>
 </div>
@@ -152,18 +132,10 @@
 
 /* Config card */
 .config-card { background: #f0f6ff; border: 1px solid #c9dff8; border-radius: 16px; padding: 20px; margin-bottom: 28px; }
-.config-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.config-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 0; }
 .config-icon { font-size: 28px; line-height: 1; }
 .config-header h3 { font-size: 16px; font-weight: 700; margin: 0 0 4px; }
-.config-header p { font-size: 13px; color: #555; margin: 0; }
-.input-row { display: flex; gap: 8px; }
-.tunnel-input { flex: 1; padding: 10px 14px; border: 1.5px solid #c9dff8; border-radius: 10px; font-size: 14px; }
-.tunnel-input:focus { outline: none; border-color: #2a5298; }
-.btn-verify { padding: 10px 18px; background: #2a5298; color: #fff; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; }
-.btn-verify:disabled { opacity: .5; cursor: default; }
-.tunnel-status { margin-top: 8px; font-size: 13px; padding: 6px 12px; border-radius: 8px; }
-.tunnel-status.ok  { background: #e8f5e9; color: #2e7d32; }
-.tunnel-status.err { background: #fdecea; color: #c62828; }
+.config-header p { font-size: 14px; color: #555; margin: 0; }
 
 /* POI grid */
 .poi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
@@ -215,13 +187,11 @@
 
 @code {
     // ─── State ─────────────────────────────────────────────────────────────
-    private string TunnelUrl { get; set; } = "";
-    private string ApiUrl = "http://localhost:5277"; // prefix cho relative image URL từ API
+    // Cố định link tunnel ở đây
+    private string TunnelUrl { get; set; } = "https://6b5j1b5h-7058.asse.devtunnels.ms/";
+    private string ApiUrl = "http://localhost:5277"; 
     private List<PoiDto>? _pois;
     private bool _loading = true;
-    private bool _verifying = false;
-    private bool _tunnelOk = false;
-    private string? _tunnelStatus;
     private string? _errorMessage;
     private string? _successMessage;
     private int _generatingId = -1;
@@ -229,13 +199,9 @@
 
     // poiId → QR preview data
     private Dictionary<int, QrPreviewData?> _qrPreviews = new();
-
-    // Owner ID lấy từ localStorage sau khi JS sẵn sàng
     private int OwnerId = 0;
 
     // ─── Lifecycle ─────────────────────────────────────────────────────────
-    // OnInitializedAsync KHÔNG gọi JS được khi Blazor đang prerender
-    // → dùng OnAfterRenderAsync(firstRender) để đọc localStorage
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
@@ -246,7 +212,6 @@
         }
         catch
         {
-            // localStorage chưa có userId → chưa đăng nhập
             OwnerId = 0;
         }
 
@@ -268,7 +233,6 @@
         try
         {
             var all = await Http.GetFromJsonAsync<List<PoiDto>>($"api/pois/owner/{OwnerId}");
-            // Chỉ hiện POI Active & Pending (Rejected không cần QR)
             _pois = all?.Where(p => p.Status != "Rejected").ToList() ?? new();
         }
         catch (Exception ex)
@@ -281,49 +245,9 @@
         }
     }
 
-    // ─── Tunnel verify ──────────────────────────────────────────────────────
-    private async Task VerifyTunnel()
-    {
-        if (string.IsNullOrWhiteSpace(TunnelUrl)) return;
-        _verifying = true;
-        _tunnelStatus = null;
-
-        try
-        {
-            var url = TunnelUrl.TrimEnd('/') + "/.well-known/assetlinks.json";
-            var response = await Http.GetAsync(url);
-            if (response.IsSuccessStatusCode)
-            {
-                _tunnelOk = true;
-                _tunnelStatus = $"Kết nối thành công! assetlinks.json trả về {(int)response.StatusCode}.";
-            }
-            else
-            {
-                _tunnelOk = false;
-                _tunnelStatus = $"Tunnel hoạt động nhưng assetlinks.json trả về {(int)response.StatusCode}. " +
-                                "Đảm bảo file đã có trong wwwroot/.well-known/.";
-            }
-        }
-        catch
-        {
-            _tunnelOk = false;
-            _tunnelStatus = "Không thể kết nối tới Tunnel URL. Hãy kiểm tra lại URL và đảm bảo Tunnel đang chạy.";
-        }
-        finally
-        {
-            _verifying = false;
-        }
-    }
-
     // ─── QR Generation ─────────────────────────────────────────────────────
     private async Task GenerateQr(int poiId)
     {
-        if (string.IsNullOrWhiteSpace(TunnelUrl))
-        {
-            _errorMessage = "Vui lòng nhập Tunnel URL trước.";
-            return;
-        }
-
         _generatingId = poiId;
         _errorMessage = null;
 
@@ -339,12 +263,10 @@
                 return;
             }
 
-            // Lấy Deep Link URL từ header trả về
             var deepLinkUrl = response.Headers.TryGetValues("X-Deep-Link-Url", out var vals)
                 ? vals.FirstOrDefault() ?? ""
                 : $"{TunnelUrl.TrimEnd('/')}/poi/{poiId}";
 
-            // Chuyển PNG bytes → base64 data URL để hiển thị trong <img>
             var pngBytes = await response.Content.ReadAsByteArrayAsync();
             var base64 = Convert.ToBase64String(pngBytes);
             var dataUrl = $"data:image/png;base64,{base64}";

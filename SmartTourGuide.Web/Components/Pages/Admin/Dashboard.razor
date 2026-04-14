@@ -88,6 +88,21 @@
                     </MudPaper>
                 </MudItem>
 
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Elevation="3" Class="stat-card stat-card-online pa-4 d-flex flex-column justify-space-between">
+                        <div class="d-flex justify-space-between align-start">
+                            <div>
+                                <MudText Typo="Typo.subtitle2" Class="stat-label">Đang hoạt động</MudText>
+                                <MudText Typo="Typo.h3" Class="stat-value">@dashboard.ActiveUsersNow</MudText>
+                            </div>
+                            <MudAvatar Color="Color.Secondary" Variant="Variant.Outlined" Class="stat-icon">
+                                <MudIcon Icon="@Icons.Material.Filled.OnlinePrediction" Size="Size.Large" />
+                            </MudAvatar>
+                        </div>
+                        <MudText Typo="Typo.caption" Class="stat-caption">Thiết bị có tracking trong 20 giây gần nhất</MudText>
+                    </MudPaper>
+                </MudItem>
+
                 <MudItem xs="12" lg="8" Class="mt-4">
                     <MudPaper Elevation="3" Class="pa-5 dashboard-panel">
                         <MudText Typo="Typo.h6" Class="section-title mb-4">Lượt nghe POI 7 ngày gần nhất</MudText>
@@ -257,6 +272,10 @@
 
     .stat-card-activity {
         border-top: 4px solid #0288d1;
+    }
+
+    .stat-card-online {
+        border-top: 4px solid #8e24aa;
     }
 
     .stat-label {

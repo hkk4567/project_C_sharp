@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartTourGuide.API.Data;
 using SmartTourGuide.API.Data.Entities;
+using SmartTourGuide.API.Services;
 using SmartTourGuide.Shared.DTOs;
 
 namespace SmartTourGuide.API.Controllers;
@@ -40,7 +41,9 @@ public class TrackingController : ControllerBase
             Latitude = dto.Latitude,
             Longitude = dto.Longitude,
             // Nếu client không truyền timestamp thì dùng thời gian hiện tại.
-            Timestamp = dto.Timestamp == default ? DateTime.Now : dto.Timestamp
+            Timestamp = dto.Timestamp == default
+                ? VietnamTime.Now
+                : VietnamTime.ToVietnamTime(dto.Timestamp)
         };
 
         _context.UserLocationLogs.Add(log);
@@ -85,7 +88,7 @@ public class TrackingController : ControllerBase
     public async Task<IActionResult> CleanupOldLogs()
     {
         // Xóa các log cũ hơn 30 ngày để giảm dung lượng database.
-        var limitDate = DateTime.Now.AddDays(-30);
+        var limitDate = VietnamTime.Now.AddDays(-30);
 
         // Lấy toàn bộ log cũ rồi xóa hàng loạt.
         var oldLogs = _context.UserLocationLogs.Where(x => x.Timestamp < limitDate);

@@ -5,6 +5,7 @@ public class AdminDashboardSummaryDto
     public int TotalPois { get; set; }
     public int PendingPois { get; set; }
     public int TotalUsers { get; set; }
+    public int ActiveUsersNow { get; set; }
     public int LockedUsers { get; set; }
     public int TotalTours { get; set; }
     public int TotalListenEventsWeek { get; set; }
