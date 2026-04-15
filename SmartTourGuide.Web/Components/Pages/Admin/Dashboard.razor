@@ -28,91 +28,83 @@
         }
         else
         {
-            <MudGrid>
-                <MudItem xs="12" sm="6" md="3">
-                    <MudPaper Elevation="3" Class="stat-card stat-card-poi pa-4 d-flex flex-column justify-space-between">
-                        <div class="d-flex justify-space-between align-start">
-                            <div>
-                                <MudText Typo="Typo.subtitle2" Class="stat-label">Tổng địa điểm</MudText>
-                                <MudText Typo="Typo.h3" Class="stat-value">@dashboard.TotalPois</MudText>
-                            </div>
-                            <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Class="stat-icon">
-                                <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Large" />
-                            </MudAvatar>
+            <div class="dashboard-stat-grid">
+                <MudPaper Elevation="3" Class="stat-card stat-card-poi pa-4 d-flex flex-column justify-space-between">
+                    <div class="d-flex justify-space-between align-start">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Class="stat-label">Tổng địa điểm</MudText>
+                            <MudText Typo="Typo.h3" Class="stat-value">@dashboard.TotalPois</MudText>
                         </div>
-                        <MudText Typo="Typo.caption" Class="stat-caption">Bao gồm tất cả POI trong hệ thống</MudText>
-                    </MudPaper>
-                </MudItem>
+                        <MudAvatar Color="Color.Primary" Variant="Variant.Outlined" Class="stat-icon">
+                            <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Large" />
+                        </MudAvatar>
+                    </div>
+                    <MudText Typo="Typo.caption" Class="stat-caption">Bao gồm tất cả POI trong hệ thống</MudText>
+                </MudPaper>
 
-                <MudItem xs="12" sm="6" md="3">
-                    <MudPaper Elevation="3" Class="stat-card stat-card-user pa-4 d-flex flex-column justify-space-between">
-                        <div class="d-flex justify-space-between align-start">
-                            <div>
-                                <MudText Typo="Typo.subtitle2" Class="stat-label">Người dùng</MudText>
-                                <MudText Typo="Typo.h3" Class="stat-value">@dashboard.TotalUsers</MudText>
-                            </div>
-                            <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Class="stat-icon">
-                                <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" />
-                            </MudAvatar>
+                <MudPaper Elevation="3" Class="stat-card stat-card-user pa-4 d-flex flex-column justify-space-between">
+                    <div class="d-flex justify-space-between align-start">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Class="stat-label">Người dùng</MudText>
+                            <MudText Typo="Typo.h3" Class="stat-value">@dashboard.TotalUsers</MudText>
                         </div>
-                        <MudText Typo="Typo.caption" Class="stat-caption">Tổng tài khoản đã tạo</MudText>
-                    </MudPaper>
-                </MudItem>
+                        <MudAvatar Color="Color.Success" Variant="Variant.Outlined" Class="stat-icon">
+                            <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" />
+                        </MudAvatar>
+                    </div>
+                    <MudText Typo="Typo.caption" Class="stat-caption">Tổng tài khoản đã tạo</MudText>
+                </MudPaper>
 
-                <MudItem xs="12" sm="6" md="3">
-                    <MudPaper Elevation="3" Class="stat-card stat-card-pending pa-4 d-flex flex-column justify-space-between">
-                        <div class="d-flex justify-space-between align-start">
-                            <div>
-                                <MudText Typo="Typo.subtitle2" Class="stat-label">Chờ duyệt</MudText>
-                                <MudText Typo="Typo.h3" Class="stat-value">@dashboard.PendingPois</MudText>
-                            </div>
-                            <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Class="stat-icon">
-                                <MudIcon Icon="@Icons.Material.Filled.PendingActions" Size="Size.Large" />
-                            </MudAvatar>
+                <MudPaper Elevation="3" Class="stat-card stat-card-pending pa-4 d-flex flex-column justify-space-between">
+                    <div class="d-flex justify-space-between align-start">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Class="stat-label">Chờ duyệt</MudText>
+                            <MudText Typo="Typo.h3" Class="stat-value">@dashboard.PendingPois</MudText>
                         </div>
-                        <MudText Typo="Typo.caption" Class="stat-caption">Đang chờ admin xử lý</MudText>
-                    </MudPaper>
-                </MudItem>
+                        <MudAvatar Color="Color.Warning" Variant="Variant.Outlined" Class="stat-icon">
+                            <MudIcon Icon="@Icons.Material.Filled.PendingActions" Size="Size.Large" />
+                        </MudAvatar>
+                    </div>
+                    <MudText Typo="Typo.caption" Class="stat-caption">Đang chờ admin xử lý</MudText>
+                </MudPaper>
 
-                <MudItem xs="12" sm="6" md="3">
-                    <MudPaper Elevation="3" Class="stat-card stat-card-activity pa-4 d-flex flex-column justify-space-between">
-                        <div class="d-flex justify-space-between align-start">
-                            <div>
-                                <MudText Typo="Typo.subtitle2" Class="stat-label">Lượt nghe 7 ngày</MudText>
-                                <MudText Typo="Typo.h3" Class="stat-value">@dashboard.TotalListenEventsWeek</MudText>
-                            </div>
-                            <MudAvatar Color="Color.Info" Variant="Variant.Outlined" Class="stat-icon">
-                                <MudIcon Icon="@Icons.Material.Filled.Analytics" Size="Size.Large" />
-                            </MudAvatar>
+                <MudPaper Elevation="3" Class="stat-card stat-card-activity pa-4 d-flex flex-column justify-space-between">
+                    <div class="d-flex justify-space-between align-start">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Class="stat-label">Lượt nghe 7 ngày</MudText>
+                            <MudText Typo="Typo.h3" Class="stat-value">@dashboard.TotalListenEventsWeek</MudText>
                         </div>
-                        <MudText Typo="Typo.caption" Class="stat-caption">Dữ liệu POI listen gần nhất</MudText>
-                    </MudPaper>
-                </MudItem>
+                        <MudAvatar Color="Color.Info" Variant="Variant.Outlined" Class="stat-icon">
+                            <MudIcon Icon="@Icons.Material.Filled.Analytics" Size="Size.Large" />
+                        </MudAvatar>
+                    </div>
+                    <MudText Typo="Typo.caption" Class="stat-caption">Dữ liệu POI listen gần nhất</MudText>
+                </MudPaper>
 
-                <MudItem xs="12" sm="6" md="3">
-                    <MudPaper Elevation="3" Class="stat-card stat-card-online pa-4 d-flex flex-column justify-space-between">
-                        <div class="d-flex justify-space-between align-start">
-                            <div>
-                                <MudText Typo="Typo.subtitle2" Class="stat-label">Đang hoạt động</MudText>
-                                <MudText Typo="Typo.h3" Class="stat-value">@dashboard.ActiveUsersNow</MudText>
-                            </div>
-                            <MudAvatar Color="Color.Secondary" Variant="Variant.Outlined" Class="stat-icon">
-                                <MudIcon Icon="@Icons.Material.Filled.OnlinePrediction" Size="Size.Large" />
-                            </MudAvatar>
+                <MudPaper Elevation="3" Class="stat-card stat-card-online pa-4 d-flex flex-column justify-space-between">
+                    <div class="d-flex justify-space-between align-start">
+                        <div>
+                            <MudText Typo="Typo.subtitle2" Class="stat-label">Đang hoạt động</MudText>
+                            <MudText Typo="Typo.h3" Class="stat-value">@dashboard.ActiveUsersNow</MudText>
                         </div>
-                        <MudText Typo="Typo.caption" Class="stat-caption">Thiết bị có tracking trong 20 giây gần nhất</MudText>
-                    </MudPaper>
-                </MudItem>
+                        <MudAvatar Color="Color.Secondary" Variant="Variant.Outlined" Class="stat-icon">
+                            <MudIcon Icon="@Icons.Material.Filled.OnlinePrediction" Size="Size.Large" />
+                        </MudAvatar>
+                    </div>
+                    <MudText Typo="Typo.caption" Class="stat-caption">Thiết bị có tracking trong 20 giây gần nhất</MudText>
+                </MudPaper>
+            </div>
 
-                <MudItem xs="12" lg="8" Class="mt-4">
-                    <MudPaper Elevation="3" Class="pa-5 dashboard-panel">
+            <MudGrid Class="mt-4">
+                <MudItem xs="12" lg="8">
+                    <MudPaper Elevation="3" Class="pa-5 dashboard-panel h-100">
                         <MudText Typo="Typo.h6" Class="section-title mb-4">Lượt nghe POI 7 ngày gần nhất</MudText>
                         <MudChart ChartType="ChartType.Bar" ChartSeries="@chartSeries" XAxisLabels="@chartLabels" Width="100%"
                                   Height="320px"></MudChart>
                     </MudPaper>
                 </MudItem>
 
-                <MudItem xs="12" lg="4" Class="mt-4">
+                <MudItem xs="12" lg="4">
                     <MudPaper Elevation="3" Class="pa-5 dashboard-panel h-100">
                         <MudText Typo="Typo.h6" Class="section-title mb-4">Hoạt động gần đây</MudText>
 
@@ -329,6 +321,12 @@
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
     }
 
+    .dashboard-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 16px;
+    }
+
     .stat-card {
         min-height: 164px;
         transition: transform 140ms ease, box-shadow 140ms ease;
@@ -401,10 +399,39 @@
         font-weight: 700;
     }
 
-    
+    .dashboard-panel {
+        min-height: 100%;
+    }
+
+    .dashboard-panel :deep(.mud-timeline) {
+        max-height: 390px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .dashboard-panel :deep(.mud-chart) {
+        min-height: 320px;
+    }
+
+    @@media (max-width: 1500px) {
+        .dashboard-stat-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 1100px) {
+        .dashboard-stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
     @@media (max-width: 960px) {
         .dashboard-hero {
             border-radius: 22px;
+        }
+
+        .dashboard-stat-grid {
+            grid-template-columns: 1fr;
         }
 
         .stat-card {
