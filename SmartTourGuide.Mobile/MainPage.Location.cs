@@ -7,10 +7,10 @@ namespace SmartTourGuide.Mobile;
 ///   OnAppearing → StartLocationListeningAsync()
 ///     → Geolocation.LocationChanged kích hoạt khi vị trí thay đổi
 ///       → Cập nhật dot vị trí trên bản đồ
-///       → Gửi lên server (nếu đủ điều kiện)
 ///       → Kiểm tra geofence + highlight POI gần nhất
 ///       → Nếu đang xem Tour và đã đi xa >= TourRerouteThresholdMeters
 ///         → Vẽ lại tuyến đường từ vị trí mới (dùng OSRM cache → rất nhanh)
+///     → Heartbeat timer gửi tracking đều mỗi 3 giây
 ///   OnDisappearing → StopLocationListening()
 /// </summary>
 public partial class MainPage
@@ -61,6 +61,7 @@ public partial class MainPage
             Geolocation.ListeningFailed += OnListeningFailed;
 
             _isLocationListening = true;
+            StartTrackingHeartbeat();
             System.Diagnostics.Debug.WriteLine("[Location] Bắt đầu lắng nghe GPS real-time ✅");
         }
         catch (Exception ex)
@@ -80,6 +81,7 @@ public partial class MainPage
         Geolocation.LocationChanged -= OnLocationChanged;
         Geolocation.ListeningFailed -= OnListeningFailed;
         Geolocation.StopListeningForeground();
+        StopTrackingHeartbeat();
 
         _isLocationListening = false;
         System.Diagnostics.Debug.WriteLine("[Location] Dừng lắng nghe GPS.");
@@ -102,6 +104,7 @@ public partial class MainPage
             $"±{loc.Accuracy:F0}m");
 
         _currentUserLocation = loc;
+        _hasGpsFix = true;
 
         // ── 1. Cập nhật dot vị trí trên bản đồ ──────────────────────────
         MainThread.BeginInvokeOnMainThread(() =>
@@ -114,15 +117,12 @@ public partial class MainPage
             mapView.RefreshGraphics();
         });
 
-        // ── 2. Gửi vị trí lên server (đã throttle trong SendLocationIfNeededAsync) ──
-        _ = SendLocationIfNeededAsync(loc.Latitude, loc.Longitude);
-
-        // ── 3. Kiểm tra geofence + highlight POI gần nhất ───────────────
+        // ── 2. Kiểm tra geofence + highlight POI gần nhất ───────────────
         UpdateNearestPoiHighlight();
         if (!_isCheckingGeofences)
             CheckGeofences();
 
-        // ── 4. Nếu đang xem Tour, kiểm tra có cần vẽ lại route hay không ─────
+        // ── 3. Nếu đang xem Tour, kiểm tra có cần vẽ lại route hay không ─────
         if (_currentTour != null)
             _ = MaybeRerenderTourRouteAsync(loc);
     }
@@ -131,6 +131,7 @@ public partial class MainPage
     {
         System.Diagnostics.Debug.WriteLine($"[Location] Listening thất bại: {e.Error}");
         _isLocationListening = false;
+        StopTrackingHeartbeat();
 
         // Thử khởi động lại sau 5 giây
         _ = Task.Run(async () =>
@@ -138,6 +139,59 @@ public partial class MainPage
             await Task.Delay(5000);
             await StartLocationListeningAsync();
         });
+    }
+
+    private void StartTrackingHeartbeat()
+    {
+        if (_trackingHeartbeatTask != null && !_trackingHeartbeatTask.IsCompleted)
+            return;
+
+        _trackingHeartbeatCts = new CancellationTokenSource();
+        var token = _trackingHeartbeatCts.Token;
+
+        _trackingHeartbeatTask = Task.Run(async () =>
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(timerefresh));
+
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    if (!await timer.WaitForNextTickAsync(token))
+                        break;
+
+                    if (!_hasGpsFix)
+                        continue;
+
+                    await SendLocationIfNeededAsync(
+                        _currentUserLocation.Latitude,
+                        _currentUserLocation.Longitude);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Location] Heartbeat lỗi: {ex.Message}");
+                }
+            }
+        }, token);
+    }
+
+    private void StopTrackingHeartbeat()
+    {
+        try
+        {
+            _trackingHeartbeatCts?.Cancel();
+        }
+        catch { }
+        finally
+        {
+            _trackingHeartbeatCts?.Dispose();
+            _trackingHeartbeatCts = null;
+            _trackingHeartbeatTask = null;
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════

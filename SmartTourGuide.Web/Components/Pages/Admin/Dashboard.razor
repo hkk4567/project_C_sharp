@@ -2,6 +2,7 @@
 @using SmartTourGuide.Shared.DTOs
 @using SmartTourGuide.Web.Services
 @using SmartTourGuide.Web.Components.Shared
+@implements IAsyncDisposable
 @layout AdminLayout
 @inject AdminDashboardService DashboardService
 @attribute [Authorize(Roles = "Admin")]
@@ -149,18 +150,26 @@
     private string[] chartLabels = Array.Empty<string>();
     private bool isLoading = true;
     private string? loadError;
+    private readonly TimeSpan autoRefreshInterval = TimeSpan.FromSeconds(5);
+    private CancellationTokenSource? autoRefreshCts;
+    private Task? autoRefreshTask;
+    private bool isAutoRefreshing;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadDashboardAsync();
+        StartAutoRefresh();
     }
 
-    private async Task LoadDashboardAsync()
+    private async Task LoadDashboardAsync(bool showLoading = true)
     {
         try
         {
-            isLoading = true;
-            loadError = null;
+            if (showLoading)
+            {
+                isLoading = true;
+                loadError = null;
+            }
 
             dashboard = await DashboardService.GetSummaryAsync() ?? new AdminDashboardSummaryDto();
             chartLabels = dashboard.WeeklyListenSeries
@@ -177,12 +186,85 @@
         }
         catch (Exception ex)
         {
-            loadError = $"Không tải được dashboard: {ex.Message}";
+            if (showLoading)
+            {
+                loadError = $"Không tải được dashboard: {ex.Message}";
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[Dashboard] Auto refresh lỗi: {ex.Message}");
+            }
         }
         finally
         {
-            isLoading = false;
+            if (showLoading)
+                isLoading = false;
         }
+    }
+
+    private void StartAutoRefresh()
+    {
+        if (autoRefreshTask != null && !autoRefreshTask.IsCompleted)
+            return;
+
+        autoRefreshCts = new CancellationTokenSource();
+        autoRefreshTask = AutoRefreshLoopAsync(autoRefreshCts.Token);
+    }
+
+    private async Task AutoRefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(autoRefreshInterval);
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (isLoading || isAutoRefreshing)
+                    continue;
+
+                isAutoRefreshing = true;
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadDashboardAsync(showLoading: false);
+                        StateHasChanged();
+                    });
+                }
+                finally
+                {
+                    isAutoRefreshing = false;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Bỏ qua khi component bị dispose.
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (autoRefreshCts == null)
+            return;
+
+        autoRefreshCts.Cancel();
+
+        if (autoRefreshTask != null)
+        {
+            try
+            {
+                await autoRefreshTask;
+            }
+            catch (OperationCanceledException)
+            {
+                // Bỏ qua do đã chủ động hủy.
+            }
+        }
+
+        autoRefreshCts.Dispose();
+        autoRefreshCts = null;
+        autoRefreshTask = null;
     }
 
     private static Color GetActivityColor(string activityType)

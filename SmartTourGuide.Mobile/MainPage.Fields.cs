@@ -58,9 +58,10 @@ public partial class MainPage : ContentPage
     // CD của POI A hoàn toàn độc lập với POI B.
     private readonly Dictionary<int, DateTime> _poiLastTriggerAt = new();
     private bool _isManualLocationOverride = false;
+    private bool _hasGpsFix = false;
     private readonly SemaphoreSlim _locationSendLock = new SemaphoreSlim(1, 1);
-    private MauiLocation.Location? _lastReportedLocation = null;
-    private DateTime _lastReportedLocationAt = DateTime.MinValue;
+    private CancellationTokenSource? _trackingHeartbeatCts = null;
+    private Task? _trackingHeartbeatTask = null;
     // ── TOUR ────────────────────────────────────────────────────────────────
     // Tour đang hiển thị lộ trình (null = chế độ POI thông thường).
     private TourModel? _currentTour = null;

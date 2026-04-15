@@ -101,21 +101,20 @@ public partial class MainPage : ContentPage
         // ── GPS real-time: thay thế GetLastKnownLocationAsync() polling ────
         await StartLocationListeningAsync();
 
-        // ── Timer chỉ còn nhiệm vụ check geofence (GPS đã tách riêng) ──────
+        // ── Timer 3 giây: geofence + highlight dự phòng ───────────────────
         if (_geofenceTimer == null)
         {
             _geofenceTimer = Application.Current!.Dispatcher.CreateTimer();
             _geofenceTimer.Interval = TimeSpan.FromSeconds(3);
             _geofenceTimer.Tick += (s, e) =>
             {
-                // GPS cập nhật real-time qua OnLocationChanged.
-                // Timer chỉ giữ lại check geofence + highlight làm dự phòng
-                // (ví dụ khi thiết bị không bắn LocationChanged đủ nhanh)
                 CheckGeofences();
                 UpdateNearestPoiHighlight();
             };
-            _geofenceTimer.Start();
         }
+
+        if (!_geofenceTimer.IsRunning)
+            _geofenceTimer.Start();
 
         // 4) Xử lý deep link chờ sẵn (cold start).
         if (App.PendingDeepLinkPoiId.HasValue)
@@ -137,6 +136,9 @@ public partial class MainPage : ContentPage
 
         // Dừng GPS khi rời trang để tiết kiệm pin
         StopLocationListening();
+
+        // Dừng heartbeat timer khi rời trang.
+        _geofenceTimer?.Stop();
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -231,29 +233,12 @@ public partial class MainPage : ContentPage
     {
         try
         {
-            // 1) Tạo object vị trí mới từ tọa độ hiện tại.
-            var currentLocation = new MauiLocation.Location(latitude, longitude);
-
-            // 2) Throttle theo thời gian và khoảng cách để giảm tần suất gửi server.
-            if (_lastReportedLocation != null)
-            {
-                var elapsed = DateTime.UtcNow - _lastReportedLocationAt;
-                var distanceMeters = MauiLocation.Location.CalculateDistance(
-                    _lastReportedLocation, currentLocation,
-                    DistanceUnits.Kilometers) * 1000;
-
-                if (elapsed < TimeSpan.FromSeconds(10) && distanceMeters < 25)
-                    return;
-            }
-
-            // 3) Dùng lock không chờ để tránh gửi chồng request vị trí.
-            if (!await _locationSendLock.WaitAsync(0)) return;
+            // Gửi tracking cho mọi lần gọi (listener đang chạy theo chu kỳ 3 giây).
+            // Dùng lock có chờ để không bỏ sót lần gửi khi request trước chưa xong.
+            await _locationSendLock.WaitAsync();
             try
             {
-                // 4) Cập nhật mốc vị trí gần nhất và gửi bất đồng bộ.
-                _lastReportedLocation = currentLocation;
-                _lastReportedLocationAt = DateTime.UtcNow;
-                _ = _apiService.SendLocationAsync(latitude, longitude, _deviceId);
+                await _apiService.SendLocationAsync(latitude, longitude, _deviceId);
             }
             finally { _locationSendLock.Release(); }
         }
@@ -276,6 +261,7 @@ public partial class MainPage : ContentPage
             {
                 // 2) Cập nhật vị trí cục bộ và camera map.
                 _currentUserLocation = location;
+                _hasGpsFix = true;
                 var smc = SphericalMercator.FromLonLat(location.Longitude, location.Latitude);
                 var mPoint = new MPoint(smc.x, smc.y);
 
@@ -286,7 +272,7 @@ public partial class MainPage : ContentPage
                     mapView.Map?.Navigator.CenterOnAndZoomTo(mPoint, 1.5, duration: 500);
                 });
 
-                // 3) Gửi vị trí đầu tiên lên server (nếu vượt throttle).
+                // 3) Gửi vị trí đầu tiên lên server.
                 await SendLocationIfNeededAsync(location.Latitude, location.Longitude);
                 System.Diagnostics.Debug.WriteLine(
                     $"✅ GPS khởi tạo: {location.Latitude:F5}, {location.Longitude:F5}");
