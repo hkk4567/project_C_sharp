@@ -312,6 +312,35 @@ namespace SmartTourGuide.API.Migrations
                     b.ToTable("PoiTranslations");
                 });
 
+            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.QrScanLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DeviceId")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("PoiId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ScannedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("UserAgent")
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PoiId");
+
+                    b.HasIndex("ScannedAt");
+
+                    b.ToTable("QrScanLogs", (string)null);
+                });
+
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.Tour", b =>
                 {
                     b.Property<int>("Id")
@@ -536,6 +565,17 @@ namespace SmartTourGuide.API.Migrations
                 });
 
             modelBuilder.Entity("SmartTourGuide.API.Data.Entities.PoiTranslation", b =>
+                {
+                    b.HasOne("SmartTourGuide.API.Data.Entities.Poi", "Poi")
+                        .WithMany()
+                        .HasForeignKey("PoiId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Poi");
+                });
+
+            modelBuilder.Entity("SmartTourGuide.API.Data.Entities.QrScanLog", b =>
                 {
                     b.HasOne("SmartTourGuide.API.Data.Entities.Poi", "Poi")
                         .WithMany()

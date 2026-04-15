@@ -56,7 +56,17 @@ public partial class MainPage
                 // 4) Mở popup thông tin POI.
                 ShowPoiDetail(poi);
 
-                // 5) Nếu có cờ autoplay thì tự động phát audio sau khi popup hiển thị.
+                // 5) Bắn API ghi nhận lượt quét QR
+                // Lấy Device ID để API có thể áp dụng luật chống quét trùng (debounce)
+                var deviceId = Preferences.Get("device_uuid", "unknown");
+                if (deviceId == "unknown")
+                {
+                    deviceId = Guid.NewGuid().ToString();
+                    Preferences.Set("device_uuid", deviceId);
+                }
+                _ = Task.Run(() => _apiService.LogQrScanAsync(poiId, deviceId));
+
+                // 6) Nếu có cờ autoplay thì tự động phát audio sau khi popup hiển thị.
                 if (autoPlay)
                 {
                     await Task.Delay(500); // Chờ Popup hiện lên mượt mà

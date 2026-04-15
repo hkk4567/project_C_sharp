@@ -112,14 +112,27 @@ public class PoiApiService
         {
             await _httpClient.PostAsJsonAsync("api/tracking", new
             {
-                UserId = 0,        // Ẩn danh
-                DeviceId = deviceId,
                 Latitude = lat,
                 Longitude = lng,
-                Timestamp = DateTime.UtcNow
+                DeviceId = deviceId
             });
         }
-        catch { /* Không crash app nếu mất mạng */ }
+        catch { }
+    }
+
+    /// <summary>
+    /// Ghi nhận lượt quét mã QR khi mở app trực tiếp từ Deep Link
+    /// </summary>
+    public async Task LogQrScanAsync(int poiId, string deviceId)
+    {
+        try
+        {
+            await _httpClient.PostAsJsonAsync($"api/qr-analytics/log-scan/{poiId}", new
+            {
+                DeviceId = deviceId
+            });
+        }
+        catch { }
     }
 }
 

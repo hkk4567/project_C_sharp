@@ -38,6 +38,7 @@ public class DeepLinkController : Controller
 
   // GET /poi/42
   [HttpGet("{poiId:int}")]
+  [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
   public async Task<IActionResult> Index(int poiId)
   {
     // Lấy thông tin POI đang được nhúng trong QR để hiển thị trên landing page.
@@ -62,6 +63,24 @@ public class DeepLinkController : Controller
     // Universal link dùng cho iOS Safari.
     var universalLink = $"{baseUrl}/poi/{poiId}";
 
+    // Bỏ qua các request prefetch của trình duyệt để tránh ghi đè 2 lần
+    bool isPrefetch = Request.Headers["Purpose"] == "prefetch" ||
+                      Request.Headers["Sec-Fetch-Purpose"] == "prefetch";
+
+    var userAgent = Request.Headers.UserAgent.ToString();
+    // Bỏ qua các bots preview (thường xảy ra khi gửi link qua tin nhắn hoặc camera quét hiển thị trước
+    bool isBotOrPreview = userAgent.Contains("bot", StringComparison.OrdinalIgnoreCase) ||
+                          userAgent.Contains("facebook", StringComparison.OrdinalIgnoreCase) ||
+                          userAgent.Contains("zalo", StringComparison.OrdinalIgnoreCase) ||
+                          userAgent.Contains("preview", StringComparison.OrdinalIgnoreCase);
+
+    // Lấy IP để debounce (tránh log 2 lần trong khoảng thời gian rất ngắn do trình duyệt/camera)
+    var ipStr = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+    // Cookie lưu trạng thái đã quét POI này gần đây (tránh tab bị Safari đánh thức gửi lại req cũ)
+    var cookieName = $"scanned_poi_{poiId}";
+    bool hasRecentCookie = Request.Cookies.ContainsKey(cookieName);
+
     // Dựng HTML landing page động theo POI hiện tại.
     var html = BuildLandingHtml(
         poiId,
@@ -73,6 +92,45 @@ public class DeepLinkController : Controller
         apkUrl,
         baseUrl
     );
+
+    try
+    {
+      if (!isPrefetch && !isBotOrPreview && !hasRecentCookie)
+      {
+        var deviceId = Request.Headers["X-Device-Id"].FirstOrDefault() ?? ipStr;
+
+        // Chặn log trùng lắp (cùng POI, cùng thiết bị/IP trong vòng 1 giây vừa qua) do camera hoặc Safari tự động fetch
+        var recentLogExists = await _context.QrScanLogs
+            .AnyAsync(log => log.PoiId == poiId
+                          && log.DeviceId == deviceId
+                          && log.ScannedAt >= DateTime.UtcNow.AddSeconds(-1));
+
+        if (!recentLogExists)
+        {
+          _context.QrScanLogs.Add(new QrScanLog
+          {
+            PoiId = poiId,
+            ScannedAt = DateTime.UtcNow,
+            DeviceId = deviceId,
+            UserAgent = userAgent
+          });
+          await _context.SaveChangesAsync();
+
+          // Kẹp cookie đánh dấu điện thoại này đã tính điểm quét quán này, hết hạn sau 1 giây.
+          // Tránh trường hợp bạn quét quán B, Safari bật lên load quán B nhưng lại âm thầm làm mới tab quán A cũ.
+          Response.Cookies.Append(cookieName, "1", new CookieOptions
+          {
+            Expires = DateTimeOffset.UtcNow.AddSeconds(1),
+            HttpOnly = true,
+            SameSite = SameSiteMode.Lax
+          });
+        }
+      }
+    }
+    catch
+    {
+      // TODO: inject ILogger<DeepLinkController> và log warning nếu muốn
+    }
 
     return Content(html, "text/html; charset=utf-8");
   }

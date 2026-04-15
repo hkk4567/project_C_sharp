@@ -4,6 +4,7 @@
 @inject SmartTourGuide.Web.Services.PoiApiService PoiApi
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 @inject IJSRuntime JS
+@inject HttpClient Http
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-2">
 
@@ -148,11 +149,44 @@
                 </MudPaper>
             </MudItem>
 
+            @* ── Thống kê quét QR (Mới thêm) ── *@
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-radius:14px; height:100%;">
+                    <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:700;">
+                        Thống kê lượt quét QR theo quán
+                    </MudText>
+                    @if (_qrStats == null)
+                    {
+                        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                    }
+                    else if (_qrStats.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                            Chưa có dữ liệu quét QR.
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudTable Items="_qrStats" Dense="true" Hover="true" Striped="true">
+                            <HeaderContent>
+                                <MudTh>POI ID</MudTh>
+                                <MudTh>Tên quán / địa điểm</MudTh>
+                                <MudTh style="text-align:right;">Lượt quét</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.PoiId</MudTd>
+                                <MudTd>@context.PoiName</MudTd>
+                                <MudTd style="text-align:right; font-weight:700;">@context.TotalQrScans</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudPaper>
+            </MudItem>
+
             @* ══════════════════════════════════════════
                HEATMAP THẬT TRÊN BẢN ĐỒ LEAFLET
-               (thay thế MudChart Bar chart sai ở trước)
                ══════════════════════════════════════════ *@
-            <MudItem xs="12" md="6">
+            <MudItem xs="12">
                 <MudPaper Elevation="2" Class="pa-4" Style="border-radius:14px;">
 
                     <MudStack Row="true" Justify="Justify.SpaceBetween"
@@ -174,7 +208,6 @@
                     }
                     else
                     {
-                        @* id phải cố định, height phải có giá trị rõ ràng *@
                         <div id="owner-heatmap-container"
                              style="height:400px; width:100%; border-radius:10px; overflow:hidden; z-index:0;">
                         </div>
@@ -251,6 +284,9 @@
     private List<SmartTourGuide.Shared.DTOs.OwnerHeatmapPointDto> _heatmap = new();
     private List<SmartTourGuide.Shared.DTOs.LocationLogDto> _movement = new();
     private List<SmartTourGuide.Shared.DTOs.PoiDto> _pois = new();
+    
+    // Thêm danh sách QR Stats
+    private List<OwnerQrScanStatsDto>? _qrStats;
 
     private List<ChartSeries> _dailySeries = new();
     private string[] _dailyLabels = Array.Empty<string>();
@@ -267,7 +303,6 @@
         await LoadAllAsync();
     }
 
-    // Sau khi Blazor render DOM xong → vẽ bản đồ Leaflet
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!_loading && _heatmap.Count > 0 && !_mapDrawn)
@@ -282,7 +317,6 @@
         var centerLat = _heatmap.Average(p => p.Latitude);
         var centerLng = _heatmap.Average(p => p.Longitude);
 
-        // 1. Khởi tạo bản đồ OSM vào div "owner-heatmap-container"
         await JS.InvokeVoidAsync(
             "ownerHeatmap.init",
             "owner-heatmap-container",
@@ -290,17 +324,13 @@
             17
         );
 
-        // 2. Vẽ lớp heatmap blob màu lên bản đồ
         await JS.InvokeVoidAsync(
             "ownerHeatmap.renderHeatmap",
             _heatmap
         );
 
-        // 3. Vẽ marker cho từng POI — màu theo số lần ghé qua vùng geofence (HitCount)
-        //    Match mỗi POI với điểm heatmap gần nhất (trong vòng 100m)
         var poiMarkerData = _pois.Select(p =>
         {
-            // Tìm điểm heatmap gần POI nhất
             var nearest = _heatmap
                 .Select(h => new
                 {
@@ -311,7 +341,6 @@
                 .OrderBy(x => x.DistSq)
                 .FirstOrDefault();
 
-            // ~0.001 độ ≈ 100m — nếu xa hơn thì coi như không có ai ghé
             var hitCount = (nearest != null && nearest.DistSq < 0.000001)
                            ? nearest.HitCount
                            : 0;
@@ -331,7 +360,6 @@
             poiMarkerData
         );
 
-        // 4. Fix Blazor render div chưa đúng kích thước
         await JS.InvokeVoidAsync("ownerHeatmap.invalidate");
     }
 
@@ -366,8 +394,11 @@
             var t5 = OwnerAnalyticsApi.GetMovementAsync(_ownerId, hours, maxPoints: 400);
             var t6 = OwnerAnalyticsApi.GetHeatmapAsync(_ownerId, hours, maxPoints: 200);
             var t7 = PoiApi.GetMyPois(_ownerId);
+            
+            // API QR Scan Stats chạy đồng thời
+            var t8 = Http.GetFromJsonAsync<List<OwnerQrScanStatsDto>>("api/qr-analytics/owner/qr-scan-stats");
 
-            await Task.WhenAll(t1, t2, t3, t4, t5, t6, t7);
+            await Task.WhenAll(t1, t2, t3, t4, t5, t6, t7, t8);
 
             _summary  = t1.Result ?? new();
             _topPois  = t2.Result ?? new();
@@ -376,6 +407,7 @@
             _movement = t5.Result ?? new();
             _heatmap  = t6.Result ?? new();
             _pois     = t7.Result ?? new();
+            _qrStats  = t8.Result ?? new();
 
             _maxTopListen = _topPois.Count > 0 ? _topPois.Max(x => x.ListenCount) : 0;
 
@@ -397,5 +429,13 @@
         {
             _loading = false;
         }
+    }
+
+    // Class DTO cho QR Scan
+    public class OwnerQrScanStatsDto
+    {
+        public int PoiId { get; set; }
+        public string PoiName { get; set; } = string.Empty;
+        public int TotalQrScans { get; set; }
     }
 }

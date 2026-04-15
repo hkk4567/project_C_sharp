@@ -26,6 +26,8 @@ namespace SmartTourGuide.API.Data
         public DbSet<PoiListenLog> PoiListenLogs { get; set; }
         public DbSet<OwnerNotification> OwnerNotifications { get; set; }
         public DbSet<AdminNotification> AdminNotifications { get; set; }
+        public DbSet<QrScanLog> QrScanLogs => Set<QrScanLog>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -148,6 +150,22 @@ namespace SmartTourGuide.API.Data
                     .WithMany()
                     .HasForeignKey(e => e.PoiId)
                     .OnDelete(DeleteBehavior.SetNull); // Không mất thông báo cũ nếu POI đã bị xóa
+            });
+            modelBuilder.Entity<QrScanLog>(e =>
+            {
+                e.ToTable("QrScanLogs");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.ScannedAt)
+                    .HasColumnType("datetime(6)");
+
+                e.HasIndex(x => x.PoiId);
+                e.HasIndex(x => x.ScannedAt);
+
+                e.HasOne(x => x.Poi)
+                    .WithMany()
+                    .HasForeignKey(x => x.PoiId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }
