@@ -297,6 +297,8 @@ public partial class MainPage
             // Lọc các điểm chưa đi qua để vẽ phần tuyến còn lại.
             var remainingPois = orderedPois.Where(p => !_visitedTourPoiIds.Contains(p.PoiId)).ToList();
 
+            bool isTourCompleted = false;
+
             // ── 2. LẤY TUYẾN ĐƯỜNG (User -> các điểm chưa đi) ─────────────────────────────
             ClearMapLayers("TourRoute");
 
@@ -318,7 +320,9 @@ public partial class MainPage
             {
                 SetStatus(AppRes.StatusTourCompleted, priority: 2, force: true, autoRevertMs: 5000);
                 _currentTour = null; // Cờ này rất quan trọng
+                _lastTourRenderLocation = null;
                 ClearMapLayers("TourRoute");
+                isTourCompleted = true;
             }
 
             // ── 3. VẼ LÊN BẢN ĐỒ ───────────────────────────────────────────────────────────
@@ -327,43 +331,70 @@ public partial class MainPage
                 // Xóa ghim cũ để vẽ lại trạng thái tour mới nhất.
                 mapView.Pins.Clear();
 
-                var tourPoiIds = orderedPois.Select(p => p.PoiId).ToHashSet();
-                var tourPoisOnly = allPois.Where(p => tourPoiIds.Contains(p.Id)).ToList();
-                ClearMapLayers("Geofences");
-                mapView.Map.Layers.Insert(1, CreateGeofenceLayer(tourPoisOnly));
-
-                // Vẽ ghim theo trạng thái hành trình: cuối cùng, đã đi, mục tiêu kế tiếp, còn lại.
-                for (int idx = 0; idx < orderedPois.Count; idx++)
+                if (isTourCompleted)
                 {
-                    var poi = orderedPois[idx];
-                    bool isVisited = _visitedTourPoiIds.Contains(poi.PoiId);
-                    bool isLastInTour = (idx == orderedPois.Count - 1);
-                    bool isNextTarget = (poi.PoiId == remainingPois.FirstOrDefault()?.PoiId);
+                    // Tour đã hoàn thành: quay về chế độ POI thường (hiển thị toàn bộ POI).
+                    ClearMapLayers("Geofences");
+                    mapView.Map.Layers.Insert(1, CreateGeofenceLayer(allPois));
 
-                    Microsoft.Maui.Graphics.Color pinColor;
-
-                    // 1) Điểm cuối luôn màu đỏ.
-                    if (isLastInTour)
-                        pinColor = Microsoft.Maui.Graphics.Colors.Red;
-                    // 2) Điểm đã đi qua -> màu xám.
-                    else if (isVisited)
-                        pinColor = Microsoft.Maui.Graphics.Colors.Gray;
-                    // 3) Điểm kế tiếp -> màu xanh lá.
-                    else if (isNextTarget)
-                        pinColor = Microsoft.Maui.Graphics.Colors.Green;
-                    // 4) Các điểm còn lại -> màu cam.
-                    else
-                        pinColor = Microsoft.Maui.Graphics.Colors.Orange;
-
-                    mapView.Pins.Add(new Pin(mapView)
+                    foreach (var poi in allPois)
                     {
-                        Position = new Mapsui.UI.Maui.Position(poi.Latitude, poi.Longitude),
-                        Label = $"{idx + 1}. {poi.PoiName}{(isVisited ? AppRes.SuffixVisited : "")}",
-                        Address = string.Format(AppRes.StopCountFormat, idx + 1, orderedPois.Count),
-                        Color = pinColor,
-                        Scale = 0.65f, // Giữ kích thước dễ nhìn khi di chuyển
-                        Tag = allPois.FirstOrDefault(p => p.Id == poi.PoiId)
-                    });
+                        mapView.Pins.Add(new Pin(mapView)
+                        {
+                            Position = new Mapsui.UI.Maui.Position(poi.Latitude, poi.Longitude),
+                            Type = PinType.Pin,
+                            Label = poi.Name,
+                            Address = poi.Address,
+                            Color = Microsoft.Maui.Graphics.Colors.Red,
+                            Scale = 0.5f,
+                            Tag = poi
+                        });
+                    }
+
+                    var tourInfoPanel = TourInfoPanelCtrl;
+                    if (tourInfoPanel != null) tourInfoPanel.IsVisible = false;
+                    _visitedTourPoiIds.Clear();
+                }
+                else
+                {
+                    var tourPoiIds = orderedPois.Select(p => p.PoiId).ToHashSet();
+                    var tourPoisOnly = allPois.Where(p => tourPoiIds.Contains(p.Id)).ToList();
+                    ClearMapLayers("Geofences");
+                    mapView.Map.Layers.Insert(1, CreateGeofenceLayer(tourPoisOnly));
+
+                    // Vẽ ghim theo trạng thái hành trình: cuối cùng, đã đi, mục tiêu kế tiếp, còn lại.
+                    for (int idx = 0; idx < orderedPois.Count; idx++)
+                    {
+                        var poi = orderedPois[idx];
+                        bool isVisited = _visitedTourPoiIds.Contains(poi.PoiId);
+                        bool isLastInTour = (idx == orderedPois.Count - 1);
+                        bool isNextTarget = (poi.PoiId == remainingPois.FirstOrDefault()?.PoiId);
+
+                        Microsoft.Maui.Graphics.Color pinColor;
+
+                        // 1) Điểm cuối luôn màu đỏ.
+                        if (isLastInTour)
+                            pinColor = Microsoft.Maui.Graphics.Colors.Red;
+                        // 2) Điểm đã đi qua -> màu xám.
+                        else if (isVisited)
+                            pinColor = Microsoft.Maui.Graphics.Colors.Gray;
+                        // 3) Điểm kế tiếp -> màu xanh lá.
+                        else if (isNextTarget)
+                            pinColor = Microsoft.Maui.Graphics.Colors.Green;
+                        // 4) Các điểm còn lại -> màu cam.
+                        else
+                            pinColor = Microsoft.Maui.Graphics.Colors.Orange;
+
+                        mapView.Pins.Add(new Pin(mapView)
+                        {
+                            Position = new Mapsui.UI.Maui.Position(poi.Latitude, poi.Longitude),
+                            Label = $"{idx + 1}. {poi.PoiName}{(isVisited ? AppRes.SuffixVisited : "")}",
+                            Address = string.Format(AppRes.StopCountFormat, idx + 1, orderedPois.Count),
+                            Color = pinColor,
+                            Scale = 0.65f, // Giữ kích thước dễ nhìn khi di chuyển
+                            Tag = allPois.FirstOrDefault(p => p.Id == poi.PoiId)
+                        });
+                    }
                 }
 
                 // ── 4. XỬ LÝ CAMERA ───────────────────────────────────────────────────────
@@ -395,7 +426,10 @@ public partial class MainPage
                 // Camera chỉ chỉnh mạnh ở lần đầu load tour hoặc khi người dùng chủ động thao tác.
 
                 mapView.RefreshGraphics();
-                ShowTourInfoPanel(tour, orderedPois);
+                if (!isTourCompleted)
+                {
+                    ShowTourInfoPanel(tour, orderedPois);
+                }
             });
         }
         catch (Exception ex)

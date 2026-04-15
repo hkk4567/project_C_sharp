@@ -34,7 +34,20 @@ public partial class MainPage
     /// </summary>
     private void RegisterConnectivityChanged()
     {
+        if (_isConnectivityRegistered)
+            return;
+
         Connectivity.Current.ConnectivityChanged += OnConnectivityChanged;
+        _isConnectivityRegistered = true;
+    }
+
+    private void UnregisterConnectivityChanged()
+    {
+        if (!_isConnectivityRegistered)
+            return;
+
+        Connectivity.Current.ConnectivityChanged -= OnConnectivityChanged;
+        _isConnectivityRegistered = false;
     }
 
     private async void OnConnectivityChanged(object? sender, ConnectivityChangedEventArgs e)

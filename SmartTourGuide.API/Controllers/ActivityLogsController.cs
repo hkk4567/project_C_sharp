@@ -16,17 +16,9 @@ namespace SmartTourGuide.API.Controllers;
 // - Trả về danh sách ActivityLog dưới dạng DTO cho frontend
 [Route("api/[controller]")]
 [ApiController]
-public class ActivityLogsController : ControllerBase
+public class ActivityLogsController(AppDbContext context) : ControllerBase
 {
     private const int MaxPageSize = 100;
-
-    // DbContext dùng để truy vấn bảng ActivityLogs.
-    private readonly AppDbContext _context;
-
-    public ActivityLogsController(AppDbContext context)
-    {
-        _context = context;
-    }
 
     // API lấy danh sách nhật ký hoạt động, hỗ trợ lọc theo loại, người dùng và khoảng thời gian.
     [HttpGet]
@@ -39,7 +31,7 @@ public class ActivityLogsController : ControllerBase
         [FromQuery] int? pageSize)
     {
         // Bắt đầu từ tập dữ liệu gốc để ghép điều kiện lọc động theo query string.
-        var query = _context.ActivityLogs.AsNoTracking().AsQueryable();
+        var query = context.ActivityLogs.AsNoTracking().AsQueryable();
 
         // Lọc theo Loại (Login, Register, POI...)
         if (!string.IsNullOrWhiteSpace(type))
@@ -51,9 +43,8 @@ public class ActivityLogsController : ControllerBase
         // Lọc theo Username (Tìm kiếm gần đúng)
         if (!string.IsNullOrWhiteSpace(user))
         {
-            // Lọc theo tên người dùng (không phân biệt hoa thường, tìm gần đúng).
-            query = query.Where(l =>
-                l.UserName.ToLower().Contains(user.ToLower()));
+            // Dùng LIKE để tránh ToLower() trong truy vấn SQL và giữ hiệu năng.
+            query = query.Where(l => EF.Functions.Like(l.UserName, $"%{user}%"));
         }
 
         // Lọc theo Từ ngày

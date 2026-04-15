@@ -70,6 +70,7 @@ public partial class MainPage : ContentPage
     // Không cần đăng nhập, mỗi điện thoại có một ID riêng để thống kê lượt nghe POI.
     private readonly HashSet<int> _visitedTourPoiIds = new();
     private string _deviceId = GetOrCreateDeviceId();
+    private bool _isConnectivityRegistered = false;
 
     /// <summary>
     /// Tạo hoặc đọc Device ID từ bộ nhớ cục bộ.

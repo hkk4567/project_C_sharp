@@ -13,6 +13,9 @@ public static class MauiProgram
         // 1) Cấu hình thư mục cache tile map trước khi dựng app.
         CacheService.ConfigureMapTileCache();
 
+        // 1.1) Bắt buộc khởi tạo SQLite native provider trước khi truy cập DB local.
+        SQLitePCL.Batteries_V2.Init();
+
         // 2) Tạo builder gốc của MAUI.
         var builder = MauiApp.CreateBuilder();
         builder

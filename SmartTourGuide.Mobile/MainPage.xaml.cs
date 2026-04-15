@@ -133,6 +133,7 @@ public partial class MainPage : ContentPage
 
         // Hủy đăng ký deep link khi rời trang.
         UnregisterDeepLinkHandler();
+        UnregisterConnectivityChanged();
 
         // Dừng GPS khi rời trang để tiết kiệm pin
         StopLocationListening();
