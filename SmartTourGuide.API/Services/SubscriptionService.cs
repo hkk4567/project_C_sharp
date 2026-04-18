@@ -59,7 +59,9 @@ namespace SmartTourGuide.API.Services
         /// Tính EndDate từ StartDate theo chu kỳ thanh toán.
         /// </summary>
         public static DateTime CalculateEndDate(DateTime start, BillingCycle cycle)
-            => start.AddMinutes(1); // Test nhanh: mọi chu kỳ đều hết hạn sau 1 phút.
+            => cycle == BillingCycle.Yearly
+                ? start.AddMonths(12)
+                : start.AddDays(30);
 
         /// <summary>
         /// EndDate rất dài cho gói không hết hạn (free/lifetime).

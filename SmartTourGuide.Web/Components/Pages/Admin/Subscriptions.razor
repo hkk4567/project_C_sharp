@@ -46,7 +46,7 @@
                 @if (GetPendingOverdueCount() > 0)
                 {
                     <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true" Class="mb-3">
-                        Có @GetPendingOverdueCount() yêu cầu đã quá hạn @PendingOverdueSeconds giây và cần xử lý ngay.
+                        Có @GetPendingOverdueCount() yêu cầu đã quá hạn @PendingOverdueLabel và cần xử lý ngay.
                     </MudAlert>
                 }
 
@@ -71,7 +71,7 @@
                     <RowTemplate>
                         <MudTd>@context.OwnerName (@context.OwnerId)</MudTd>
                         <MudTd>@context.PlanName</MudTd>
-                        <MudTd>@context.BillingCycle</MudTd>
+                        <MudTd>@FormatBillingCycleLabel(context.BillingCycle)</MudTd>
                         <MudTd>@FormatCurrency(context.AmountPaid)</MudTd>
                         <MudTd>@context.PaymentMethod</MudTd>
                         <MudTd>@(string.IsNullOrWhiteSpace(context.PaymentReference) ? "-" : context.PaymentReference)
@@ -80,7 +80,7 @@
                         <MudTd>
                             <MudChip T="string" Size="Size.Small"
                                      Color="@(IsPendingOverdue(context) ? Color.Error : Color.Success)">
-                                @(IsPendingOverdue(context) ? $"Đã quá hạn {PendingOverdueSeconds}s" : "Trong hạn")
+                                @(IsPendingOverdue(context) ? $"Đã quá hạn {PendingOverdueLabel}" : "Trong hạn")
                             </MudChip>
                         </MudTd>
                         <MudTd>
@@ -246,7 +246,7 @@
                                 @GetStatusLabel(context)
                             </MudChip>
                         </MudTd>
-                        <MudTd>@context.BillingCycle</MudTd>
+                        <MudTd>@FormatBillingCycleLabel(context.BillingCycle)</MudTd>
                         <MudTd>@FormatCurrency(context.AmountPaid)</MudTd>
                         <MudTd>@context.StartDate.ToLocalTime().ToString("dd/MM/yyyy") -
                             @context.EndDate.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
@@ -266,7 +266,8 @@
     private List<BoothOwnerSubscriptionDto> _allSubscriptions = new();
     private List<SubscriptionPlanDto> _plans = new();
     private const string AllStatusFilterValue = "ALL";
-    private const int PendingOverdueSeconds = 20;
+    private static readonly TimeSpan PendingOverdueThreshold = TimeSpan.FromHours(24);
+    private const string PendingOverdueLabel = "24 giờ";
     private static readonly TimeSpan AdminAutoRefreshInterval = TimeSpan.FromSeconds(2);
     private CancellationTokenSource? _autoRefreshCts;
     private Task? _autoRefreshTask;
@@ -547,7 +548,17 @@
         if (subscription.Status != "PendingPayment") return false;
 
         var createdAtUtc = EnsureUtc(subscription.CreatedAt);
-        return DateTime.UtcNow - createdAtUtc >= TimeSpan.FromSeconds(PendingOverdueSeconds);
+        return DateTime.UtcNow - createdAtUtc >= PendingOverdueThreshold;
+    }
+
+    private static string FormatBillingCycleLabel(string? billingCycle)
+    {
+        return billingCycle switch
+        {
+            "Monthly" => "1 tháng (30 ngày)",
+            "Yearly" => "1 năm (12 tháng)",
+            _ => billingCycle ?? "-"
+        };
     }
 
     private static bool IsCancelledByTimeout(BoothOwnerSubscriptionDto subscription)
@@ -558,6 +569,8 @@
         var reason = subscription.CancelReason.ToLowerInvariant();
         return reason.Contains("giây")
             || reason.Contains("giay")
+            || reason.Contains("hết hạn")
+            || reason.Contains("het han")
             || reason.Contains("quá hạn")
             || reason.Contains("qua han")
             || reason.Contains("timeout")

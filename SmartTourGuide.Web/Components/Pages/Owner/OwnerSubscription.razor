@@ -68,9 +68,11 @@
                     <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
                         <MudText Typo="Typo.h6">Thanh toán và gửi yêu cầu kích hoạt Pro</MudText>
                         <MudButtonGroup Variant="Variant.Outlined" Color="Color.Primary">
-                            <MudButton OnClick="@(() => SetBillingCycle(0))" Variant="@GetCycleButtonVariant(0)">Theo tháng
+                            <MudButton OnClick="@(() => SetBillingCycle(0))" Variant="@GetCycleButtonVariant(0)">1 tháng (30
+                                ngày)
                             </MudButton>
-                            <MudButton OnClick="@(() => SetBillingCycle(1))" Variant="@GetCycleButtonVariant(1)">Theo năm
+                            <MudButton OnClick="@(() => SetBillingCycle(1))" Variant="@GetCycleButtonVariant(1)">1 năm (12
+                                tháng)
                             </MudButton>
                         </MudButtonGroup>
                     </MudStack>
@@ -164,7 +166,7 @@
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd>@context.PlanName</MudTd>
-                            <MudTd>@context.BillingCycle</MudTd>
+                            <MudTd>@FormatBillingCycleLabel(context.BillingCycle)</MudTd>
                             <MudTd>@FormatCurrency(context.AmountPaid)</MudTd>
                             <MudTd>
                                 <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">
@@ -576,6 +578,16 @@ true)
         return string.IsNullOrWhiteSpace(_proPlan.Description)
             ? "Gói nâng cấp trả phí"
             : _proPlan.Description.Trim();
+    }
+
+    private static string FormatBillingCycleLabel(string? billingCycle)
+    {
+        return billingCycle switch
+        {
+            "Monthly" => "1 tháng (30 ngày)",
+            "Yearly" => "1 năm (12 tháng)",
+            _ => billingCycle ?? "-"
+        };
     }
 
     private Color GetSummaryColor()

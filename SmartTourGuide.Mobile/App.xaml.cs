@@ -41,14 +41,7 @@ public partial class App : Application
     {
         try
         {
-            var segments = uri.AbsolutePath
-                              .Trim('/')
-                              .Split('/', StringSplitOptions.RemoveEmptyEntries);
-
-            var poiIndex = Array.IndexOf(segments, "poi");
-            if (poiIndex < 0 || poiIndex + 1 >= segments.Length) return;
-
-            if (!int.TryParse(segments[poiIndex + 1], out var poiId)) return;
+            if (!TryExtractPoiId(uri, out var poiId)) return;
 
             // Mac dinh la tu dong phat am thanh khi quet QR.
             var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
@@ -84,5 +77,30 @@ public partial class App : Application
         {
             System.Diagnostics.Debug.WriteLine($"[DeepLink] Error: {ex.Message}");
         }
+    }
+
+    private static bool TryExtractPoiId(Uri uri, out int poiId)
+    {
+        poiId = 0;
+
+        var segments = uri.AbsolutePath
+                          .Trim('/')
+                          .Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        // HTTPS app link: /poi/{id}
+        var poiIndex = Array.IndexOf(segments, "poi");
+        if (poiIndex >= 0 && poiIndex + 1 < segments.Length && int.TryParse(segments[poiIndex + 1], out poiId))
+            return true;
+
+        // Custom scheme: smarttourguide://poi/{id}
+        if (uri.Scheme.Equals("smarttourguide", StringComparison.OrdinalIgnoreCase)
+            && uri.Host.Equals("poi", StringComparison.OrdinalIgnoreCase)
+            && segments.Length >= 1
+            && int.TryParse(segments[0], out poiId))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

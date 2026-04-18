@@ -63,32 +63,91 @@ public class MainActivity : MauiAppCompatActivity
         try
         {
             var uri = new Uri(uriString);
-            // Kiểm tra xem có đúng là đường dẫn /poi/ hay không
-            if (uri.AbsolutePath.Contains("/poi/"))
-            {
-                var segments = uri.AbsolutePath.Split('/');
-                var lastSegment = segments.LastOrDefault();
+            if (!TryExtractDeepLinkPayload(uri, out var poiId, out var autoPlay))
+                return;
 
-                if (int.TryParse(lastSegment, out int poiId))
+            // Delay một chút để chắc chắn MainPage đã khởi tạo xong và đăng ký Messenger
+            Task.Run(async () =>
+            {
+                await Task.Delay(2000);
+                MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    // Delay một chút để chắc chắn MainPage đã khởi tạo xong và đăng ký Messenger
-                    Task.Run(async () =>
-                    {
-                        await Task.Delay(2000);
-                        MainThread.BeginInvokeOnMainThread(() =>
-                        {
-                            // Gửi tin nhắn tới MainPage (đã code ở file MainPage.DeepLink.cs)
-                            CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(
-                                new DeepLinkPoiMessage(poiId, true));
-                            System.Diagnostics.Debug.WriteLine($"[DeepLink] Đã gửi tin nhắn cho POI: {poiId}");
-                        });
-                    });
-                }
-            }
+                    // Gửi tin nhắn tới MainPage (đã code ở file MainPage.DeepLink.cs)
+                    CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger.Default.Send(
+                        new DeepLinkPoiMessage(poiId, autoPlay));
+                    System.Diagnostics.Debug.WriteLine($"[DeepLink] Đã gửi tin nhắn cho POI: {poiId}");
+                });
+            });
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MainActivity] Deep link error: {ex.Message}");
         }
+    }
+
+    private static bool TryExtractDeepLinkPayload(Uri uri, out int poiId, out bool autoPlay)
+    {
+        poiId = 0;
+        autoPlay = true;
+
+        if (TryExtractPoiId(uri, out poiId))
+        {
+            autoPlay = TryReadAutoPlayQuery(uri);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryExtractPoiId(Uri uri, out int poiId)
+    {
+        poiId = 0;
+
+        var segments = uri.AbsolutePath
+            .Trim('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        // HTTPS app link: /poi/{id}
+        var poiIndex = Array.IndexOf(segments, "poi");
+        if (poiIndex >= 0 && poiIndex + 1 < segments.Length && int.TryParse(segments[poiIndex + 1], out poiId))
+            return true;
+
+        // Custom scheme: smarttourguide://poi/{id}
+        if (uri.Scheme.Equals("smarttourguide", StringComparison.OrdinalIgnoreCase)
+            && uri.Host.Equals("poi", StringComparison.OrdinalIgnoreCase)
+            && segments.Length >= 1
+            && int.TryParse(segments[0], out poiId))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryReadAutoPlayQuery(Uri uri)
+    {
+        if (string.IsNullOrWhiteSpace(uri.Query))
+            return true;
+
+        var query = uri.Query.TrimStart('?')
+            .Split('&', StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var pair in query)
+        {
+            var kv = pair.Split('=', 2);
+            if (kv.Length == 0)
+                continue;
+
+            if (!kv[0].Equals("autoplay", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (kv.Length == 1)
+                return true;
+
+            var rawValue = Uri.UnescapeDataString(kv[1]);
+            return rawValue.Equals("true", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return true;
     }
 }

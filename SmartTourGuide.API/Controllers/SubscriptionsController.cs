@@ -26,7 +26,7 @@ public class SubscriptionsController : ControllerBase
     private readonly SubscriptionService _subscriptionService;
     private const string FreePlanName = "Miễn phí";
     private const string ProPlanName = "Pro";
-    private const int PendingTimeoutSeconds = 10;
+    private static readonly TimeSpan PendingTimeout = TimeSpan.FromHours(24);
     private static readonly SubscriptionStatus[] PaymentRefUniqueStatuses =
     {
         SubscriptionStatus.PendingPayment,
@@ -720,7 +720,7 @@ public class SubscriptionsController : ControllerBase
 
     private async Task<int> AutoCancelExpiredPendingAsync(int? ownerId = null)
     {
-        var cutoff = DateTime.UtcNow.AddSeconds(-PendingTimeoutSeconds);
+        var cutoff = DateTime.UtcNow.Subtract(PendingTimeout);
 
         var query = _context.BoothOwnerSubscriptions
             .Where(s => s.Status == SubscriptionStatus.PendingPayment && s.CreatedAt <= cutoff);
@@ -739,7 +739,7 @@ public class SubscriptionsController : ControllerBase
         foreach (var item in expiredPending)
         {
             item.Status = SubscriptionStatus.Cancelled;
-            item.CancelReason = $"Yêu cầu tự hết hạn sau {PendingTimeoutSeconds} giây chưa được duyệt.";
+            item.CancelReason = "Yêu cầu tự hết hạn sau 24 giờ chưa được duyệt.";
         }
 
         await _context.SaveChangesAsync();
