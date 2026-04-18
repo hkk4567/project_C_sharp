@@ -264,12 +264,13 @@
                                     <tr>
                                         <td>@log.Id</td>
                                         <td>
-                                            <span class="badge 
+                                            <span
+                                                class="badge 
                                                 @(log.ActivityType == "Login" ? "bg-info" :
-                                                                                                                                                    log.ActivityType?.Contains("Create") == true ? "bg-success" :
-                                                                                                                                                    log.ActivityType?.Contains("Update") == true ? "bg-warning" :
-                                                                                                                                                    log.ActivityType?.Contains("Delete") == true ? "bg-danger" :
-                                                                                                                                                    "bg-secondary")">
+                                                                                                                                                                                        log.ActivityType?.Contains("Create") == true ? "bg-success" :
+                                                                                                                                                                                        log.ActivityType?.Contains("Update") == true ? "bg-warning" :
+                                                                                                                                                                                        log.ActivityType?.Contains("Delete") == true ? "bg-danger" :
+                                                                                                                                                                                        "bg-secondary")">
                                                 @log.ActivityType
                                             </span>
                                         </td>
@@ -299,12 +300,39 @@
                             <li class="page-item @(currentPage == 1 ? "disabled" : "")">
                                 <button class="page-link" @onclick="PreviousPage">Trước</button>
                             </li>
-                            
-                            @for (int i = 1; i <= totalPages; i++)
+
+                            @if (ShouldShowFirstPageShortcut)
                             {
-                                var pageNumber = i; // Bắt buộc phải gán vào biến local trong vòng lặp Blazor
+                                <li class="page-item">
+                                    <button class="page-link" @onclick="() => GoToPage(1)">1</button>
+                                </li>
+                            }
+
+                            @if (ShouldShowLeadingEllipsis)
+                            {
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            }
+
+                            @foreach (var pageNumber in VisiblePageNumbers)
+                            {
                                 <li class="page-item @(currentPage == pageNumber ? "active" : "")">
                                     <button class="page-link" @onclick="() => GoToPage(pageNumber)">@pageNumber</button>
+                                </li>
+                            }
+
+                            @if (ShouldShowTrailingEllipsis)
+                            {
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            }
+
+                            @if (ShouldShowLastPageShortcut)
+                            {
+                                <li class="page-item">
+                                    <button class="page-link" @onclick="() => GoToPage(totalPages)">@totalPages</button>
                                 </li>
                             }
 
@@ -341,9 +369,19 @@
     // 4. CÁC BIẾN DÀNH CHO PHÂN TRANG
     private int currentPage = 1;
     private int pageSize = 10; // Đổi số này nếu bạn muốn hiển thị nhiều/ít dòng hơn trên 1 trang
+    private const int MaxVisiblePageButtons = 5;
 
     // Tính tổng số trang
     private int totalPages => (int)Math.Ceiling((double)totalLogCount / pageSize);
+    private int VisibleStartPage => Math.Max(1, currentPage - (MaxVisiblePageButtons / 2));
+    private int VisibleEndPage => Math.Min(totalPages, VisibleStartPage + MaxVisiblePageButtons - 1);
+    private int AdjustedVisibleStartPage => Math.Max(1, VisibleEndPage - MaxVisiblePageButtons + 1);
+    private IEnumerable<int> VisiblePageNumbers => Enumerable.Range(AdjustedVisibleStartPage, Math.Max(0, VisibleEndPage -
+AdjustedVisibleStartPage + 1));
+    private bool ShouldShowFirstPageShortcut => AdjustedVisibleStartPage > 1;
+    private bool ShouldShowLastPageShortcut => VisibleEndPage < totalPages;
+    private bool ShouldShowLeadingEllipsis => AdjustedVisibleStartPage > 2;
+    private bool ShouldShowTrailingEllipsis => VisibleEndPage < totalPages - 1;
 
     // ==========================================
     // CÁC HÀM XỬ LÝ (METHODS)

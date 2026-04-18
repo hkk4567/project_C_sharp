@@ -23,6 +23,18 @@ public class OwnerNotificationService
         var response = await _http.PutAsync($"api/notifications/{notificationId}/read", null);
         return response.IsSuccessStatusCode;
     }
+
+    public async Task<bool> MarkAllAsReadAsync()
+    {
+        var response = await _http.PutAsync("api/notifications/owner/read-all", null);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DeleteAllAsync()
+    {
+        var response = await _http.DeleteAsync("api/notifications/owner/all");
+        return response.IsSuccessStatusCode;
+    }
 }
 
 public class OwnerNotificationResponse

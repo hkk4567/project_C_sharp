@@ -1,0 +1,689 @@
+@page "/owner/subscription"
+@using SmartTourGuide.Shared.DTOs
+@using SmartTourGuide.Web.Services
+@inject SubscriptionApiService SubscriptionApi
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = "BoothOwner")]
+@implements IAsyncDisposable
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 owner-subscription-page">
+    <MudPaper Elevation="0" Class="subscription-hero pa-6 mb-5">
+        <MudText Typo="Typo.h4" Class="hero-title">Thanh toán gói Pro cho Chủ gian hàng</MudText>
+    </MudPaper>
+
+    @if (_loading)
+    {
+        <MudPaper Class="pa-6" Style="border-radius: 16px;">
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-4" />
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Đang tải thông tin đăng ký...</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" lg="4">
+                <MudPaper Elevation="3" Class="pa-5 status-panel h-100">
+                    <MudText Typo="Typo.h6" Class="mb-3">Trạng thái hiện tại</MudText>
+                    <MudChip T="string" Color="@GetSummaryColor()" Variant="Variant.Filled" Class="mb-3">
+                        @GetStatusLabel(_summary.Status)
+                    </MudChip>
+
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.body2"><b>Gói:</b> @(_summary.PlanName ?? "Chưa có")</MudText>
+                        <MudText Typo="Typo.body2"><b>POI đang hoạt động:</b> @_summary.CurrentActivePois /
+                            @FormatMaxActivePois(_summary.MaxActivePois)
+                        </MudText>
+                        <MudText Typo="Typo.body2"><b>Ngày hết hạn (giờ VN):</b> @GetEndDateDisplay()
+                        </MudText>
+                        <MudText Typo="Typo.body2"><b>Còn lại:</b> @GetDaysRemainingDisplay()</MudText>
+                    </MudStack>
+
+                    @if (_summary.Status == "PendingPayment")
+                    {
+                        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true" Class="mt-4">
+                            Yêu cầu đang chờ Admin xác nhận. Tạm thời không thể gửi thêm yêu cầu mới.
+                            <MudStack Class="mt-2">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                                           Disabled="@(_cancellingPending || PendingSubscription is null)"
+                                           OnClick="CancelPendingRequestAsync" StartIcon="@Icons.Material.Filled.Close">
+                                    @(_cancellingPending ? "Đang hủy..." : "Hủy yêu cầu chờ")
+                                </MudButton>
+                            </MudStack>
+                        </MudAlert>
+                    }
+                    else if (_summary.Status == "Active")
+                    {
+                        <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Dense="true" Class="mt-4">
+                            @(_canSubmit
+                                ? "Bạn đang dùng gói Miễn phí. Có thể nâng cấp lên Pro ngay."
+                                : "Gói đang hoạt động. POI của bạn đang được hiển thị trên app.")
+                        </MudAlert>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" lg="8">
+                <MudPaper Elevation="3" Class="pa-5 plans-panel">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+                        <MudText Typo="Typo.h6">Thanh toán và gửi yêu cầu kích hoạt Pro</MudText>
+                        <MudButtonGroup Variant="Variant.Outlined" Color="Color.Primary">
+                            <MudButton OnClick="@(() => SetBillingCycle(0))" Variant="@GetCycleButtonVariant(0)">Theo tháng
+                            </MudButton>
+                            <MudButton OnClick="@(() => SetBillingCycle(1))" Variant="@GetCycleButtonVariant(1)">Theo năm
+                            </MudButton>
+                        </MudButtonGroup>
+                    </MudStack>
+
+                    @if (_proPlan is not null)
+                    {
+                        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-3">
+                            <b>Mô tả gói Pro:</b> @GetProPlanDescription()
+                            <br />
+                            <b>Giới hạn POI:</b> @FormatMaxActivePois(_proPlan.MaxActivePois)
+                            <br />
+                            <b>Giá cần thanh toán:</b> @FormatCurrency(SelectedAmount)
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true" Class="mb-3">
+                            Chưa tìm thấy gói Pro đang hoạt động. Vui lòng nhờ Admin cấu hình gói Pro trước.
+                        </MudAlert>
+                    }
+
+                    <MudDivider Class="my-5" />
+
+                    <MudStack Spacing="3">
+                        <MudPaper Class="bank-transfer-box pa-4" Elevation="0">
+                            <MudStack Spacing="2" AlignItems="AlignItems.Center">
+                                <MudText Typo="Typo.subtitle1" Style="font-weight:700;">Chuyển khoản ngân hàng</MudText>
+                                <MudImage Src="@TransferQrUrl" Alt="QR chuyển khoản" Width="240" Height="240"
+                                          ObjectFit="ObjectFit.Contain" />
+                            </MudStack>
+
+                            <MudDivider Class="my-4" />
+
+                            <MudGrid>
+                                <MudItem xs="12" md="6">
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Ngân hàng</MudText>
+                                    <MudText Typo="Typo.body1" Style="font-weight:700;">@BankName (@BankCode)</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Số tài khoản nhận</MudText>
+                                    <MudText Typo="Typo.body1" Style="font-weight:700;">@AccountNumber</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="6" Class="mt-3">
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Chủ tài khoản</MudText>
+                                    <MudText Typo="Typo.body1" Style="font-weight:700;">@AccountHolder</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="6" Class="mt-3">
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Số tiền cần trả</MudText>
+                                    <MudText Typo="Typo.body1" Style="font-weight:800; color: var(--mud-palette-primary);">
+                                        @FormatCurrency(SelectedAmount)
+                                    </MudText>
+                                </MudItem>
+                                <MudItem xs="12" Class="mt-3">
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Nội dung chuyển khoản</MudText>
+                                    <MudPaper Class="pa-3" Elevation="0"
+                                              Style="border: 1px dashed var(--mud-palette-divider); border-radius: 10px;">
+                                        <MudText Typo="Typo.body2" Style="font-weight:700;">@TransferContent</MudText>
+                                    </MudPaper>
+                                </MudItem>
+                            </MudGrid>
+                        </MudPaper>
+
+                        @if (!_canSubmit && !string.IsNullOrWhiteSpace(_submitBlockedReason))
+                        {
+                            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Dense="true">
+                                @_submitBlockedReason
+                            </MudAlert>
+                        }
+
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_canSubmit || _submitting)"
+                                   OnClick="SubmitSubscriptionAsync" StartIcon="@Icons.Material.Filled.Send">
+                            @(_submitting ? "Đang gửi..." : "Gửi yêu cầu")
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" Class="mt-4">
+                <MudPaper Elevation="3" Class="pa-5">
+                    <MudText Typo="Typo.h6" Class="mb-3">Lịch sử đăng ký</MudText>
+                    <MudTable Items="_subscriptions" Dense="true" Hover="true" Striped="true"
+                              RowsPerPage="@_historyRowsPerPage">
+                        <HeaderContent>
+                            <MudTh>Gói</MudTh>
+                            <MudTh>Chu kỳ</MudTh>
+                            <MudTh>Số tiền</MudTh>
+                            <MudTh>Trạng thái</MudTh>
+                            <MudTh>Ngày tạo</MudTh>
+                            <MudTh>Hết hạn (giờ VN)</MudTh>
+                            <MudTh>Mã GD</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.PlanName</MudTd>
+                            <MudTd>@context.BillingCycle</MudTd>
+                            <MudTd>@FormatCurrency(context.AmountPaid)</MudTd>
+                            <MudTd>
+                                <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small">
+                                    @GetStatusLabel(context.Status)
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>@FormatDateTimeVn(context.CreatedAt)</MudTd>
+                            <MudTd>@GetHistoryEndDateDisplay(context)</MudTd>
+                            <MudTd>@(string.IsNullOrWhiteSpace(context.PaymentReference) ? "-" : context.PaymentReference)
+                            </MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">Chưa có lịch sử đăng ký.</MudText>
+                        </NoRecordsContent>
+                        <PagerContent>
+                            <MudTablePager PageSizeOptions="@_historyPageSizeOptions" />
+                        </PagerContent>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private readonly OwnerSubscriptionSummaryDto _summary = new();
+    private SubscriptionPlanDto? _proPlan;
+    private List<BoothOwnerSubscriptionDto> _subscriptions = new();
+
+    private const string BankCode = "VCB";
+    private const string BankName = "Vietcombank";
+    private const string AccountNumber = "0123456789";
+    private const string AccountHolder = "SMART TOUR GUIDE";
+
+    private int _ownerId;
+    private int _billingCycle;
+    private string _paymentMethod = "Manual-BankTransfer";
+    private bool _loading = true;
+    private bool _isReloading;
+    private bool _submitting;
+    private bool _cancellingPending;
+    private CancellationTokenSource? _autoRefreshCts;
+    private Task? _autoRefreshTask;
+    private static readonly TimeSpan OwnerAutoRefreshInterval = TimeSpan.FromSeconds(3);
+    private readonly int[] _historyPageSizeOptions = { 5, 10, 20, 50 };
+    private int _historyRowsPerPage = 5;
+
+    private bool _hasProPlan => _proPlan is not null;
+    private bool _canUpgradeFromActiveFree => _summary.Status == "Active" && IsFreePlanName(_summary.PlanName) &&
+_hasProPlan;
+    private bool _isSubmitLocked => _summary.Status == "PendingPayment"
+        || (_summary.Status == "Active" && !_canUpgradeFromActiveFree);
+    private bool _canSubmit => !_isSubmitLocked && _hasProPlan;
+    private string? _submitBlockedReason
+    {
+        get
+        {
+            if (_summary.Status == "PendingPayment")
+                return "Bạn đang có yêu cầu chờ Admin xác nhận. Hãy đợi Admin duyệt hoặc từ chối yêu cầu hiện tại.";
+
+            if (_summary.Status == "Active" && !_canUpgradeFromActiveFree)
+                return "Gói hiện tại vẫn còn hiệu lực. Bạn chỉ có thể đăng ký lại khi gói hết hạn hoặc được Admin xử lý.";
+
+            if (!_hasProPlan)
+                return "Hiện chưa có gói Pro đang hoạt động để đăng ký.";
+
+            return null;
+        }
+    }
+    private decimal SelectedAmount => _proPlan is null ? 0 : GetPlanPrice(_proPlan);
+    private BoothOwnerSubscriptionDto? PendingSubscription => _subscriptions
+        .Where(s => s.Status == "PendingPayment")
+        .OrderByDescending(s => s.CreatedAt)
+        .FirstOrDefault();
+    private string TransferContent => $"STG SUB {_ownerId} {(_proPlan?.Id ?? 0)} {(_billingCycle == 1 ? "Y" : "M")}";
+    private string TransferQrUrl =>
+        $"https://img.vietqr.io/image/{BankCode}-{AccountNumber}-compact2.png?amount={decimal.Truncate(SelectedAmount)}&addInfo={Uri.EscapeDataString(TransferContent)}&accountName={Uri.EscapeDataString(AccountHolder)}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var ownerId = await LocalStorage.GetItemAsync<int>("userId");
+        _ownerId = ownerId;
+        await LoadDataAsync();
+        StartAutoRefresh();
+    }
+
+    private async Task LoadDataAsync(bool showLoading = true, bool showGeneralError = true, bool showMissingPlanWarning =
+true)
+    {
+        if (_isReloading)
+        {
+            return;
+        }
+
+        _isReloading = true;
+        if (showLoading)
+        {
+            _loading = true;
+        }
+
+        var previousStatus = _summary.Status;
+
+        try
+        {
+            if (_ownerId <= 0)
+            {
+                if (showGeneralError)
+                {
+                    Snackbar.Add("Không tìm thấy ownerId. Vui lòng đăng nhập lại.", Severity.Error);
+                }
+                return;
+            }
+
+            var plansTask = SubscriptionApi.GetPlansAsync();
+            var summaryTask = SubscriptionApi.GetMySummaryAsync(_ownerId);
+            var historyTask = SubscriptionApi.GetByOwnerAsync(_ownerId);
+            await Task.WhenAll(plansTask, summaryTask, historyTask);
+
+            var plans = plansTask.Result;
+            _proPlan = plans
+                .Where(p => IsProPlanName(p.Name))
+                .OrderByDescending(p => p.PriceMonthly)
+                .FirstOrDefault();
+
+            if (_proPlan is null)
+            {
+                _proPlan = plans
+                    .Where(p => !IsFreePlanName(p.Name))
+                    .OrderByDescending(p => p.PriceMonthly)
+                    .FirstOrDefault();
+            }
+
+            _subscriptions = historyTask.Result
+                .OrderByDescending(s => s.CreatedAt)
+                .ToList();
+
+            if (_proPlan is null && showMissingPlanWarning)
+            {
+                Snackbar.Add("Chưa có gói Pro đang hoạt động. Vui lòng liên hệ Admin.", Severity.Warning);
+            }
+
+            var summary = summaryTask.Result;
+            if (summary is not null)
+            {
+                _summary.HasActiveSubscription = summary.HasActiveSubscription;
+                _summary.PlanName = summary.PlanName;
+                _summary.EndDate = summary.EndDate;
+                _summary.DaysRemaining = summary.DaysRemaining;
+                _summary.MaxActivePois = summary.MaxActivePois;
+                _summary.CurrentActivePois = summary.CurrentActivePois;
+                _summary.Status = summary.Status;
+
+                if (previousStatus == "Active" && _summary.Status == "Expired")
+                {
+                    Snackbar.Add("Gói của bạn vừa hết hạn. Trang thanh toán đã tự cập nhật.", Severity.Info);
+                }
+            }
+
+        }
+        catch (Exception ex)
+        {
+            if (showGeneralError)
+            {
+                Snackbar.Add($"Lỗi tải dữ liệu subscription: {ex.Message}", Severity.Error);
+            }
+        }
+        finally
+        {
+            _loading = false;
+            _isReloading = false;
+        }
+    }
+
+    private void StartAutoRefresh()
+    {
+        if (_autoRefreshCts is not null)
+        {
+            return;
+        }
+
+        _autoRefreshCts = new CancellationTokenSource();
+        _autoRefreshTask = Task.Run(() => AutoRefreshLoopAsync(_autoRefreshCts.Token));
+    }
+
+    private async Task AutoRefreshLoopAsync(CancellationToken token)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(OwnerAutoRefreshInterval);
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                if (_submitting || _cancellingPending)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadDataAsync(showLoading: false, showGeneralError: false, showMissingPlanWarning: false);
+                        StateHasChanged();
+                    });
+                }
+                catch
+                {
+                    // Ignore intermittent refresh errors and retry on next tick.
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Page disposed.
+        }
+    }
+
+    private void SetBillingCycle(int cycle)
+    {
+        _billingCycle = cycle;
+    }
+
+    private Variant GetCycleButtonVariant(int cycle)
+    {
+        return _billingCycle == cycle ? Variant.Filled : Variant.Outlined;
+    }
+
+    private decimal GetPlanPrice(SubscriptionPlanDto plan)
+    {
+        return _billingCycle == 1 ? plan.PriceYearly : plan.PriceMonthly;
+    }
+
+    private async Task SubmitSubscriptionAsync()
+    {
+        if (_ownerId <= 0)
+        {
+            Snackbar.Add("Không tìm thấy ownerId.", Severity.Error);
+            return;
+        }
+
+        if (_proPlan is null)
+        {
+            Snackbar.Add("Chưa có gói Pro đang hoạt động để gửi yêu cầu.", Severity.Warning);
+            return;
+        }
+
+        _submitting = true;
+        try
+        {
+            var request = new CreateSubscriptionDto
+            {
+                PlanId = _proPlan.Id,
+                BillingCycle = _billingCycle,
+                PaymentMethod = _paymentMethod,
+                PaymentReference = null
+            };
+
+            await SubscriptionApi.SubscribeAsync(_ownerId, request);
+            Snackbar.Add("Gửi yêu cầu thành công. Vui lòng chờ Admin xác nhận.", Severity.Success);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private async Task CancelPendingRequestAsync()
+    {
+        if (_ownerId <= 0)
+        {
+            Snackbar.Add("Không tìm thấy ownerId.", Severity.Error);
+            return;
+        }
+
+        if (PendingSubscription is null)
+        {
+            Snackbar.Add("Không tìm thấy yêu cầu chờ để hủy.", Severity.Warning);
+            return;
+        }
+
+        _cancellingPending = true;
+        try
+        {
+            await SubscriptionApi.OwnerCancelPendingAsync(PendingSubscription.Id, _ownerId);
+            Snackbar.Add("Đã hủy yêu cầu chờ thành công.", Severity.Success);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _cancellingPending = false;
+        }
+    }
+
+    private static string FormatDateTimeVn(DateTime? value)
+    {
+        return value.HasValue ? FormatDateTimeVn(value.Value) : "-";
+    }
+
+    private static string FormatDateTimeVn(DateTime value)
+    {
+        var utcValue = value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+
+        var vnTime = TimeZoneInfo.ConvertTimeFromUtc(utcValue, GetVietnamTimeZone());
+        return vnTime.ToString("dd/MM/yyyy HH:mm:ss");
+    }
+
+    private static TimeZoneInfo GetVietnamTimeZone()
+    {
+        try
+        {
+            // Windows timezone id
+            return TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        }
+        catch
+        {
+            try
+            {
+                // Linux/macOS timezone id
+                return TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+            }
+            catch
+            {
+                // Fallback fixed UTC+7 if timezone database is unavailable
+                return TimeZoneInfo.CreateCustomTimeZone("UTC+07", TimeSpan.FromHours(7), "UTC+07", "UTC+07");
+            }
+        }
+    }
+
+    private static string FormatCurrency(decimal amount)
+    {
+        return string.Format("{0:N0} VND", amount);
+    }
+
+    private static string FormatMaxActivePois(int maxActivePois)
+    {
+        if (maxActivePois <= 1)
+        {
+            return "Full POI";
+        }
+
+        return maxActivePois.ToString();
+    }
+
+    private string GetEndDateDisplay()
+    {
+        if (_summary.Status == "Active" && IsFreePlanName(_summary.PlanName))
+        {
+            return "Không hết hạn";
+        }
+
+        return FormatDateTimeVn(_summary.EndDate);
+    }
+
+    private string GetDaysRemainingDisplay()
+    {
+        if (_summary.Status == "Active" && IsFreePlanName(_summary.PlanName))
+        {
+            return "Không giới hạn";
+        }
+
+        return _summary.DaysRemaining < 0 ? "Không giới hạn" : $"{_summary.DaysRemaining} ngày";
+    }
+
+    private static string GetHistoryEndDateDisplay(BoothOwnerSubscriptionDto subscription)
+    {
+        if (IsFreePlanName(subscription.PlanName))
+        {
+            return "Không hết hạn";
+        }
+
+        return FormatDateTimeVn(subscription.EndDate);
+    }
+
+    private static bool IsFreePlanName(string? planName)
+    {
+        if (string.IsNullOrWhiteSpace(planName)) return false;
+
+        var normalized = planName.Trim().ToLowerInvariant();
+        return normalized.Contains("miễn phí") || normalized.Contains("mien phi") || normalized == "free";
+    }
+
+    private static bool IsProPlanName(string? planName)
+    {
+        if (string.IsNullOrWhiteSpace(planName)) return false;
+
+        return planName.Trim().Equals("Pro", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetProPlanDescription()
+    {
+        if (_proPlan is null)
+        {
+            return "Gói nâng cấp trả phí";
+        }
+
+        return string.IsNullOrWhiteSpace(_proPlan.Description)
+            ? "Gói nâng cấp trả phí"
+            : _proPlan.Description.Trim();
+    }
+
+    private Color GetSummaryColor()
+    {
+        return GetStatusColor(_summary.Status);
+    }
+
+    private static Color GetStatusColor(string? status)
+    {
+        return status switch
+        {
+            "Active" => Color.Success,
+            "PendingPayment" => Color.Warning,
+            "Expired" => Color.Info,
+            "Cancelled" => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private static string GetStatusLabel(string? status)
+    {
+        return status switch
+        {
+            "Active" => "Đang hoạt động",
+            "PendingPayment" => "Chờ xác nhận",
+            "Expired" => "Đã hết hạn",
+            "Cancelled" => "Đã hủy",
+            _ => status ?? "Không xác định"
+        };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_autoRefreshCts is null)
+        {
+            return;
+        }
+
+        _autoRefreshCts.Cancel();
+
+        if (_autoRefreshTask is not null)
+        {
+            try
+            {
+                await _autoRefreshTask;
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore cancellation during teardown.
+            }
+        }
+
+        _autoRefreshCts.Dispose();
+    }
+}
+
+<style>
+    .subscription-hero {
+        border-radius: 24px;
+        background:
+            radial-gradient(circle at top right, rgba(2, 132, 199, 0.22), transparent 36%),
+            radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.24), transparent 32%),
+            linear-gradient(145deg, rgba(8, 23, 42, 0.98), rgba(20, 35, 58, 0.95));
+        color: #f8fafc;
+    }
+
+    .hero-kicker {
+        opacity: 0.8;
+        letter-spacing: 0.08em;
+    }
+
+    .hero-title {
+        font-weight: 800;
+        margin-top: 6px;
+    }
+
+    .hero-subtitle {
+        margin-top: 8px;
+        max-width: 720px;
+        opacity: 0.9;
+    }
+
+    .status-panel,
+    .plans-panel {
+        border-radius: 16px;
+    }
+
+    .plan-card {
+        border-radius: 14px;
+        border: 1px solid var(--mud-palette-divider);
+        transition: all 0.16s ease;
+        min-height: 210px;
+    }
+
+    .plan-card.selected {
+        border-color: var(--mud-palette-primary);
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18);
+        transform: translateY(-2px);
+    }
+
+    .plan-price {
+        font-weight: 800;
+        color: var(--mud-palette-primary);
+    }
+
+    .bank-transfer-box {
+        border-radius: 14px;
+        border: 1px solid var(--mud-palette-divider);
+        background: linear-gradient(180deg, rgba(16, 185, 129, 0.06), rgba(2, 132, 199, 0.04));
+    }
+</style>

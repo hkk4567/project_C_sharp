@@ -190,9 +190,21 @@
                                             <p class="owner-notification-header-title">Thông báo duyệt POI</p>
                                             <p class="owner-notification-header-sub">@_unreadNotificationCount chưa đọc</p>
                                         </div>
-                                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default"
-                                                       Size="Size.Small" OnClick="RefreshNotificationsAsync"
-                                                       Style="background: rgba(0,0,0,0.03); border-radius: 10px;" />
+                                        <div class="d-flex align-center" style="gap: 6px;">
+                                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                       Disabled="@(_ownerNotifications.Count == 0)"
+                                                       OnClick="MarkAllNotificationsAsReadAsync">
+                                                Đọc hết
+                                            </MudButton>
+                                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error"
+                                                       Disabled="@(_ownerNotifications.Count == 0)"
+                                                       OnClick="DeleteAllNotificationsAsync">
+                                                Xóa tất cả
+                                            </MudButton>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default"
+                                                           Size="Size.Small" OnClick="RefreshNotificationsAsync"
+                                                           Style="background: rgba(0,0,0,0.03); border-radius: 10px;" />
+                                        </div>
                                     </div>
 
                                     <div class="owner-notification-panel">
@@ -266,9 +278,21 @@
                                                             <p class="owner-notification-header-sub">@_adminUnreadNotificationCount chưa đọc
                                                             </p>
                                                         </div>
-                                                        <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default"
-                                                                       Size="Size.Small" OnClick="RefreshNotificationsAsync"
-                                                                       Style="background: rgba(0,0,0,0.03); border-radius: 10px;" />
+                                                        <div class="d-flex align-center" style="gap: 6px;">
+                                                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                                       Disabled="@(_adminNotifications.Count == 0)"
+                                                                       OnClick="MarkAllNotificationsAsReadAsync">
+                                                                Đọc hết
+                                                            </MudButton>
+                                                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error"
+                                                                       Disabled="@(_adminNotifications.Count == 0)"
+                                                                       OnClick="DeleteAllNotificationsAsync">
+                                                                Xóa tất cả
+                                                            </MudButton>
+                                                            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default"
+                                                                           Size="Size.Small" OnClick="RefreshNotificationsAsync"
+                                                                           Style="background: rgba(0,0,0,0.03); border-radius: 10px;" />
+                                                        </div>
                                                     </div>
 
                                                     <div class="owner-notification-panel">
@@ -379,6 +403,9 @@
                                                                         Match="NavLinkMatch.All">Tổng quan</MudNavLink>
                                                             <MudNavLink Href="/admin/approvals" Icon="@Icons.Material.Filled.CheckCircle">Duyệt bài đăng
                                                             </MudNavLink>
+                                                            <MudNavLink Href="/admin/subscriptions" Icon="@Icons.Material.Filled.Payments">
+                                                                Quản lý gói đăng ký
+                                                            </MudNavLink>
                                                             <MudNavLink Href="/admin/tours" Icon="@Icons.Material.Filled.Map">Quản lý Tour</MudNavLink>
                                                             <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People">Quản lý User</MudNavLink>
                                                         </AuthorizeView>
@@ -388,6 +415,9 @@
                                                             <MudNavLink Href="/owner/dashboard" Icon="@Icons.Material.Filled.Dashboard"
                                                                         Match="NavLinkMatch.All">Tổng quan</MudNavLink>
                                                             <MudNavLink Href="/owner/analytics" Icon="@Icons.Material.Filled.Analytics">Thống kê POI
+                                                            </MudNavLink>
+                                                            <MudNavLink Href="/owner/subscription" Icon="@Icons.Material.Filled.Payments">
+                                                                Đăng ký gói
                                                             </MudNavLink>
                                                             <MudNavLink Href="/owner/create-poi" Icon="@Icons.Material.Filled.AddLocation">Tạo địa điểm
                                                             </MudNavLink>
@@ -617,6 +647,70 @@
         return Task.CompletedTask;
     }
 
+    private async Task MarkAllNotificationsAsReadAsync()
+    {
+        bool ok = false;
+
+        if (_isOwnerUser)
+        {
+            ok = await OwnerNotificationService.MarkAllAsReadAsync();
+            if (ok)
+            {
+                foreach (var item in _ownerNotifications)
+                {
+                    item.IsRead = true;
+                }
+                _unreadNotificationCount = 0;
+            }
+        }
+        else if (_isAdminUser)
+        {
+            ok = await AdminNotificationService.MarkAllAsReadAsync();
+            if (ok)
+            {
+                foreach (var item in _adminNotifications)
+                {
+                    item.IsRead = true;
+                }
+                _adminUnreadNotificationCount = 0;
+            }
+        }
+
+        if (ok)
+        {
+            await RefreshNotificationsAsync();
+        }
+    }
+
+    private async Task DeleteAllNotificationsAsync()
+    {
+        bool ok = false;
+
+        if (_isOwnerUser)
+        {
+            ok = await OwnerNotificationService.DeleteAllAsync();
+            if (ok)
+            {
+                _ownerNotifications.Clear();
+                _unreadNotificationCount = 0;
+            }
+        }
+        else if (_isAdminUser)
+        {
+            ok = await AdminNotificationService.DeleteAllAsync();
+            if (ok)
+            {
+                _adminNotifications.Clear();
+                _adminUnreadNotificationCount = 0;
+            }
+        }
+
+        if (ok)
+        {
+            await RefreshNotificationsAsync();
+        }
+    }
+
     private async Task OnNotificationClick(OwnerNotificationItem item)
     {
         if (item.IsRead) return;
@@ -645,11 +739,46 @@
 
     private static string FormatTimeAgo(DateTime createdAt)
     {
-        var span = DateTime.Now - createdAt;
-        if (span.TotalMinutes < 1) return "Vừa xong";
-        if (span.TotalHours < 1) return $"{(int)span.TotalMinutes} phút trước";
-        if (span.TotalDays < 1) return $"{(int)span.TotalHours} giờ trước";
-        return $"{(int)span.TotalDays} ngày trước";
+        var createdAtUtc = EnsureUtc(createdAt);
+        var span = DateTime.UtcNow - createdAtUtc;
+
+        if (span < TimeSpan.Zero)
+            span = TimeSpan.Zero;
+
+        if (span.TotalSeconds < 1) return "Vừa xong";
+        if (span.TotalSeconds < 60) return $"{Math.Max(1, (int)Math.Floor(span.TotalSeconds))} giây trước";
+        if (span.TotalMinutes < 60) return $"{(int)Math.Floor(span.TotalMinutes)} phút trước";
+        if (span.TotalHours < 24) return $"{(int)Math.Floor(span.TotalHours)} giờ trước";
+        if (span.TotalDays < 7) return $"{(int)Math.Floor(span.TotalDays)} ngày trước";
+
+        var createdAtVn = TimeZoneInfo.ConvertTimeFromUtc(createdAtUtc, GetVietnamTimeZone());
+        return createdAtVn.ToString("dd/MM/yyyy HH:mm");
+    }
+
+    private static DateTime EnsureUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+    }
+
+    private static TimeZoneInfo GetVietnamTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh");
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.Utc;
+        }
     }
 
     private static string NormalizeNotificationMessage(string? message)

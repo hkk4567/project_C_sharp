@@ -104,6 +104,58 @@ public class NotificationsController : ControllerBase
         return Ok(new { message = "Đã đánh dấu đã đọc." });
     }
 
+    [HttpPut("owner/read-all")]
+    public async Task<IActionResult> MarkAllOwnerNotificationsAsRead()
+    {
+        var username = GetCurrentUsername();
+        if (username == "Unknown") return Unauthorized("Chưa xác định được người dùng.");
+
+        var owner = await _context.Users
+            .FirstOrDefaultAsync(u => u.Username == username && u.Role == UserRole.BoothOwner);
+
+        if (owner == null) return NotFound("Không tìm thấy chủ gian hàng.");
+
+        var notifications = await _context.OwnerNotifications
+            .Where(n => n.OwnerId == owner.Id && !n.IsRead)
+            .ToListAsync();
+
+        if (notifications.Count > 0)
+        {
+            foreach (var item in notifications)
+            {
+                item.IsRead = true;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new { message = "Đã đánh dấu tất cả thông báo là đã đọc." });
+    }
+
+    [HttpDelete("owner/all")]
+    public async Task<IActionResult> DeleteAllOwnerNotifications()
+    {
+        var username = GetCurrentUsername();
+        if (username == "Unknown") return Unauthorized("Chưa xác định được người dùng.");
+
+        var owner = await _context.Users
+            .FirstOrDefaultAsync(u => u.Username == username && u.Role == UserRole.BoothOwner);
+
+        if (owner == null) return NotFound("Không tìm thấy chủ gian hàng.");
+
+        var notifications = await _context.OwnerNotifications
+            .Where(n => n.OwnerId == owner.Id)
+            .ToListAsync();
+
+        if (notifications.Count > 0)
+        {
+            _context.OwnerNotifications.RemoveRange(notifications);
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new { message = "Đã xóa tất cả thông báo của owner." });
+    }
+
     // Lấy danh sách thông báo dành cho admin.
     [HttpGet("admin")]
     public async Task<IActionResult> GetAdminNotifications()
@@ -172,6 +224,58 @@ public class NotificationsController : ControllerBase
         }
 
         return Ok(new { message = "Đã đánh dấu đã đọc." });
+    }
+
+    [HttpPut("admin/read-all")]
+    public async Task<IActionResult> MarkAllAdminNotificationsAsRead()
+    {
+        var username = GetCurrentUsername();
+        if (username == "Unknown") return Unauthorized("Chưa xác định được người dùng.");
+
+        var admin = await _context.Users
+            .FirstOrDefaultAsync(u => u.Username == username && u.Role == UserRole.Admin);
+
+        if (admin == null) return NotFound("Không tìm thấy quản trị viên.");
+
+        var notifications = await _context.AdminNotifications
+            .Where(n => n.AdminId == admin.Id && !n.IsRead)
+            .ToListAsync();
+
+        if (notifications.Count > 0)
+        {
+            foreach (var item in notifications)
+            {
+                item.IsRead = true;
+            }
+
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new { message = "Đã đánh dấu tất cả thông báo là đã đọc." });
+    }
+
+    [HttpDelete("admin/all")]
+    public async Task<IActionResult> DeleteAllAdminNotifications()
+    {
+        var username = GetCurrentUsername();
+        if (username == "Unknown") return Unauthorized("Chưa xác định được người dùng.");
+
+        var admin = await _context.Users
+            .FirstOrDefaultAsync(u => u.Username == username && u.Role == UserRole.Admin);
+
+        if (admin == null) return NotFound("Không tìm thấy quản trị viên.");
+
+        var notifications = await _context.AdminNotifications
+            .Where(n => n.AdminId == admin.Id)
+            .ToListAsync();
+
+        if (notifications.Count > 0)
+        {
+            _context.AdminNotifications.RemoveRange(notifications);
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new { message = "Đã xóa tất cả thông báo của admin." });
     }
 
     // Debug endpoint để xem admin hiện tại là ai

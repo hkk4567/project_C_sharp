@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SmartTourGuide.API.Data;
+using SmartTourGuide.API.Data.Entities;
 using SmartTourGuide.API.Services;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -46,6 +47,62 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 var app = builder.Build();
+
+// Seed gói mặc định cho subscription
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    var existingPlans = db.SubscriptionPlans.ToList();
+
+    // Luôn đảm bảo có gói Miễn phí mặc định và luôn Active (fix cứng)
+    var freePlan = existingPlans.FirstOrDefault(p => p.Name == "Miễn phí" || p.Name == "Mien phi");
+    if (freePlan is null)
+    {
+        db.SubscriptionPlans.Add(new SubscriptionPlan
+        {
+            Name = "Miễn phí",
+            Description = "Gói mặc định miễn phí",
+            PriceMonthly = 0,
+            PriceYearly = 0,
+            MaxActivePois = 1,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        });
+    }
+    else
+    {
+        freePlan.Name = "Miễn phí";
+        freePlan.Description = "Gói mặc định miễn phí";
+        freePlan.PriceMonthly = 0;
+        freePlan.PriceYearly = 0;
+        freePlan.MaxActivePois = 1;
+        freePlan.IsActive = true;
+    }
+
+    // Seed sẵn 1 gói Pro mẫu nếu chưa có
+    var proPlan = existingPlans.FirstOrDefault(p => p.Name == "Pro");
+    if (proPlan is null)
+    {
+        db.SubscriptionPlans.Add(new SubscriptionPlan
+        {
+            Name = "Pro",
+            Description = "Gói nâng cao mở rộng số POI và khả năng hiển thị",
+            PriceMonthly = 199000,
+            PriceYearly = 1999000,
+            MaxActivePois = 1,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        });
+    }
+    else
+    {
+        proPlan.MaxActivePois = 1;
+    }
+
+    db.SaveChanges();
+}
+
 //  Kích hoạt Middleware đọc Header từ Tunnel (Phải để ngay sau khi Build)
 app.UseForwardedHeaders();
 // ─── Static Files ────────────────────────────────────────────────────────────

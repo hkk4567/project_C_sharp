@@ -4,6 +4,9 @@ using SmartTourGuide.API.Data;
 using SmartTourGuide.API.Data.Entities;
 using SmartTourGuide.API.Services;
 using SmartTourGuide.Shared.DTOs;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace SmartTourGuide.API.Controllers;
 
@@ -21,6 +24,14 @@ public class SubscriptionsController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly SubscriptionService _subscriptionService;
+    private const string FreePlanName = "Miễn phí";
+    private const string ProPlanName = "Pro";
+    private const int PendingTimeoutSeconds = 10;
+    private static readonly SubscriptionStatus[] PaymentRefUniqueStatuses =
+    {
+        SubscriptionStatus.PendingPayment,
+        SubscriptionStatus.Active
+    };
 
     public SubscriptionsController(AppDbContext context, SubscriptionService subscriptionService)
     {
@@ -50,8 +61,10 @@ public class SubscriptionsController : ControllerBase
     public async Task<ActionResult<IEnumerable<SubscriptionPlanDto>>> GetPlans()
     {
         var plans = await _context.SubscriptionPlans
-            .Where(p => p.IsActive)
-            .OrderBy(p => p.PriceMonthly)
+            .Where(p => p.IsActive && p.Name == ProPlanName)
+            .OrderByDescending(p => p.CreatedAt)
+            .ThenByDescending(p => p.Id)
+            .Take(1)
             .Select(p => new SubscriptionPlanDto
             {
                 Id = p.Id,
@@ -59,7 +72,7 @@ public class SubscriptionsController : ControllerBase
                 Description = p.Description,
                 PriceMonthly = p.PriceMonthly,
                 PriceYearly = p.PriceYearly,
-                MaxActivePois = p.MaxActivePois,
+                MaxActivePois = 1,
                 IsActive = p.IsActive
             })
             .ToListAsync();
@@ -75,7 +88,10 @@ public class SubscriptionsController : ControllerBase
     public async Task<ActionResult<IEnumerable<SubscriptionPlanDto>>> GetAllPlans()
     {
         var plans = await _context.SubscriptionPlans
-            .OrderBy(p => p.PriceMonthly)
+            .Where(p => p.Name == ProPlanName)
+            .OrderByDescending(p => p.CreatedAt)
+            .ThenByDescending(p => p.Id)
+            .Take(1)
             .Select(p => new SubscriptionPlanDto
             {
                 Id = p.Id,
@@ -83,7 +99,7 @@ public class SubscriptionsController : ControllerBase
                 Description = p.Description,
                 PriceMonthly = p.PriceMonthly,
                 PriceYearly = p.PriceYearly,
-                MaxActivePois = p.MaxActivePois,
+                MaxActivePois = 1,
                 IsActive = p.IsActive
             })
             .ToListAsync();
@@ -98,13 +114,53 @@ public class SubscriptionsController : ControllerBase
     [HttpPost("plans")]
     public async Task<ActionResult<SubscriptionPlanDto>> CreatePlan([FromBody] UpsertSubscriptionPlanDto dto)
     {
+        var normalizedName = NormalizePlanName(dto.Name);
+        if (normalizedName != "pro")
+            return BadRequest(new { message = "Admin chỉ được tạo gói Pro. Gói Miễn phí là gói mặc định hệ thống." });
+
+        if (dto.PriceMonthly < 0 || dto.PriceYearly < 0)
+            return BadRequest(new { message = "Giá gói không được âm." });
+
+        if (dto.PriceMonthly <= 0 || dto.PriceYearly <= 0)
+        {
+            return BadRequest(new { message = "Gói Pro yêu cầu giá theo tháng và theo năm lớn hơn 0." });
+        }
+
+        var existingPro = await _context.SubscriptionPlans
+            .Where(p => p.Name == ProPlanName)
+            .OrderByDescending(p => p.CreatedAt)
+            .ThenByDescending(p => p.Id)
+            .FirstOrDefaultAsync();
+
+        if (existingPro is not null)
+        {
+            existingPro.Description = dto.Description;
+            existingPro.PriceMonthly = dto.PriceMonthly;
+            existingPro.PriceYearly = dto.PriceYearly;
+            existingPro.MaxActivePois = 1;
+            existingPro.IsActive = dto.IsActive;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new SubscriptionPlanDto
+            {
+                Id = existingPro.Id,
+                Name = existingPro.Name,
+                Description = existingPro.Description,
+                PriceMonthly = existingPro.PriceMonthly,
+                PriceYearly = existingPro.PriceYearly,
+                MaxActivePois = 1,
+                IsActive = existingPro.IsActive
+            });
+        }
+
         var plan = new SubscriptionPlan
         {
-            Name = dto.Name,
+            Name = ProPlanName,
             Description = dto.Description,
             PriceMonthly = dto.PriceMonthly,
             PriceYearly = dto.PriceYearly,
-            MaxActivePois = dto.MaxActivePois,
+            MaxActivePois = 1,
             IsActive = dto.IsActive,
             CreatedAt = DateTime.UtcNow
         };
@@ -119,7 +175,7 @@ public class SubscriptionsController : ControllerBase
             Description = plan.Description,
             PriceMonthly = plan.PriceMonthly,
             PriceYearly = plan.PriceYearly,
-            MaxActivePois = plan.MaxActivePois,
+            MaxActivePois = 1,
             IsActive = plan.IsActive
         });
     }
@@ -134,11 +190,26 @@ public class SubscriptionsController : ControllerBase
         var plan = await _context.SubscriptionPlans.FindAsync(id);
         if (plan is null) return NotFound(new { message = "Gói đăng ký không tồn tại." });
 
-        plan.Name = dto.Name;
+        if (IsFreePlan(plan))
+            return BadRequest(new { message = "Gói Miễn phí là mặc định hệ thống, không thể chỉnh sửa." });
+
+        var normalizedName = NormalizePlanName(dto.Name);
+        if (normalizedName != "pro")
+            return BadRequest(new { message = "Chỉ có thể cập nhật gói Pro." });
+
+        if (dto.PriceMonthly < 0 || dto.PriceYearly < 0)
+            return BadRequest(new { message = "Giá gói không được âm." });
+
+        if (dto.PriceMonthly <= 0 || dto.PriceYearly <= 0)
+        {
+            return BadRequest(new { message = "Gói Pro yêu cầu giá theo tháng và theo năm lớn hơn 0." });
+        }
+
+        plan.Name = ProPlanName;
         plan.Description = dto.Description;
         plan.PriceMonthly = dto.PriceMonthly;
         plan.PriceYearly = dto.PriceYearly;
-        plan.MaxActivePois = dto.MaxActivePois;
+        plan.MaxActivePois = 1;
         plan.IsActive = dto.IsActive;
 
         await _context.SaveChangesAsync();
@@ -154,6 +225,9 @@ public class SubscriptionsController : ControllerBase
     {
         var plan = await _context.SubscriptionPlans.FindAsync(id);
         if (plan is null) return NotFound(new { message = "Gói đăng ký không tồn tại." });
+
+        if (IsFreePlan(plan))
+            return BadRequest(new { message = "Gói Miễn phí là mặc định hệ thống, không thể ẩn." });
 
         plan.IsActive = false;
         await _context.SaveChangesAsync();
@@ -172,6 +246,8 @@ public class SubscriptionsController : ControllerBase
     public async Task<ActionResult<IEnumerable<BoothOwnerSubscriptionDto>>> GetAll(
         [FromQuery] string? status = null)
     {
+        await SyncSubscriptionStatesAsync();
+
         var query = _context.BoothOwnerSubscriptions
             .Include(s => s.Owner)
             .Include(s => s.Plan)
@@ -202,6 +278,8 @@ public class SubscriptionsController : ControllerBase
     [HttpGet("owner/{ownerId:int}")]
     public async Task<ActionResult<IEnumerable<BoothOwnerSubscriptionDto>>> GetByOwner(int ownerId)
     {
+        await SyncSubscriptionStatesAsync(ownerId);
+
         var now = DateTime.UtcNow;
         var subscriptions = await _context.BoothOwnerSubscriptions
             .Include(s => s.Owner)
@@ -224,6 +302,8 @@ public class SubscriptionsController : ControllerBase
     [HttpGet("my-summary/{ownerId:int}")]
     public async Task<ActionResult<OwnerSubscriptionSummaryDto>> GetMySummary(int ownerId)
     {
+        await SyncSubscriptionStatesAsync(ownerId);
+
         var now = DateTime.UtcNow;
 
         // Lấy subscription active
@@ -245,10 +325,41 @@ public class SubscriptionsController : ControllerBase
             var pending = await _context.BoothOwnerSubscriptions
                 .AnyAsync(s => s.OwnerId == ownerId && s.Status == SubscriptionStatus.PendingPayment);
 
+            if (pending)
+            {
+                return Ok(new OwnerSubscriptionSummaryDto
+                {
+                    HasActiveSubscription = false,
+                    Status = "PendingPayment",
+                    CurrentActivePois = activePoisCount
+                });
+            }
+
+            var latestNonPending = await _context.BoothOwnerSubscriptions
+                .Include(s => s.Plan)
+                .Where(s => s.OwnerId == ownerId && s.Status != SubscriptionStatus.PendingPayment)
+                .OrderByDescending(s => s.EndDate)
+                .FirstOrDefaultAsync();
+
+            if (latestNonPending is not null)
+            {
+                var latestIsFree = IsFreePlan(latestNonPending.Plan);
+                return Ok(new OwnerSubscriptionSummaryDto
+                {
+                    HasActiveSubscription = false,
+                    PlanName = latestNonPending.Plan?.Name,
+                    EndDate = latestIsFree ? null : latestNonPending.EndDate,
+                    DaysRemaining = latestIsFree ? -1 : 0,
+                    MaxActivePois = latestNonPending.Plan?.MaxActivePois ?? 0,
+                    CurrentActivePois = activePoisCount,
+                    Status = latestNonPending.Status.ToString()
+                });
+            }
+
             return Ok(new OwnerSubscriptionSummaryDto
             {
                 HasActiveSubscription = false,
-                Status = pending ? "PendingPayment" : "None",
+                Status = "None",
                 CurrentActivePois = activePoisCount
             });
         }
@@ -257,8 +368,8 @@ public class SubscriptionsController : ControllerBase
         {
             HasActiveSubscription = true,
             PlanName = active.Plan.Name,
-            EndDate = active.EndDate,
-            DaysRemaining = Math.Max(0, (int)(active.EndDate - now).TotalDays),
+            EndDate = IsFreePlan(active.Plan) ? null : active.EndDate,
+            DaysRemaining = IsFreePlan(active.Plan) ? -1 : Math.Max(0, (int)(active.EndDate - now).TotalDays),
             MaxActivePois = active.Plan.MaxActivePois,
             CurrentActivePois = activePoisCount,
             Status = "Active"
@@ -280,6 +391,8 @@ public class SubscriptionsController : ControllerBase
         int ownerId,
         [FromBody] CreateSubscriptionDto dto)
     {
+        await SyncSubscriptionStatesAsync(ownerId);
+
         // Kiểm tra owner tồn tại và đúng role
         var owner = await _context.Users.FindAsync(ownerId);
         if (owner is null) return NotFound(new { message = "Không tìm thấy tài khoản." });
@@ -290,10 +403,27 @@ public class SubscriptionsController : ControllerBase
         if (plan is null)
             return BadRequest(new { message = "Gói đăng ký không tồn tại hoặc đã bị ngừng." });
 
+        var isFreePlan = IsFreePlan(plan);
+
         // Không cho đăng ký nếu đang có subscription Active
-        var hasActive = await _subscriptionService.HasActiveSubscriptionAsync(ownerId);
-        if (hasActive)
-            return Conflict(new { message = "Bạn đang có gói đăng ký còn hiệu lực. Vui lòng chờ hết hạn hoặc liên hệ Admin để gia hạn sớm." });
+        var activeSubscription = await _context.BoothOwnerSubscriptions
+            .Include(s => s.Plan)
+            .FirstOrDefaultAsync(s => s.OwnerId == ownerId
+                                   && s.Status == SubscriptionStatus.Active
+                                   && s.EndDate > DateTime.UtcNow);
+
+        if (activeSubscription is not null)
+        {
+            var isActivePlanFree = IsFreePlan(activeSubscription.Plan);
+            var isUpgradingFromFreeToPro = isActivePlanFree && !isFreePlan;
+            if (!isUpgradingFromFreeToPro)
+            {
+                return Conflict(new
+                {
+                    message = "Bạn đang có gói đăng ký còn hiệu lực. Vui lòng chờ hết hạn hoặc liên hệ Admin để gia hạn sớm."
+                });
+            }
+        }
 
         // Cũng không cho đăng ký nếu còn đơn PendingPayment chưa được xử lý
         var hasPending = await _context.BoothOwnerSubscriptions
@@ -301,10 +431,16 @@ public class SubscriptionsController : ControllerBase
         if (hasPending)
             return Conflict(new { message = "Bạn đã có yêu cầu đăng ký đang chờ xác nhận. Vui lòng đợi Admin xử lý." });
 
-        var billingCycle = (BillingCycle)dto.BillingCycle;
+        var billingCycle = isFreePlan ? BillingCycle.Monthly : (BillingCycle)dto.BillingCycle;
         var startDate = DateTime.UtcNow;
-        var endDate = SubscriptionService.CalculateEndDate(startDate, billingCycle);
-        var amount = SubscriptionService.CalculateAmount(plan, billingCycle);
+        var endDate = isFreePlan
+            ? SubscriptionService.GetNonExpiringEndDateUtc()
+            : SubscriptionService.CalculateEndDate(startDate, billingCycle);
+        var amount = isFreePlan ? 0 : SubscriptionService.CalculateAmount(plan, billingCycle);
+
+        var normalizedPaymentReference = isFreePlan
+            ? null
+            : await GenerateUniquePaymentReferenceAsync();
 
         var subscription = new BoothOwnerSubscription
         {
@@ -314,8 +450,8 @@ public class SubscriptionsController : ControllerBase
             StartDate = startDate,
             EndDate = endDate,
             AmountPaid = amount,
-            PaymentReference = dto.PaymentReference,
-            PaymentMethod = dto.PaymentMethod,
+            PaymentReference = normalizedPaymentReference,
+            PaymentMethod = isFreePlan ? "Free-Plan" : dto.PaymentMethod,
             Status = SubscriptionStatus.PendingPayment,
             PlanNameSnapshot = plan.Name,
             CreatedAt = DateTime.UtcNow
@@ -360,6 +496,8 @@ public class SubscriptionsController : ControllerBase
     [HttpGet("pending")]
     public async Task<ActionResult<IEnumerable<BoothOwnerSubscriptionDto>>> GetPending()
     {
+        await SyncSubscriptionStatesAsync();
+
         var now = DateTime.UtcNow;
         var subscriptions = await _context.BoothOwnerSubscriptions
             .Include(s => s.Owner)
@@ -406,14 +544,32 @@ public class SubscriptionsController : ControllerBase
                 sub.Status = SubscriptionStatus.Active;
                 // Tính lại StartDate/EndDate chính xác từ thời điểm Admin duyệt
                 sub.StartDate = DateTime.UtcNow;
-                sub.EndDate = SubscriptionService.CalculateEndDate(sub.StartDate, sub.BillingCycle);
+                var approvedFreePlan = IsFreePlan(sub.Plan);
+                sub.EndDate = approvedFreePlan
+                    ? SubscriptionService.GetNonExpiringEndDateUtc()
+                    : SubscriptionService.CalculateEndDate(sub.StartDate, sub.BillingCycle);
+
+                // Chỉ giữ 1 gói Active tại cùng thời điểm.
+                var previousActive = await _context.BoothOwnerSubscriptions
+                    .Where(s => s.OwnerId == sub.OwnerId
+                             && s.Id != sub.Id
+                             && s.Status == SubscriptionStatus.Active)
+                    .ToListAsync();
+
+                foreach (var item in previousActive)
+                {
+                    item.Status = SubscriptionStatus.Cancelled;
+                    item.CancelReason = "Được thay thế bởi gói mới đã duyệt.";
+                }
 
                 // Notification cho Owner
                 _context.OwnerNotifications.Add(new OwnerNotification
                 {
                     OwnerId = sub.OwnerId,
                     Title = "Đăng ký gói thành công!",
-                    Message = $"Gói {sub.Plan.Name} của bạn đã được kích hoạt. Hiệu lực đến {sub.EndDate:dd/MM/yyyy}. POI của bạn sẽ được hiển thị trên ứng dụng.",
+                    Message = approvedFreePlan
+                        ? $"Gói {sub.Plan.Name} của bạn đã được kích hoạt và không hết hạn. POI của bạn sẽ được hiển thị trên ứng dụng."
+                        : $"Gói {sub.Plan.Name} của bạn đã được kích hoạt. Hiệu lực đến {sub.EndDate:dd/MM/yyyy}. POI của bạn sẽ được hiển thị trên ứng dụng.",
                     IsRead = false,
                     CreatedAt = DateTime.UtcNow
                 });
@@ -462,6 +618,39 @@ public class SubscriptionsController : ControllerBase
     }
 
     /// <summary>
+    /// [Owner] Hủy yêu cầu đang chờ xác nhận của chính mình.
+    /// </summary>
+    // PUT api/subscriptions/{id}/owner-cancel?ownerId=123
+    [HttpPut("{id:int}/owner-cancel")]
+    public async Task<IActionResult> OwnerCancelPending(int id, [FromQuery] int ownerId)
+    {
+        await SyncSubscriptionStatesAsync(ownerId);
+
+        if (ownerId <= 0)
+            return BadRequest(new { message = "ownerId không hợp lệ." });
+
+        var sub = await _context.BoothOwnerSubscriptions
+            .Include(s => s.Owner)
+            .Include(s => s.Plan)
+            .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (sub is null)
+            return NotFound(new { message = "Subscription không tồn tại." });
+
+        if (sub.OwnerId != ownerId)
+            return BadRequest(new { message = "Bạn không có quyền hủy yêu cầu này." });
+
+        if (sub.Status != SubscriptionStatus.PendingPayment)
+            return BadRequest(new { message = "Chỉ có thể hủy yêu cầu đang chờ xác nhận." });
+
+        sub.Status = SubscriptionStatus.Cancelled;
+        sub.CancelReason = "Owner đã hủy yêu cầu trước khi Admin duyệt.";
+
+        await _context.SaveChangesAsync();
+        return NoContent();
+    }
+
+    /// <summary>
     /// [Admin] Trigger thủ công job expire subscription hết hạn.
     /// Trong production nên dùng background job (Hangfire / IHostedService).
     /// </summary>
@@ -471,6 +660,90 @@ public class SubscriptionsController : ControllerBase
     {
         var count = await _subscriptionService.ExpireOverdueSubscriptionsAsync();
         return Ok(new { message = $"Đã đánh dấu Expired {count} subscription hết hạn." });
+    }
+
+    private static bool IsFreePlan(SubscriptionPlan? plan)
+    {
+        if (plan is null) return false;
+
+        var normalizedName = NormalizePlanName(plan.Name);
+        return normalizedName == "mienphi" || (plan.PriceMonthly <= 0 && plan.PriceYearly <= 0);
+    }
+
+    private static string NormalizePlanName(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+
+        var decomposed = raw.Trim().Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(decomposed.Length);
+        foreach (var c in decomposed)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                builder.Append(c);
+        }
+
+        return builder.ToString().Normalize(NormalizationForm.FormC).ToLowerInvariant().Replace(" ", string.Empty);
+    }
+
+    private async Task SyncSubscriptionStatesAsync(int? ownerId = null)
+    {
+        await _subscriptionService.ExpireOverdueSubscriptionsAsync();
+        await AutoCancelExpiredPendingAsync(ownerId);
+    }
+
+    private async Task<bool> HasDuplicatePaymentReferenceAsync(string paymentReference)
+    {
+        return await _context.BoothOwnerSubscriptions
+            .AnyAsync(s => s.PaymentReference == paymentReference && PaymentRefUniqueStatuses.Contains(s.Status));
+    }
+
+    private async Task<string> GenerateUniquePaymentReferenceAsync()
+    {
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            var candidate = GenerateRandomPaymentReference();
+            if (!await HasDuplicatePaymentReferenceAsync(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new InvalidOperationException("Không thể tạo mã giao dịch duy nhất. Vui lòng thử lại.");
+    }
+
+    private static string GenerateRandomPaymentReference()
+    {
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        var randomSuffix = Convert.ToHexString(RandomNumberGenerator.GetBytes(3));
+        return $"STG-{timestamp}-{randomSuffix}";
+    }
+
+    private async Task<int> AutoCancelExpiredPendingAsync(int? ownerId = null)
+    {
+        var cutoff = DateTime.UtcNow.AddSeconds(-PendingTimeoutSeconds);
+
+        var query = _context.BoothOwnerSubscriptions
+            .Where(s => s.Status == SubscriptionStatus.PendingPayment && s.CreatedAt <= cutoff);
+
+        if (ownerId.HasValue)
+        {
+            query = query.Where(s => s.OwnerId == ownerId.Value);
+        }
+
+        var expiredPending = await query.ToListAsync();
+        if (expiredPending.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (var item in expiredPending)
+        {
+            item.Status = SubscriptionStatus.Cancelled;
+            item.CancelReason = $"Yêu cầu tự hết hạn sau {PendingTimeoutSeconds} giây chưa được duyệt.";
+        }
+
+        await _context.SaveChangesAsync();
+        return expiredPending.Count;
     }
 
     // ─── Mapper helper ───────────────────────────────────────────────────
@@ -492,8 +765,8 @@ public class SubscriptionsController : ControllerBase
             PaymentReference = s.PaymentReference,
             CancelReason = s.CancelReason,
             CreatedAt = s.CreatedAt,
-            DaysRemaining = s.Status == SubscriptionStatus.Active
-                               ? Math.Max(0, (int)(s.EndDate - now).TotalDays)
-                               : 0
+            DaysRemaining = s.Status != SubscriptionStatus.Active
+                ? 0
+                : (IsFreePlan(s.Plan) ? -1 : Math.Max(0, (int)(s.EndDate - now).TotalDays))
         };
 }

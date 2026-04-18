@@ -1,0 +1,647 @@
+@page "/admin/subscriptions"
+@using SmartTourGuide.Shared.DTOs
+@using SmartTourGuide.Web.Services
+@using SmartTourGuide.Web.Components.Shared
+@layout AdminLayout
+@inject SubscriptionApiService SubscriptionApi
+@inject ISnackbar Snackbar
+@inject NavigationManager NavManager
+@attribute [Authorize(Roles = "Admin")]
+@implements IAsyncDisposable
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudPaper Elevation="0" Class="pa-5 admin-subscription-hero mb-4">
+        <MudText Typo="Typo.overline" Style="opacity:.78; letter-spacing:.08em;">Bảng điều khiển quản trị</MudText>
+        <MudText Typo="Typo.h4" Style="font-weight:800;">Quản lý gói đăng ký</MudText>
+        <MudText Typo="Typo.body2" Style="opacity:.9; max-width: 800px;">
+            Duyệt yêu cầu đăng ký của chủ gian hàng, quản lý danh mục gói và theo dõi lịch sử đăng ký.
+        </MudText>
+    </MudPaper>
+
+    @if (_loading)
+    {
+        <MudPaper Class="pa-6">
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-3" />
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Đang tải dữ liệu gói đăng ký...</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudTabs Rounded="true" Elevation="2" PanelClass="pa-4" @bind-ActivePanelIndex="_activeTabIndex">
+            <MudTabPanel Text="Chờ xác nhận">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                    <MudText Typo="Typo.h6">Danh sách chờ xác nhận (@_pendingSubscriptions.Count)</MudText>
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Refresh" OnClick="@(() => ReloadAllAsync())">
+                            Tải lại
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.Autorenew" OnClick="ResetCurrentPage">
+                            Reset trang
+                        </MudButton>
+                    </MudStack>
+                </MudStack>
+
+                @if (GetPendingOverdueCount() > 0)
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true" Class="mb-3">
+                        Có @GetPendingOverdueCount() yêu cầu đã quá hạn @PendingOverdueSeconds giây và cần xử lý ngay.
+                    </MudAlert>
+                }
+
+                @if (_pendingSubscriptions.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">Không có yêu cầu nào đang chờ xác nhận.
+                    </MudAlert>
+                }
+
+                <MudTable Items="_pendingSubscriptions" Dense="true" Hover="true" Striped="true">
+                    <HeaderContent>
+                        <MudTh>Chủ gian hàng</MudTh>
+                        <MudTh>Gói</MudTh>
+                        <MudTh>Chu kỳ</MudTh>
+                        <MudTh>Số tiền</MudTh>
+                        <MudTh>Phương thức</MudTh>
+                        <MudTh>Mã GD</MudTh>
+                        <MudTh>Ngày tạo</MudTh>
+                        <MudTh>Tình trạng</MudTh>
+                        <MudTh>Xử lý</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.OwnerName (@context.OwnerId)</MudTd>
+                        <MudTd>@context.PlanName</MudTd>
+                        <MudTd>@context.BillingCycle</MudTd>
+                        <MudTd>@FormatCurrency(context.AmountPaid)</MudTd>
+                        <MudTd>@context.PaymentMethod</MudTd>
+                        <MudTd>@(string.IsNullOrWhiteSpace(context.PaymentReference) ? "-" : context.PaymentReference)
+                        </MudTd>
+                        <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="@(IsPendingOverdue(context) ? Color.Error : Color.Success)">
+                                @(IsPendingOverdue(context) ? $"Đã quá hạn {PendingOverdueSeconds}s" : "Trong hạn")
+                            </MudChip>
+                        </MudTd>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="1">
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success"
+                                           OnClick="@(() => OpenReview(context, "approve"))">
+                                    Duyệt
+                                </MudButton>
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+                                           OnClick="@(() => OpenReview(context, "reject"))">
+                                    Từ chối
+                                </MudButton>
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Không có dữ liệu.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+
+                @if (_reviewTarget is not null)
+                {
+                    <MudPaper Class="pa-4 mt-4 review-panel" Elevation="0">
+                        <MudText Typo="Typo.h6" Class="mb-2">Xác nhận xử lý yêu cầu</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-2">
+                            Chủ gian hàng: <b>@_reviewTarget.OwnerName</b> | Gói: <b>@_reviewTarget.PlanName</b> | Hành động:
+                            <b>@_reviewAction.ToUpperInvariant()</b>
+                        </MudText>
+
+                        <MudTextField T="string" Label="Lý do (khuyến nghị khi từ chối/hủy)" Variant="Variant.Outlined"
+                                      Lines="2" @bind-Value="_reviewReason" />
+
+                        <MudStack Row="true" Class="mt-3" Spacing="2">
+                            <MudButton Variant="Variant.Filled"
+                                       Color="@(_reviewAction == "approve" ? Color.Success : Color.Error)"
+                                       OnClick="ConfirmReviewAsync">
+                                Xác nhận
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="CancelReview">Hủy</MudButton>
+                        </MudStack>
+                    </MudPaper>
+                }
+            </MudTabPanel>
+
+            <MudTabPanel Text="Quản lý gói">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                    <MudText Typo="Typo.h6">Cấu hình gói Pro duy nhất</MudText>
+                    <MudStack Row="true" Spacing="2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Schedule"
+                                   OnClick="RunExpireCheckAsync">
+                            Kiểm tra hết hạn
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Refresh" OnClick="@(() => ReloadAllAsync())">
+                            Tải lại
+                        </MudButton>
+                    </MudStack>
+                </MudStack>
+
+                <MudPaper Class="pa-4 mb-4" Elevation="0" Style="border:1px solid var(--mud-palette-divider);">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3" Style="font-weight:700;">
+                        Cập nhật cấu hình gói Pro
+                    </MudText>
+
+                    <MudGrid>
+                        <MudItem xs="12" md="6">
+                            <MudTextField Label="Loại gói" Variant="Variant.Outlined" Value="@("Pro")" Disabled="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudTextField Label="Số POI Active" Variant="Variant.Outlined" Value="@("1")" Disabled="true" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudNumericField T="decimal" Label="Giá theo tháng" Variant="Variant.Outlined" Min="0"
+                                             @bind-Value="_planForm.PriceMonthly" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudNumericField T="decimal" Label="Giá theo năm" Variant="Variant.Outlined" Min="0"
+                                             @bind-Value="_planForm.PriceYearly" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField Label="Mô tả" Variant="Variant.Outlined" Lines="2"
+                                          @bind-Value="_planForm.Description" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudSwitch T="bool" Color="Color.Primary" Label="Đang hoạt động"
+                                       @bind-Value="_planForm.IsActive" />
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudStack Row="true" Spacing="2" Class="mt-3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SavePlanAsync">
+                            Lưu cấu hình
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+
+                <MudTable Items="_plans" Dense="true" Hover="true" Striped="true">
+                    <HeaderContent>
+                        <MudTh>Tên gói</MudTh>
+                        <MudTh>Giá tháng</MudTh>
+                        <MudTh>Giá năm</MudTh>
+                        <MudTh>Max POI</MudTh>
+                        <MudTh>Trạng thái</MudTh>
+                        <MudTh>Hành động</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        @{
+                            var isFreePlan = IsFreePlanName(context.Name);
+                        }
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd>@FormatCurrency(context.PriceMonthly)</MudTd>
+                        <MudTd>@FormatCurrency(context.PriceYearly)</MudTd>
+                        <MudTd>@FormatMaxActivePois(context.MaxActivePois)</MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small"
+                                     Color="@(context.IsActive ? Color.Success : Color.Default)">
+                                @(context.IsActive ? "Đang hoạt động" : "Không hoạt động")
+                            </MudChip>
+                        </MudTd>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="1">
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                           Disabled="@isFreePlan" OnClick="@(() => EditPlan(context))">Sửa</MudButton>
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+                                           Disabled="@(!context.IsActive || isFreePlan)"
+                                           OnClick="@(() => DeactivatePlanAsync(context.Id))">
+                                    Ẩn gói
+                                </MudButton>
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Lịch sử">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                    <MudText Typo="Typo.h6">Tất cả đăng ký (@_allSubscriptions.Count)</MudText>
+                    <MudSelect T="string" Variant="Variant.Outlined" Label="Lọc trạng thái" Value="@_statusFilter"
+                               ValueChanged="OnStatusFilterChanged" Style="min-width:220px;">
+                        <MudSelectItem Value="@AllStatusFilterValue">Tất cả</MudSelectItem>
+                        <MudSelectItem Value="@("PendingPayment")">Chờ xác nhận</MudSelectItem>
+                        <MudSelectItem Value="@("Active")">Đang hoạt động</MudSelectItem>
+                        <MudSelectItem Value="@("Expired")">Đã hết hạn</MudSelectItem>
+                        <MudSelectItem Value="@("Cancelled")">Đã hủy</MudSelectItem>
+                    </MudSelect>
+                </MudStack>
+
+                <MudTable Items="_allSubscriptions" Dense="true" Hover="true" Striped="true">
+                    <HeaderContent>
+                        <MudTh>Chủ gian hàng</MudTh>
+                        <MudTh>Gói</MudTh>
+                        <MudTh>Trạng thái</MudTh>
+                        <MudTh>Chu kỳ</MudTh>
+                        <MudTh>Số tiền</MudTh>
+                        <MudTh>Hiệu lực</MudTh>
+                        <MudTh>Còn lại</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.OwnerName (@context.OwnerId)</MudTd>
+                        <MudTd>@context.PlanName</MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context)">
+                                @GetStatusLabel(context)
+                            </MudChip>
+                        </MudTd>
+                        <MudTd>@context.BillingCycle</MudTd>
+                        <MudTd>@FormatCurrency(context.AmountPaid)</MudTd>
+                        <MudTd>@context.StartDate.ToLocalTime().ToString("dd/MM/yyyy") -
+                            @context.EndDate.ToLocalTime().ToString("dd/MM/yyyy")</MudTd>
+                            <MudTd>@context.DaysRemaining ngày</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </MudContainer>
+
+@code {
+    private bool _loading = true;
+    private bool _isReloading;
+    private int _activeTabIndex;
+    private List<BoothOwnerSubscriptionDto> _pendingSubscriptions = new();
+    private List<BoothOwnerSubscriptionDto> _allSubscriptions = new();
+    private List<SubscriptionPlanDto> _plans = new();
+    private const string AllStatusFilterValue = "ALL";
+    private const int PendingOverdueSeconds = 20;
+    private static readonly TimeSpan AdminAutoRefreshInterval = TimeSpan.FromSeconds(2);
+    private CancellationTokenSource? _autoRefreshCts;
+    private Task? _autoRefreshTask;
+
+    private BoothOwnerSubscriptionDto? _reviewTarget;
+    private string _reviewAction = "approve";
+    private string? _reviewReason;
+
+    private readonly UpsertSubscriptionPlanDto _planForm = new()
+    {
+        Name = "Pro",
+        Description = string.Empty,
+        PriceMonthly = 0,
+        PriceYearly = 0,
+        MaxActivePois = 1,
+        IsActive = true
+    };
+    private int _editingPlanId;
+    private string _statusFilter = AllStatusFilterValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAllAsync();
+        StartAutoRefresh();
+    }
+
+    private async Task ReloadAllAsync(bool showLoading = true, bool showErrorToast = true)
+    {
+        if (_isReloading)
+        {
+            return;
+        }
+
+        _isReloading = true;
+        if (showLoading)
+        {
+            _loading = true;
+        }
+
+        try
+        {
+            var pendingTask = SubscriptionApi.GetPendingAsync();
+            var plansTask = SubscriptionApi.GetAllPlansAsync();
+            var allTask = SubscriptionApi.GetAllSubscriptionsAsync(
+                _statusFilter == AllStatusFilterValue ? string.Empty : _statusFilter);
+
+            await Task.WhenAll(pendingTask, plansTask, allTask);
+
+            _pendingSubscriptions = pendingTask.Result;
+            _plans = plansTask.Result;
+            _allSubscriptions = allTask.Result;
+
+            var currentPro = _plans
+                .Where(p => !IsFreePlanName(p.Name))
+                .OrderByDescending(p => p.Id)
+                .FirstOrDefault();
+
+            if (currentPro is not null)
+            {
+                _plans = new List<SubscriptionPlanDto> { currentPro };
+                _editingPlanId = currentPro.Id;
+                _planForm.Name = "Pro";
+                _planForm.Description = currentPro.Description;
+                _planForm.PriceMonthly = currentPro.PriceMonthly;
+                _planForm.PriceYearly = currentPro.PriceYearly;
+                _planForm.MaxActivePois = 1;
+                _planForm.IsActive = currentPro.IsActive;
+            }
+            else
+            {
+                _plans = new List<SubscriptionPlanDto>();
+                _editingPlanId = 0;
+                ResetPlanForm();
+            }
+        }
+        catch (Exception ex)
+        {
+            if (showErrorToast)
+            {
+                Snackbar.Add($"Lỗi tải dữ liệu subscription: {ex.Message}", Severity.Error);
+            }
+        }
+        finally
+        {
+            _loading = false;
+            _isReloading = false;
+        }
+    }
+
+    private void StartAutoRefresh()
+    {
+        _autoRefreshCts = new CancellationTokenSource();
+        _autoRefreshTask = Task.Run(() => AutoRefreshLoopAsync(_autoRefreshCts.Token));
+    }
+
+    private async Task AutoRefreshLoopAsync(CancellationToken token)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(AdminAutoRefreshInterval);
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                await InvokeAsync(async () => await ReloadAllAsync(showLoading: false, showErrorToast: false));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Component disposed.
+        }
+    }
+
+    private void OpenReview(BoothOwnerSubscriptionDto target, string action)
+    {
+        _reviewTarget = target;
+        _reviewAction = action;
+        _reviewReason = string.Empty;
+    }
+
+    private void CancelReview()
+    {
+        _reviewTarget = null;
+        _reviewAction = "approve";
+        _reviewReason = string.Empty;
+    }
+
+    private async Task ConfirmReviewAsync()
+    {
+        if (_reviewTarget is null) return;
+
+        try
+        {
+            await SubscriptionApi.ReviewSubscriptionAsync(_reviewTarget.Id, new ReviewSubscriptionDto
+            {
+                Action = _reviewAction,
+                Reason = string.IsNullOrWhiteSpace(_reviewReason) ? null : _reviewReason.Trim()
+            });
+
+            Snackbar.Add("Đã xử lý subscription thành công.", Severity.Success);
+            CancelReview();
+            await ReloadAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Không thể xử lý: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RunExpireCheckAsync()
+    {
+        try
+        {
+            var message = await SubscriptionApi.ExpireCheckAsync();
+            Snackbar.Add(message, Severity.Info);
+            await ReloadAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Kiểm tra hết hạn thất bại: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void EditPlan(SubscriptionPlanDto plan)
+    {
+        if (IsFreePlanName(plan.Name))
+        {
+            Snackbar.Add("Gói Miễn phí là mặc định hệ thống, không thể chỉnh sửa.", Severity.Warning);
+            return;
+        }
+
+        _editingPlanId = plan.Id;
+        _planForm.Name = "Pro";
+        _planForm.Description = plan.Description;
+        _planForm.PriceMonthly = plan.PriceMonthly;
+        _planForm.PriceYearly = plan.PriceYearly;
+        _planForm.MaxActivePois = 1;
+        _planForm.IsActive = plan.IsActive;
+    }
+
+    private void ResetPlanForm()
+    {
+        _editingPlanId = 0;
+        _planForm.Name = "Pro";
+        _planForm.Description = string.Empty;
+        _planForm.PriceMonthly = 0;
+        _planForm.PriceYearly = 0;
+        _planForm.MaxActivePois = 1;
+        _planForm.IsActive = true;
+    }
+
+    private async Task SavePlanAsync()
+    {
+        _planForm.Name = "Pro";
+        _planForm.MaxActivePois = 1;
+
+        if (_planForm.PriceMonthly <= 0 || _planForm.PriceYearly <= 0)
+        {
+            Snackbar.Add("Gói Pro yêu cầu giá theo tháng và theo năm lớn hơn 0.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (_editingPlanId > 0)
+            {
+                await SubscriptionApi.UpdatePlanAsync(_editingPlanId, _planForm);
+                Snackbar.Add("Đã lưu cấu hình gói Pro.", Severity.Success);
+            }
+            else
+            {
+                await SubscriptionApi.CreatePlanAsync(_planForm);
+                Snackbar.Add("Đã tạo cấu hình gói Pro.", Severity.Success);
+            }
+
+            await ReloadAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lưu gói thất bại: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static bool IsFreePlanName(string? planName)
+    {
+        if (string.IsNullOrWhiteSpace(planName)) return false;
+
+        var normalized = planName.Trim().ToLowerInvariant();
+        return normalized.Contains("miễn phí") || normalized.Contains("mien phi") || normalized == "free";
+    }
+
+    private async Task DeactivatePlanAsync(int id)
+    {
+        try
+        {
+            await SubscriptionApi.DeactivatePlanAsync(id);
+            Snackbar.Add("Đã ẩn gói thành công.", Severity.Success);
+            if (_editingPlanId == id)
+            {
+                ResetPlanForm();
+            }
+
+            await ReloadAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Ẩn gói thất bại: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OnStatusFilterChanged(string value)
+    {
+        _statusFilter = value;
+        _activeTabIndex = 2;
+        await ReloadAllAsync(showLoading: false);
+    }
+
+    private void ResetCurrentPage()
+    {
+        NavManager.NavigateTo(NavManager.Uri, forceLoad: true);
+    }
+
+    private static string FormatCurrency(decimal amount)
+    {
+        return string.Format("{0:N0} VND", amount);
+    }
+
+    private static string FormatMaxActivePois(int maxActivePois)
+    {
+        return "Full POI";
+    }
+
+    private int GetPendingOverdueCount()
+    {
+        return _pendingSubscriptions.Count(IsPendingOverdue);
+    }
+
+    private static bool IsPendingOverdue(BoothOwnerSubscriptionDto subscription)
+    {
+        if (subscription.Status != "PendingPayment") return false;
+
+        var createdAtUtc = EnsureUtc(subscription.CreatedAt);
+        return DateTime.UtcNow - createdAtUtc >= TimeSpan.FromSeconds(PendingOverdueSeconds);
+    }
+
+    private static bool IsCancelledByTimeout(BoothOwnerSubscriptionDto subscription)
+    {
+        if (subscription.Status != "Cancelled") return false;
+        if (string.IsNullOrWhiteSpace(subscription.CancelReason)) return false;
+
+        var reason = subscription.CancelReason.ToLowerInvariant();
+        return reason.Contains("giây")
+            || reason.Contains("giay")
+            || reason.Contains("quá hạn")
+            || reason.Contains("qua han")
+            || reason.Contains("timeout")
+            || reason.Contains("auto");
+    }
+
+    private static DateTime EnsureUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+    }
+
+    private static Color GetStatusColor(BoothOwnerSubscriptionDto subscription)
+    {
+        if (IsCancelledByTimeout(subscription))
+            return Color.Warning;
+
+        return subscription.Status switch
+        {
+            "Active" => Color.Success,
+            "PendingPayment" => Color.Warning,
+            "Expired" => Color.Info,
+            "Cancelled" => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private static string GetStatusLabel(BoothOwnerSubscriptionDto subscription)
+    {
+        if (IsCancelledByTimeout(subscription))
+            return "Đã hủy (quá hạn thời gian chờ)";
+
+        return subscription.Status switch
+        {
+            "Active" => "Đang hoạt động",
+            "PendingPayment" => "Chờ xác nhận",
+            "Expired" => "Đã hết hạn",
+            "Cancelled" => "Đã hủy",
+            _ => subscription.Status ?? "Không xác định"
+        };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_autoRefreshCts is null)
+        {
+            return;
+        }
+
+        _autoRefreshCts.Cancel();
+
+        if (_autoRefreshTask is not null)
+        {
+            try
+            {
+                await _autoRefreshTask;
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore cancellation during shutdown.
+            }
+        }
+
+        _autoRefreshCts.Dispose();
+    }
+}
+
+<style>
+    .admin-subscription-hero {
+        border-radius: 20px;
+        color: #f8fafc;
+        background:
+            radial-gradient(circle at top left, rgba(56, 189, 248, 0.2), transparent 32%),
+            radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.18), transparent 28%),
+            linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95));
+    }
+
+    .review-panel {
+        border-radius: 14px;
+        border: 1px solid var(--mud-palette-divider);
+        background: rgba(148, 163, 184, 0.06);
+    }
+</style>

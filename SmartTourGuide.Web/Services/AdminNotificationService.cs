@@ -23,6 +23,18 @@ public class AdminNotificationService
         var response = await _http.PutAsync($"api/notifications/admin/{notificationId}/read", null);
         return response.IsSuccessStatusCode;
     }
+
+    public async Task<bool> MarkAllAsReadAsync()
+    {
+        var response = await _http.PutAsync("api/notifications/admin/read-all", null);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DeleteAllAsync()
+    {
+        var response = await _http.DeleteAsync("api/notifications/admin/all");
+        return response.IsSuccessStatusCode;
+    }
 }
 
 public class AdminNotificationResponse

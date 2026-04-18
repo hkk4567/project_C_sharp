@@ -55,6 +55,7 @@ builder.Services.AddScoped<HttpClient>(sp =>
 
 // 5. Đăng ký các Service nghiệp vụ
 builder.Services.AddScoped<PoiApiService>();
+builder.Services.AddScoped<SubscriptionApiService>();
 builder.Services.AddScoped<AnalyticsApiService>();
 builder.Services.AddScoped<OwnerAnalyticsApiService>();
 builder.Services.AddScoped<OwnerNotificationService>();
