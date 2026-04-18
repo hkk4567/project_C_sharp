@@ -34,12 +34,14 @@ public class PoisController : ControllerBase
     private readonly FileStorageService _fileService;
     // Cần thiết khi xóa file vật lý trong wwwroot.
     private readonly IWebHostEnvironment _env;
+    private readonly SubscriptionService _subscriptionService;
 
-    public PoisController(AppDbContext context, FileStorageService fileService, IWebHostEnvironment env)
+    public PoisController(AppDbContext context, FileStorageService fileService, IWebHostEnvironment env, SubscriptionService subscriptionService)
     {
         _context = context;
         _fileService = fileService;
         _env = env;
+        _subscriptionService = subscriptionService;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -86,11 +88,17 @@ public class PoisController : ControllerBase
     [HttpGet("mobile")]
     public async Task<ActionResult<IEnumerable<PoiDto>>> GetMobilePois([FromQuery] string langCode = "vi-VN")
     {
+        var now = DateTime.UtcNow;
+
         // Chỉ lấy POI đang Active để app mobile hiển thị dữ liệu đã duyệt.
         var query = _context.Pois
             .Include(p => p.GeofenceSetting)
             .Include(p => p.MediaAssets)
-            .Where(p => p.Status == PoiStatus.Active)
+            .Where(p => p.Status == PoiStatus.Active
+                     && _context.BoothOwnerSubscriptions.Any(s =>
+                         s.OwnerId == p.OwnerId &&
+                         s.Status == SubscriptionStatus.Active &&
+                         s.EndDate > now))
             .AsQueryable();
 
         // Lấy bản dịch theo ngôn ngữ ngay trong truy vấn để giảm round-trip DB.

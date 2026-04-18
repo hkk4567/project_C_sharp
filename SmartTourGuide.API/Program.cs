@@ -25,6 +25,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Đăng ký FileService
 builder.Services.AddScoped<FileStorageService>();
+builder.Services.AddScoped<SubscriptionService>();
 
 builder.Services.AddCors(options =>
 {

@@ -27,6 +27,8 @@ namespace SmartTourGuide.API.Data
         public DbSet<OwnerNotification> OwnerNotifications { get; set; }
         public DbSet<AdminNotification> AdminNotifications { get; set; }
         public DbSet<QrScanLog> QrScanLogs => Set<QrScanLog>();
+        public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
+        public DbSet<BoothOwnerSubscription> BoothOwnerSubscriptions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -166,6 +168,35 @@ namespace SmartTourGuide.API.Data
                     .WithMany()
                     .HasForeignKey(x => x.PoiId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // SubscriptionPlan: bảng danh mục gói
+            modelBuilder.Entity<SubscriptionPlan>().ToTable("SubscriptionPlans");
+
+            // BoothOwnerSubscription: lịch sử đăng ký của từng owner
+            modelBuilder.Entity<BoothOwnerSubscription>(entity =>
+            {
+                entity.ToTable("BoothOwnerSubscriptions");
+
+                // Khóa ngoại Owner → User
+                entity.HasOne(s => s.Owner)
+                    .WithMany() // User không cần navigation ngược
+                    .HasForeignKey(s => s.OwnerId)
+                    .OnDelete(DeleteBehavior.Cascade); // Xóa user → xóa lịch sử sub
+
+                // Khóa ngoại Plan → SubscriptionPlan
+                entity.HasOne(s => s.Plan)
+                    .WithMany(p => p.Subscriptions)
+                    .HasForeignKey(s => s.PlanId)
+                    .OnDelete(DeleteBehavior.Restrict); // Giữ lại lịch sử dù Admin ẩn gói
+
+                // Index tối ưu truy vấn kiểm tra active subscription
+                entity.HasIndex(s => new { s.OwnerId, s.Status })
+                    .HasDatabaseName("IX_BoothOwnerSubscriptions_OwnerId_Status");
+
+                // Index tối ưu job expire
+                entity.HasIndex(s => s.EndDate)
+                    .HasDatabaseName("IX_BoothOwnerSubscriptions_EndDate");
             });
         }
     }
