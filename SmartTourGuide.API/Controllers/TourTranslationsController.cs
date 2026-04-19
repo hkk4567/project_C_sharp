@@ -70,7 +70,9 @@ public class TourTranslationsController : ControllerBase
 
     // ─────────────────────────────────────────────────────────────
     // 2. GET bản dịch của 1 Tour theo ngôn ngữ cụ thể
-    //    GET: api/tour-translations/{tourId}/{langCode}
+    //    GET: api/tour-translations/{tourId}/{
+    // 
+    // Code}
     //    VD:  GET: api/tour-translations/5/en-US
     // ─────────────────────────────────────────────────────────────
     [HttpGet("{tourId}/{langCode}")]

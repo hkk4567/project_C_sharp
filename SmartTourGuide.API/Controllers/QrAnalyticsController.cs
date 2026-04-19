@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SmartTourGuide.API.Data;
+using SmartTourGuide.API.Services;
 
 using SmartTourGuide.Shared.DTOs;
 using SmartTourGuide.Shared.Enums;
@@ -29,14 +30,14 @@ public class QrAnalyticsController : ControllerBase
         var recentLogExists = await _context.QrScanLogs
             .AnyAsync(log => log.PoiId == poiId
                           && log.DeviceId == deviceId
-                          && log.ScannedAt >= DateTime.UtcNow.AddSeconds(-1));
+                          && log.ScannedAt >= VietnamTime.Now.AddSeconds(-1));
 
         if (!recentLogExists)
         {
             _context.QrScanLogs.Add(new Data.Entities.QrScanLog
             {
                 PoiId = poiId,
-                ScannedAt = DateTime.UtcNow,
+                ScannedAt = VietnamTime.Now,
                 DeviceId = deviceId,
                 UserAgent = userAgent + " (MobileApp)"
             });

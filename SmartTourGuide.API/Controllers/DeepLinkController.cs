@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SmartTourGuide.API.Data;
 using Microsoft.EntityFrameworkCore;
 using SmartTourGuide.API.Data.Entities;
+using SmartTourGuide.API.Services;
 
 namespace SmartTourGuide.API.Controllers;
 
@@ -103,14 +104,14 @@ public class DeepLinkController : Controller
         var recentLogExists = await _context.QrScanLogs
             .AnyAsync(log => log.PoiId == poiId
                           && log.DeviceId == deviceId
-                          && log.ScannedAt >= DateTime.UtcNow.AddSeconds(-1));
+                  && log.ScannedAt >= VietnamTime.Now.AddSeconds(-1));
 
         if (!recentLogExists)
         {
           _context.QrScanLogs.Add(new QrScanLog
           {
             PoiId = poiId,
-            ScannedAt = DateTime.UtcNow,
+            ScannedAt = VietnamTime.Now,
             DeviceId = deviceId,
             UserAgent = userAgent
           });
