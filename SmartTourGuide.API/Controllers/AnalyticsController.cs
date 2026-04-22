@@ -297,7 +297,7 @@ public class AnalyticsController : ControllerBase
             AvgDurationSecMonth = Math.Round(avgDuration, 1)
         });
     }
-
+    // Admin dashboard tổng hợp nhiều chỉ số để hiển thị trên một trang duy nhất.
     [HttpGet("admin/summary")]
     public async Task<ActionResult<AdminDashboardSummaryDto>> GetAdminSummary()
     {
